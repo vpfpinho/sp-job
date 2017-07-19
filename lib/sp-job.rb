@@ -17,8 +17,19 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-module Sp
-  module Job
-    VERSION = File.read(File.expand_path('../../../../VERSION', __FILE__)).strip
-  end
-end
+require 'redis'
+require 'beaneater'
+require 'byebug'
+require 'json'
+require 'awesome_print'
+require 'fileutils'
+require 'concurrent'
+require 'optparse'
+require 'colorize'
+require 'os'
+require 'rollbar'
+require 'sp/job/version'
+require 'sp/job/bean_runner'
+require 'sp/job/uploaded_image_converter'
+
+require File.expand_path(File.join(File.dirname(__FILE__), 'sp', 'job'))
