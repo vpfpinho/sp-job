@@ -32,8 +32,8 @@ module Sp
 
       def process (job)
         step        = 100 / (job[:copies].size + 1)
-        original    = File.join($config[:paths][:temporary_uploads], job[:original])
-        destination = File.join($config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
+        original    = File.join(@@config[:paths][:temporary_uploads], job[:original])
+        destination = File.join(@@config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
 
         ap job
     

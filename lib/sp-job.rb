@@ -17,17 +17,18 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'byebug'
+require 'awesome_print'
+require 'rollbar'
 require 'redis'
 require 'beaneater'
-require 'byebug'
 require 'json'
-require 'awesome_print'
 require 'fileutils'
 require 'concurrent'
 require 'optparse'
 require 'colorize'
 require 'os'
-require 'rollbar'
+require 'pg'
 require 'sp/job/version'
 require 'sp/job/bean_runner'
 require 'sp/job/uploaded_image_converter'

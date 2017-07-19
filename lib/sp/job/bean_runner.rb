@@ -26,18 +26,68 @@ module Sp
   module Job
     class BeanRunner
     
+      @@prefix        = nil
+      @@rollbar       = false
+      @@bury          = false
+      @@tube          = nil
+      @@args          = {}
+      @@min_progress  = 3
+      @@option_parser = nil
+      @@config        = nil
+
+      def self.static_initialization
+        unless @@prefix.nil?
+          return
+        end
+        @@prefix  = OS.mac? ? '/usr/local' : '/'
+        @@tube    = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
+        @@args[:program_name] = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
+        @@args[:config_file]  = File.join(@@prefix, 'etc', @@args[:program_name], 'conf.json')
+
+        #
+        # Parse command line arguments
+        #
+        @@option_parser = OptionParser.new do |opts|
+          opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
+          opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{@@args[:config_file]}')") { |v| @@args[:config_file] = File.expand_path(v) }
+        end
+        @@option_parser.parse!
+        
+        #
+        # Read configuration
+        #
+        @@config = JSON.parse(File.read(File.expand_path(@@args[:config_file])), symbolize_names: true)
+        @@min_progress = @@config[:options] && @@config[:options][:min_progress] ? @@config[:options][:min_progress] : 3
+        @@bury         = @@config[:options] && @@config[:options][:bury] == true
+        
+        #
+        # Configure rollbar
+        #
+        unless @@config[:rollbar].nil?
+          @@rollbar = true
+          Rollbar.configure do |config|
+            config.access_token = @@config[:rollbar][:token] if @@config[:rollbar][:token]
+            config.environment  = @@config[:rollbar][:environment] if @@config[:rollbar] && @@config[:rollbar][:environment]
+          end  
+        end      
+      end
+
       def initialize
+        BeanRunner.static_initialization
         @progress      = 0
-        @beanstalk     = Beaneater.new("#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}")
-        @redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+        @beanstalk     = Beaneater.new("#{@@config[:beanstalkd][:host]}:#{@@config[:beanstalkd][:port]}")
+        @redis         = Redis.new(:host => @@config[:redis][:host], :port => @@config[:redis][:port], :db => 0)
         @status_dirty  = Concurrent::AtomicBoolean.new
-        @status_timer  = Concurrent::TimerTask.new(execution_interval: $min_progress) do
+        @status_timer  = Concurrent::TimerTask.new(execution_interval: @@min_progress) do
           if @status_dirty.true?
             @status_dirty.make_false
             update_job_status_on_redis
           else
             @status_timer.shutdown
           end
+        end
+        unless @@config[:postgres].nil? || @@config[:postgres][:conn_str].nil?
+          @pg = PG.connect(@@config[:postgres][:conn_str])
         end
         puts "Yupi connected to #{@beanstalk.connection}"
       end
@@ -52,20 +102,20 @@ module Sp
       end
     
       def run
-        @beanstalk.jobs.register($tube) do |job|
+        @beanstalk.jobs.register(@@tube) do |job|
           begin
             @job_status = {}
             @job_status[:progress] = 0
             job_body               = JSON.parse(job.body, symbolize_names: true)
-            @redis_key             = $tube + '/' + job_body[:id]
+            @redis_key             = @@tube + '/' + job_body[:id]
             @validity              = job_body[:validity].nil? ? 300 : job_body[:validity].to_i
             process(job_body) 
           rescue Exception => e
             update_progress(status: 'error', message: e)
-            if $rollbar 
+            if @@rollbar 
               Rollbar.error(e)
             end
-            if $bury
+            if @@bury
               raise e
             end
           end
@@ -106,38 +156,3 @@ module Sp
   end
 end
 
-$prefix  = OS.mac? ? '/usr/local' : '/'
-$tube    = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
-$rollbar = false
-$bury    = false
-
-#
-# Parse command line arguments
-#
-$args = {}
-$args[:program_name] = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
-$args[:config_file]  = File.join($prefix, 'etc', $args[:program_name], 'conf.json')
-
-$option_parser = OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
-  opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:config_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
-end
-$option_parser.parse!
-
-#
-# Read configuration
-#
-$config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize_names: true)
-$min_progress = $config[:options] && $config[:options][:min_progress] ? $config[:options][:min_progress] : 3
-$bury         = $config[:options] && $config[:options][:bury] == true
-
-#
-# Configure rollbar
-#
-unless $config[:rollbar].nil?
-  $rollbar = true
-  Rollbar.configure do |config|
-    config.access_token = $config[:rollbar][:token] if $config[:rollbar][:token]
-    config.environment  = $config[:rollbar][:environment] if $config[:rollbar] && $config[:rollbar][:environment]
-  end  
-end
