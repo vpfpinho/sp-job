@@ -25,7 +25,7 @@
 module Sp
   module Job
     class BeanRunner
-    
+
       @@prefix        = nil
       @@rollbar       = false
       @@bury          = false
@@ -52,14 +52,14 @@ module Sp
           opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{@@args[:config_file]}')") { |v| @@args[:config_file] = File.expand_path(v) }
         end
         @@option_parser.parse!
-        
+
         #
         # Read configuration
         #
         @@config = JSON.parse(File.read(File.expand_path(@@args[:config_file])), symbolize_names: true)
         @@min_progress = @@config[:options] && @@config[:options][:min_progress] ? @@config[:options][:min_progress] : 3
         @@bury         = @@config[:options] && @@config[:options][:bury] == true
-        
+
         #
         # Configure rollbar
         #
@@ -68,17 +68,18 @@ module Sp
           Rollbar.configure do |config|
             config.access_token = @@config[:rollbar][:token] if @@config[:rollbar][:token]
             config.environment  = @@config[:rollbar][:environment] if @@config[:rollbar] && @@config[:rollbar][:environment]
-          end  
-        end      
+          end
+        end
       end
 
       def initialize
         BeanRunner.static_initialization
-        @progress      = 0
-        @beanstalk     = Beaneater.new("#{@@config[:beanstalkd][:host]}:#{@@config[:beanstalkd][:port]}")
-        @redis         = Redis.new(:host => @@config[:redis][:host], :port => @@config[:redis][:port], :db => 0)
-        @status_dirty  = Concurrent::AtomicBoolean.new
-        @status_timer  = Concurrent::TimerTask.new(execution_interval: @@min_progress) do
+        @progress           = 0
+        @check_db_life_span = false
+        @beanstalk          = Beaneater.new("#{@@config[:beanstalkd][:host]}:#{@@config[:beanstalkd][:port]}")
+        @redis              = Redis.new(:host => @@config[:redis][:host], :port => @@config[:redis][:port], :db => 0)
+        @status_dirty       = Concurrent::AtomicBoolean.new
+        @status_timer       = Concurrent::TimerTask.new(execution_interval: @@min_progress) do
           if @status_dirty.true?
             @status_dirty.make_false
             update_job_status_on_redis
@@ -86,21 +87,19 @@ module Sp
             @status_timer.shutdown
           end
         end
-        unless @@config[:postgres].nil? || @@config[:postgres][:conn_str].nil?
-          @pg = PG.connect(@@config[:postgres][:conn_str])
-        end
+        database_connect()
         puts "Yupi connected to #{@beanstalk.connection}"
       end
-    
+
       def id_to_path (id)
         "%03d/%03d/%03d/%03d" % [
           (id % 1000000000000) / 1000000000,
           (id % 1000000000)    / 1000000   ,
           (id % 1000000)       / 1000      ,
-          (id % 1000) 
+          (id % 1000)
         ]
       end
-    
+
       def run
         @beanstalk.jobs.register(@@tube) do |job|
           begin
@@ -109,10 +108,15 @@ module Sp
             job_body               = JSON.parse(job.body, symbolize_names: true)
             @redis_key             = @@config[:service_id] + ':' + @@tube + ':' + job_body[:id]
             @validity              = job_body[:validity].nil? ? 300 : job_body[:validity].to_i
-            process(job_body) 
+            if @@config[:options] && @@config[:options][:jsonapi] == true
+              raise "Job didn't specify the mandatory field prefix!" if job_body[:prefix].blank?
+              @jsonapi.set_url(job_body[:prefix])
+            end
+            process(job_body)
           rescue Exception => e
+            puts [e, e.backtrace] if @@config[:options] && @@config[:options][:debug_exceptions]
             update_progress(status: 'error', message: e)
-            if @@rollbar 
+            if @@rollbar
               Rollbar.error(e)
             end
             if @@bury
@@ -123,7 +127,7 @@ module Sp
         @beanstalk.jobs.process!
         @beanstalk.close
       end
-    
+
       def update_progress (args)
 
         step     = args[:step]
@@ -143,7 +147,7 @@ module Sp
         end
 
         @job_status[:progress] = (@job_status[:progress] + step.to_f).round(2) unless step.nil?
-        @job_status[:message]  = message unless message.nil?      
+        @job_status[:message]  = message unless message.nil?
         @job_status[:status]   = status.nil? ? 'in-progress' : status
     
         if status == 'completed' || status == 'error' || barrier
@@ -154,12 +158,12 @@ module Sp
           update_job_status_on_redis
         elsif @status_timer.running?
           @status_dirty.make_true
-        else 
+        else
           update_job_status_on_redis
           @status_timer.execute
         end
       end
-    
+
       def update_job_status_on_redis
         @redis.pipelined do
           redis_str = @job_status.to_json
@@ -168,7 +172,73 @@ module Sp
           @redis.expire  @redis_key, @validity
         end
       end
-    
+
+      def get_jsonapi!(path, params, jsonapi_args)
+        check_db_life_span()
+        @jsonapi.adapter.get!(path, params, jsonapi_args)
+      end
+      def post_jsonapi!(path, params, jsonapi_args)
+        check_db_life_span()
+        @jsonapi.adapter.post!(path, params, jsonapi_args)
+      end
+      def patch_jsonapi!(path, params, jsonapi_args)
+        check_db_life_span()
+        @jsonapi.adapter.patch!(path, params, jsonapi_args)
+      end
+      def delete_jsonapi!(path, jsonapi_args)
+        check_db_life_span()
+        @jsonapi.adapter.delete!(path, jsonapi_args)
+      end
+
+      def db_exec(query)
+        unless query.nil?
+          check_db_life_span()
+          @pg.exec(query)
+        end
+      end
+
+      private
+
+      def database_connect
+        @pg.close if !@pg.nil? && !@pg.finished?
+        current_url = (@jsonapi.nil? ? nil : @jsonapi.url)
+        @jsonapi.close unless @jsonapi.nil?
+        @pg = @jsonapi = nil
+        unless @@config[:postgres].nil? || @@config[:postgres][:conn_str].nil?
+          @pg = PG.connect(@@config[:postgres][:conn_str])
+          # Connect to postgresql
+          define_db_life_span_treshhold()
+          if @@config[:options][:jsonapi] == true
+            @jsonapi = SP::Duh::JSONAPI::Service.new(@pg, current_url)
+          end
+        end
+      end
+
+      def define_db_life_span_treshhold
+        min = @@config[:postgres][:min_queries_per_conn]
+        max = @@config[:postgres][:max_queries_per_conn]
+        if (!max.nil? && max > 0) || (!min.nil? && min > 0)
+          @db_life_span       = 0
+          @check_db_life_span = true
+          new_min, new_max = [min, max].minmax
+          new_min = new_min if new_min <= 0
+          if new_min + new_min > 0
+            @db_treshold = (new_min + (new_min - new_min) * rand).to_i
+          else
+            @db_treshold = new_min.to_i
+          end
+        end
+      end
+
+      def check_db_life_span
+        return unless @check_db_life_span
+        @db_life_span += 1
+        if @db_life_span > @db_treshold
+          # Reset pg connection
+          database_connect()
+        end
+      end
+
     end
   end
 end
