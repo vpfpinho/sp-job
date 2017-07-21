@@ -47,7 +47,6 @@ module Sp
           end
           img_copy.write(File.join(destination, copy[:name]))
           update_progress(step: step, message: 'i18n_scalling_image_{name}{geometry}', name: copy[:name], geometry: copy[:geometry])
-          sleep 3
         end
         update_progress(status: 'complete', message: 'i18n_image_convertion_complete')
       end
