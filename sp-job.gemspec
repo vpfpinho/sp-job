@@ -30,6 +30,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.add_dependency "concurrent-ruby"
   spec.add_dependency "os"
+  spec.add_dependency "sp-duh", ">= 0.2.5"
   spec.add_dependency "redis"
   spec.add_dependency "beaneater"
   spec.add_dependency "pg"
