@@ -26,11 +26,11 @@ require 'json'
 require 'fileutils'
 require 'concurrent'
 require 'optparse'
-require 'colorize'
 require 'os'
 require 'pg'
 require 'sp/job/version'
 require 'sp/job/bean_runner'
 require 'sp/job/uploaded_image_converter'
+require 'sp-duh'
 
 require File.expand_path(File.join(File.dirname(__FILE__), 'sp', 'job'))
