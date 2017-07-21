@@ -124,7 +124,24 @@ module Sp
         @beanstalk.close
       end
     
-      def update_progress (step: nil, message: nil, status: nil, barrier: false)
+      def update_progress (args)
+
+        step     = args[:step]
+        status   = args[:status]
+        progress = args[:progress]
+        barrier  = args[:barrier]
+
+        if args.has_key? :message
+          message = [ args[:message] ]
+          args.each do |key, value|
+            next if [:step, :progress, :message, :status, :barrier].include? key
+            message << key
+            message << value
+          end
+        else
+          message = nil
+        end
+
         @job_status[:progress] = (@job_status[:progress] + step.to_f).round(2) unless step.nil?
         @job_status[:message]  = message unless message.nil?      
         @job_status[:status]   = status.nil? ? 'in-progress' : status

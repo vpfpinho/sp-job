@@ -39,16 +39,17 @@ module Sp
     
         FileUtils::mkdir_p destination
         image = Magick::Image.read(original).first
-        update_progress(step: step, message: "Reading original image")
+        update_progress(step: step, message: 'i18n_reading_original_{image}', image: job[:original])  
         job[:copies].each do |copy|
           img_copy = image.copy()
           img_copy.change_geometry(copy[:geometry].to_s) do |cols, rows, img| 
             img.resize!(cols, rows)
           end
           img_copy.write(File.join(destination, copy[:name]))
-          update_progress(step: step, message: "Scaling #{copy[:name]} with geometry #{copy[:geometry]}")
+          update_progress(step: step, message: 'i18n_scalling_image_{name}{geometry}', name: copy[:name], geometry: copy[:geometry])
+          sleep 3
         end
-        update_progress(status: 'complete', message: 'Image upload complete')
+        update_progress(status: 'complete', message: 'i18n_image_convertion_complete')
       end
 
     end # class
