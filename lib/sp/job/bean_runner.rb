@@ -107,7 +107,7 @@ module Sp
             @job_status = {}
             @job_status[:progress] = 0
             job_body               = JSON.parse(job.body, symbolize_names: true)
-            @redis_key             = @@tube + '/' + job_body[:id]
+            @redis_key             = @@config[:service_id] + ':' + @@tube + ':' + job_body[:id]
             @validity              = job_body[:validity].nil? ? 300 : job_body[:validity].to_i
             process(job_body) 
           rescue Exception => e
@@ -146,7 +146,7 @@ module Sp
         @job_status[:message]  = message unless message.nil?      
         @job_status[:status]   = status.nil? ? 'in-progress' : status
     
-        if status == 'complete' || status == 'error' || barrier
+        if status == 'completed' || status == 'error' || barrier
           unless barrier 
             @status_timer.shutdown
           end
