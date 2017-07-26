@@ -10,10 +10,10 @@ gem 'sp-duh', git: 'git@github.com:vpfpinho/sp-duh.git', branch: 'feature/commer
 gem 'os'
 gem 'rollbar'
 gem 'pg'
+gem 'byebug'
 
 group :development, :test do
-  gem 'rspec'
-  gem 'byebug'
+  gem 'rspec'  
 end
 
 # Specify your gem's dependencies in sp-job.gemspec
