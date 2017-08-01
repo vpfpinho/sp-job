@@ -136,12 +136,12 @@ module Sp
         barrier  = args[:barrier]
 
         if args.has_key? :message
-          message = [ args[:message] ]
+          message_args = Hash.new
           args.each do |key, value|
             next if [:step, :progress, :message, :status, :barrier].include? key
-            message << key
-            message << value
+            message_args[key] = value
           end
+          message = [ args[:message], message_args ]
         else
           message = nil
         end
