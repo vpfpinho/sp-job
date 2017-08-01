@@ -46,7 +46,7 @@ module Sp
           img_copy.write(File.join(destination, copy[:name]))
           update_progress(step: step, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry])
         end
-        update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join(job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
+        update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
       end
 
     end # class
