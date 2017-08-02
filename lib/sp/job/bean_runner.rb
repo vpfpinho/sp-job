@@ -112,6 +112,15 @@ module Sp
               raise "Job didn't specify the mandatory field prefix!" if job_body[:prefix].blank?
               @jsonapi.set_url(job_body[:prefix])
             end
+            #@redis.subscribe(@redis_key) do |on|
+            #  on.subscribe do |channel, subscriptions|
+            #    puts "Subscribed to ##{channel} (#{subscriptions} subscriptions)"
+            #  end
+            #  on.message do |channel, msg|
+            #    data = JSON.parse(msg)
+            #    puts "##{channel} - [#{data['user']}]: #{data['msg']}"
+            #  end
+            #end
             process(job_body)
           rescue Exception => e
             puts [e, e.backtrace] if @@config[:options] && @@config[:options][:debug_exceptions]
