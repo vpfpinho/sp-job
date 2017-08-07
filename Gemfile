@@ -12,6 +12,10 @@ gem 'rollbar'
 gem 'pg'
 gem 'byebug'
 
+gem 'oauth2'
+gem 'oauth2-client'
+gem 'curb'
+
 group :development, :test do
   gem 'rspec'  
 end

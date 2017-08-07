@@ -16,24 +16,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
+# encoding: utf-8
+#
 
-# require 'byebug'
-require 'awesome_print'
-require 'rollbar'
-require 'redis'
-require 'beaneater'
-require 'json'
-require 'fileutils'
-require 'concurrent'
-require 'optparse'
-require 'os'
-require 'pg'
-require 'sp/job/version'
-require 'sp/job/bean_runner'
-require 'sp/job/uploaded_image_converter'
-require 'sp-duh'
-require 'oauth2'
-require 'oauth2-client'
-require 'curb'
+module Sp
 
-require File.expand_path(File.join(File.dirname(__FILE__), 'sp', 'job'))
+	class BrokerAuthenticationClient
+
+		def initialize(*args)
+    end
+
+    def authenticate (a_email, a_password)
+    end
+
+  end # end class 'BrokerAuthenticationClient'
+
+end # module 'Sp'
