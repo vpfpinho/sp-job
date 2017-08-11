@@ -106,7 +106,7 @@ module SP
             @job_status = {}
             @job_status[:progress] = 0
             job_body               = JSON.parse(job.body, symbolize_names: true)
-            @redis_key             = @@config[:service_id] + ':jobs:' + @@tube + ':' + job_body[:id]
+            @redis_key             = @@config[:service_id] + ':' + @@tube + ':' + job_body[:id]
             @validity              = job_body[:validity].nil? ? 300 : job_body[:validity].to_i
             if @@config[:options] && @@config[:options][:jsonapi] == true
               raise "Job didn't specify the mandatory field prefix!" if job_body[:prefix].blank?
