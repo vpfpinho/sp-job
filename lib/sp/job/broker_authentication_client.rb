@@ -20,15 +20,17 @@
 #
 
 module SP
+  module Job
 
-  class BrokerAuthenticationClient
+    class BrokerAuthenticationClient
+  
+      def initialize(*args)
+      end
+  
+      def authenticate (a_email, a_password)
+      end
+  
+    end # end class 'BrokerAuthenticationClient'
 
-    def initialize(*args)
-    end
-
-    def authenticate (a_email, a_password)
-    end
-
-  end # end class 'BrokerAuthenticationClient'
-
-end # module 'Sp'
+  end # module 'Job'
+end # module 'SP'
