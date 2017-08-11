@@ -1,4 +1,4 @@
-require 'byebug'
+# require 'byebug'
 require 'json'
 require 'erb'
 require 'ostruct'
@@ -46,12 +46,12 @@ task :config_jobs do
   host = %x[hostname -s].strip
   puts "We are working on #{host}!!!"
   toconline_directory = '/Users/emi/work/cw/toconline'
-	
+
 	@config = JSON.parse(json, object_class: OpenStruct)
 
 	#debugger
 
-  Dir.glob("#{toconline_directory}/jobs/*").each do |job| 
+  Dir.glob("#{toconline_directory}/jobs/*").each do |job|
   	job_name = File.basename(job)
   	puts("#{host}: #{job_name}")
   	if File.exists? "#{job}/conf.json.erb"
@@ -63,4 +63,3 @@ task :config_jobs do
   end
 
 end
-
