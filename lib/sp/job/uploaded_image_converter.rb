@@ -22,7 +22,7 @@
 ### IMPORTANT - serious this is important
 # YOU must require 'rmagick' on the script that uses this class
 
-module Sp
+module SP
   module Job
 
     #

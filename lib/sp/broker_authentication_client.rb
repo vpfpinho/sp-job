@@ -19,11 +19,11 @@
 # encoding: utf-8
 #
 
-module Sp
+module SP
 
-	class BrokerAuthenticationClient
+  class BrokerAuthenticationClient
 
-		def initialize(*args)
+    def initialize(*args)
     end
 
     def authenticate (a_email, a_password)

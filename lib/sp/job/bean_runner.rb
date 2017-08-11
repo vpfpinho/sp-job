@@ -22,7 +22,7 @@
 # https://github.com/ruby-concurrency/concurrent-ruby
 # Follow https://github.com/bbatsov/ruby-style-guide
 
-module Sp
+module SP
   module Job
     class BeanRunner
 

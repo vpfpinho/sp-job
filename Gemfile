@@ -1,11 +1,11 @@
 source 'https://rubygems.org'
 
+gem 'sp-duh', git: 'git@github.com:vpfpinho/sp-duh.git', branch: 'feature/commercial'
 gem 'redis'
 gem 'beaneater'
 gem 'json'
 gem 'awesome_print'
 gem 'concurrent-ruby'
-gem 'sp-duh', git: 'git@github.com:vpfpinho/sp-duh.git', branch: 'feature/commercial'
 # gem 'sp-duh', path: '../sp-duh'
 gem 'os'
 gem 'rollbar'

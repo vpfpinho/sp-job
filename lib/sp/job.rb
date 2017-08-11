@@ -17,7 +17,7 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-module Sp
+module SP
   module Job
   	MODULE_PATH = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
   end

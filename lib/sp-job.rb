@@ -17,7 +17,8 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# require 'byebug'
+require 'sp-duh'
+require_silently 'byebug'
 require 'awesome_print'
 require 'rollbar'
 require 'redis'
@@ -31,9 +32,9 @@ require 'pg'
 require 'sp/job/version'
 require 'sp/job/bean_runner'
 require 'sp/job/uploaded_image_converter'
-require 'sp-duh'
 require 'oauth2'
 require 'oauth2-client'
 require 'curb'
+require 'rails'
 
 require File.expand_path(File.join(File.dirname(__FILE__), 'sp', 'job'))

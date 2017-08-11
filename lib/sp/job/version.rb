@@ -17,7 +17,7 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-module Sp
+module SP
   module Job
     VERSION = File.read(File.expand_path('../../../../VERSION', __FILE__)).strip
   end

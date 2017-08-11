@@ -24,97 +24,97 @@
 require 'oauth2'
 require 'oauth2-client'
 
-module Sp
+module SP
 
-	class BrokerOAuth2Client < ::OAuth2Client::Client
+  class BrokerOAuth2Client < ::OAuth2Client::Client
 
-		def initialize(*args)
-			super
-			@token_path 	  = '/oauth/token'
-			@authorize_path = '/oauth/auth'
-		end
+    def initialize(*args)
+      super
+      @token_path     = '/oauth/token'
+      @authorize_path = '/oauth/auth'
+    end
 
-		#
-		# Returns the authorization url, ready to be called.
-		#
-		def do_get_authorization_url(opts={})
-			opts[:scope] = normalize_scope(opts[:scope], ',') if opts[:scope]
-			authorization_code.authorization_url(opts)
-		end
+    #
+    # Returns the authorization url, ready to be called.
+    #
+    def do_get_authorization_url(opts={})
+      opts[:scope] = normalize_scope(opts[:scope], ',') if opts[:scope]
+      authorization_code.authorization_url(opts)
+    end
 
-		#
-		# Build and call the authorization url
-		#
-		# Returns CURL response object.
-		#
-		def do_call_authorization_url(opts={})
-			url = do_get_authorization_url(opts)
-			c = Curl::Easy.http_get(url) do |curl|
-				curl.headers['Content-Type'] = "application/json";
-			end
-			http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
-			http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
-			if 302 == c.response_code
-				if not http_headers.has_key?('Location')
-					raise "Response is missing 'Location' header!"
-				end
-			end
-			Curl::Easy.http_get(http_headers['Location'])
-		end
+    #
+    # Build and call the authorization url
+    #
+    # Returns CURL response object.
+    #
+    def do_call_authorization_url(opts={})
+      url = do_get_authorization_url(opts)
+      c = Curl::Easy.http_get(url) do |curl|
+        curl.headers['Content-Type'] = "application/json";
+      end
+      http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
+      http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
+      if 302 == c.response_code
+        if not http_headers.has_key?('Location')
+          raise "Response is missing 'Location' header!"
+        end
+      end
+      Curl::Easy.http_get(http_headers['Location'])
+    end
 
-		#
-		# Build and call the authorization url.
-		#
-		# Returns an hash with http data and oauth2 authorization code.
-		#
-		def do_get_authorization_code(opts={})
-			url = do_get_authorization_url(opts)
-			c = Curl::Easy.http_get(url) do |curl|
-				curl.headers['Content-Type'] = "application/json";
-			end
-			http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
-			http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
-			if 302 == c.response_code
-				if not http_headers.has_key?('Location')
-					raise "Response is missing 'Location' header!"
-				end
-				if false == http_headers['Location'].start_with?("#{opts[:redirect_uri]}")
-					raise "Unable to parse 'Location'"
-				end
-				h = {
-					:http => {
-						:status_code => c.response_code,
-						:location    => http_headers['Location'],
-						:params      => Hash[ URI::decode_www_form(URI(http_headers['Location']).query).to_h.map { |k, v| [k.to_sym, v] }]
-						},
-					}
-					puts h
-					if not h[:http][:params][:code]
-						raise "Unable to retrieve an access code code!"
-					else
-						h[:oauth2] = {
-							:code => h[:http][:params][:code]
-						}
-					end
-					h
-				else
-					raise "Unexpected HTTP status code #{c.response_code}!"						
-				end
-			end
+    #
+    # Build and call the authorization url.
+    #
+    # Returns an hash with http data and oauth2 authorization code.
+    #
+    def do_get_authorization_code(opts={})
+      url = do_get_authorization_url(opts)
+      c = Curl::Easy.http_get(url) do |curl|
+        curl.headers['Content-Type'] = "application/json";
+      end
+      http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
+      http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
+      if 302 == c.response_code
+        if not http_headers.has_key?('Location')
+          raise "Response is missing 'Location' header!"
+        end
+        if false == http_headers['Location'].start_with?("#{opts[:redirect_uri]}")
+          raise "Unable to parse 'Location'"
+        end
+        h = {
+          :http => {
+            :status_code => c.response_code,
+            :location    => http_headers['Location'],
+            :params      => Hash[ URI::decode_www_form(URI(http_headers['Location']).query).to_h.map { |k, v| [k.to_sym, v] }]
+            },
+          }
+          puts h
+          if not h[:http][:params][:code]
+            raise "Unable to retrieve an access code code!"
+          else
+            h[:oauth2] = {
+              :code => h[:http][:params][:code]
+            }
+          end
+          h
+        else
+          raise "Unexpected HTTP status code #{c.response_code}!"           
+        end
+      end
 
-			#
-			# Exchange an 'authorization code' for access ( and refresh ) token(s).
-			#
-			def do_exchange_auth_code_for_token(opts={})
-				unless (opts[:params] && opts[:params][:code])
-					raise "Authorization code expected but was nil"
-				end
-				opts[:authenticate] = :headers
-				code = opts[:params].delete(:code)
-				response = authorization_code.get_token(code, opts)
-				Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
-			end
+      #
+      # Exchange an 'authorization code' for access ( and refresh ) token(s).
+      #
+      def do_exchange_auth_code_for_token(opts={})
+        unless (opts[:params] && opts[:params][:code])
+          raise "Authorization code expected but was nil"
+        end
+        opts[:authenticate] = :headers
+        code = opts[:params].delete(:code)
+        response = authorization_code.get_token(code, opts)
+        Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
+      end
 
-		end
+    end
 
 end # module 'Sp'
