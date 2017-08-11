@@ -19,7 +19,7 @@
 # encoding: utf-8
 #
 
-module Sp
+module SP
 	module Job
 
 		#
