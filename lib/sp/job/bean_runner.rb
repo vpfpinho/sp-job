@@ -22,7 +22,7 @@
 # https://github.com/ruby-concurrency/concurrent-ruby
 # Follow https://github.com/bbatsov/ruby-style-guide
 
-module Sp
+module SP
   module Job
     class BeanRunner
 
@@ -112,6 +112,15 @@ module Sp
               raise "Job didn't specify the mandatory field prefix!" if job_body[:prefix].blank?
               @jsonapi.set_url(job_body[:prefix])
             end
+            #@redis.subscribe(@redis_key) do |on|
+            #  on.subscribe do |channel, subscriptions|
+            #    puts "Subscribed to ##{channel} (#{subscriptions} subscriptions)"
+            #  end
+            #  on.message do |channel, msg|
+            #    data = JSON.parse(msg)
+            #    puts "##{channel} - [#{data['user']}]: #{data['msg']}"
+            #  end
+            #end
             process(job_body)
           rescue Exception => e
             puts [e, e.backtrace] if @@config[:options] && @@config[:options][:debug_exceptions]
@@ -146,11 +155,18 @@ module Sp
           message = nil
         end
 
-        @job_status[:progress] = (@job_status[:progress] + step.to_f).round(2) unless step.nil?
+        # @job_status[:progress] = (@job_status[:progress] + step.to_f).round(2) unless step.nil?
+        @job_status[:progress] = step.nil? ? progress : (@job_status[:progress] + step.to_f).round(2)
         @job_status[:message]  = message unless message.nil?
         @job_status[:status]   = status.nil? ? 'in-progress' : status
         if args.has_key? :link
           @job_status[:link] = args[:link]
+        end
+
+        if args.has_key? :extra
+          args[:extra].each do |key, value|
+            @job_status[key] = value
+          end
         end
 
         if status == 'completed' || status == 'error' || barrier
@@ -245,4 +261,3 @@ module Sp
     end
   end
 end
-

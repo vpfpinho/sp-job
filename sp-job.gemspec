@@ -5,7 +5,7 @@ require 'sp/job/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "sp-job"
-  spec.version       = Sp::Job::VERSION
+  spec.version       = SP::Job::VERSION
   spec.authors       = ["Eurico Inocencio, Vitor Pinho"]
   spec.email         = ["eurico.inocencio@gmail.com, vitor.pinho@servicepartner.pt"]
 
@@ -28,14 +28,19 @@ Gem::Specification.new do |spec|
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
-  spec.add_dependency "concurrent-ruby"
-  spec.add_dependency "os"
-  spec.add_dependency "sp-duh", ">= 0.2.5"
-  spec.add_dependency "redis"
-  spec.add_dependency "beaneater"
-  spec.add_dependency "pg"
+  spec.add_dependency 'concurrent-ruby'
+  spec.add_dependency 'os'
+  spec.add_dependency 'sp-duh', '>= 0.2.5'
+  spec.add_dependency 'redis'
+  spec.add_dependency 'beaneater'
+  spec.add_dependency 'pg'
+  spec.add_dependency 'oauth2'
+  spec.add_dependency 'oauth2-client'
+  spec.add_dependency 'curb'
+  spec.add_dependency 'rails'
+  spec.add_dependency 'json'
 
-  spec.add_development_dependency "bundler", "~> 1.14"
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency 'bundler', '~> 1.14'
+  spec.add_development_dependency 'rake', '~> 10.0'
+  spec.add_development_dependency 'rspec', '~> 3.0'
 end

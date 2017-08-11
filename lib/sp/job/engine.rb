@@ -16,9 +16,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
+# encoding: utf-8
+#
 
 module SP
   module Job
-  	MODULE_PATH = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
+    class Engine < ::Rails::Engine
+      isolate_namespace SP::Job
+
+      initializer :append_migrations do |app|
+        unless app.root.to_s.match root.to_s
+          app.config.paths["db/migrate"] += config.paths["db/migrate"].expanded
+        end
+      end
+    end
   end
 end
