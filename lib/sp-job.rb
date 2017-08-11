@@ -17,8 +17,7 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'sp-duh'
-require_silently 'byebug'
+# require 'byebug'
 require 'awesome_print'
 require 'rollbar'
 require 'redis'
@@ -32,6 +31,9 @@ require 'pg'
 require 'sp/job/version'
 require 'sp/job/bean_runner'
 require 'sp/job/uploaded_image_converter'
+require 'sp/job/broker_login'
+require 'sp/broker_oauth2_client'
+require 'sp-duh'
 require 'oauth2'
 require 'oauth2-client'
 require 'curb'

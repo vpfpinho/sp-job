@@ -28,6 +28,110 @@ module SP
 
   class BrokerOAuth2Client < ::OAuth2Client::Client
 
+    public
+
+    #
+    # Configuration
+    #
+    # {
+    #   "protocol": "",
+    #   "host": "",
+    #   "port": 0,
+    #   "endpoints": {
+    #     "authorization" : "",
+    #     "token" : ""
+    #   }
+    # }
+    class Config
+
+      @protocol  = nil
+      @host      = nil
+      @port      = nil
+      @endpoints = nil
+      @path      = nil
+      @base_url  = nil
+
+      attr_accessor :protocol
+      attr_accessor :host
+      attr_accessor :port
+      attr_accessor :endpoints
+      attr_accessor :path
+      attr_accessor :base_url
+
+      def initialize(a_hash)
+        @protocol  = a_hash[:protocol]
+        @host      = a_hash[:host]
+        @port      = a_hash[:port]
+        @path      = a_hash[:path]
+        @endpoints = {
+          :authorization => a_hash[:endpoints][:authorization],
+          :token => a_hash[:endpoints][:token]
+        }
+        @path     = nil
+        @base_url = "#{@protocol}://#{@host}"
+        if @port && 80 != @port
+          @base_url += ":#{@port}"
+        end
+        if @path
+          @base_url += "#{@path}"
+        end
+      end
+
+    end
+
+    private
+
+    #
+    #
+    #
+    class Error < StandardError
+
+      @code        = nil
+      @description = nil
+
+      attr_accessor :code
+      attr_accessor :description
+
+      def initialize(a_code, a_description)
+        @code        = a_code
+        @description = a_description
+      end
+
+      def as_hash
+        { :error => a_code, :error_description => a_description }
+      end
+
+    end
+
+    public
+
+    #
+    #
+    #
+    class AccessDenied < Error
+
+      def initialize(a_description)
+        super "access_denied", a_description
+      end
+
+    end
+
+    #
+    #
+    #
+    class InternalError < Error
+
+      def initialize(a_description)
+        super "internal_error", a_description
+      end
+
+    end
+
+    public
+
+    #
+    # Initializer
+    #
     def initialize(*args)
       super
       @token_path     = '/oauth/token'
@@ -88,9 +192,12 @@ module SP
             :params      => Hash[ URI::decode_www_form(URI(http_headers['Location']).query).to_h.map { |k, v| [k.to_sym, v] }]
             },
           }
-          puts h
           if not h[:http][:params][:code]
-            raise "Unable to retrieve an access code code!"
+            if h[:http][:params][:error]
+              raise AccessDenied, h[:http][:params][:error], h[:http][:params][:error_description]
+            else
+              raise InternalError, "Unable to retrieve an authorization code!"
+            end
           else
             h[:oauth2] = {
               :code => h[:http][:params][:code]
@@ -98,7 +205,7 @@ module SP
           end
           h
         else
-          raise "Unexpected HTTP status code #{c.response_code}!"           
+          raise "Unexpected HTTP status code #{c.response_code}!"
         end
       end
 
@@ -112,7 +219,12 @@ module SP
         opts[:authenticate] = :headers
         code = opts[:params].delete(:code)
         response = authorization_code.get_token(code, opts)
-        Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
+        if 200 == response.code.to_i
+          Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
+        else
+          # TODO
+          nil
+        end
       end
 
     end
