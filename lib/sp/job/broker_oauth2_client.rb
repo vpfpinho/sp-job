@@ -99,7 +99,7 @@ module SP
         end
 
         def as_hash
-          { :error => a_code, :error_description => a_description }
+          { :error => @code, :error_description => @description }
         end
 
       end
