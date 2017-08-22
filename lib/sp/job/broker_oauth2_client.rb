@@ -161,7 +161,7 @@ module SP
         http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
         if 302 == c.response_code
           if not http_headers.has_key?('Location')
-            raise "Response is missing 'Location' header!"
+            raise InternalError.new("Response is missing 'Location' header!")
           end
         end
         Curl::Easy.http_get(http_headers['Location'])
@@ -181,10 +181,10 @@ module SP
         http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
         if 302 == c.response_code
           if not http_headers.has_key?('Location')
-            raise "Response is missing 'Location' header!"
+            raise InternalError.new("Response is missing 'Location' header!")
           end
           if false == http_headers['Location'].start_with?("#{opts[:redirect_uri]}")
-            raise "Unable to parse 'Location'"
+            raise InternalError.new("Unable to parse 'Location'")
           end
           h = {
             :http => {
@@ -195,9 +195,9 @@ module SP
             }
           if not h[:http][:params][:code]
             if h[:http][:params][:error]
-              raise AccessDenied, h[:http][:params][:error], h[:http][:params][:error_description]
+              raise Error.new(h[:http][:params][:error], h[:http][:params][:error_description])
             else
-              raise InternalError, "Unable to retrieve an authorization code!"
+              raise InternalError.new("Unable to retrieve an authorization code!")
             end
           else
             h[:oauth2] = {
@@ -206,7 +206,7 @@ module SP
           end
           h
         else
-          raise "Unexpected HTTP status code #{c.response_code}!"
+          raise InternalError.new("Unable to retrieve an authorization code - unexpected HTTP status code #{c.response_code}!")
         end
       end
 
@@ -215,7 +215,7 @@ module SP
       #
       def do_exchange_auth_code_for_token(opts={})
         unless (opts[:params] && opts[:params][:code])
-          raise "Authorization code expected but was nil"
+          raise InternalError.new("Authorization code expected but was nil!")
         end
         opts[:authenticate] = :headers
         code = opts[:params].delete(:code)
