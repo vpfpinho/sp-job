@@ -45,12 +45,16 @@ module SP
       # }
       class Config
 
-        @protocol  = nil
-        @host      = nil
-        @port      = nil
-        @endpoints = nil
-        @path      = nil
-        @base_url  = nil
+        @protocol      = nil
+        @host          = nil
+        @port          = nil
+        @endpoints     = nil
+        @path          = nil
+        @base_url      = nil
+        @client_id     = nil
+        @client_secret = nil
+        @redirect_uri  = nil
+        @scope         = nil
 
         attr_accessor :protocol
         attr_accessor :host
@@ -58,6 +62,11 @@ module SP
         attr_accessor :endpoints
         attr_accessor :path
         attr_accessor :base_url
+
+        attr_accessor :client_id
+        attr_accessor :client_secret
+        attr_accessor :redirect_uri
+        attr_accessor :scope
 
         def initialize(a_hash)
           @protocol  = a_hash[:protocol]
@@ -76,6 +85,10 @@ module SP
           if @path
             @base_url += "#{@path}"
           end
+          @client_id     = a_hash[:client_id]
+          @client_secret = a_hash[:client_secret]
+          @redirect_uri  = a_hash[:redirect_uri]
+          @scope         = a_hash[:scope]
         end
 
       end
@@ -83,7 +96,7 @@ module SP
       private
 
       #
-      #
+      # Generic error.
       #
       class Error < StandardError
 
@@ -107,7 +120,7 @@ module SP
       public
 
       #
-      #
+      # Access denied error.
       #
       class AccessDenied < Error
 
@@ -118,7 +131,7 @@ module SP
       end
 
       #
-      #
+      # Internal error.
       #
       class InternalError < Error
 
