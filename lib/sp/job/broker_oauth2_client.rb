@@ -241,8 +241,25 @@ module SP
             :status_code => response.code.to_i,
           }
         }
-        # if 200 == response.code.to_i
-        # end
+        h[:oauth2] = Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
+        h
+      end
+
+      #
+      # Refresh an 'access token'.
+      #
+      # @param a_refresh_token
+      #
+      def do_refresh_access_token (a_refresh_token)
+        unless a_refresh_token
+          raise InternalError.new("'refresh token' is expected but is nil!")
+        end
+        response = refresh_token.get_token(a_refresh_token)
+        h = {
+          :http => {
+            :status_code => response.code.to_i,
+          }
+        }
         h[:oauth2] = Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
         h
       end
