@@ -233,12 +233,15 @@ module SP
         opts[:authenticate] = :headers
         code = opts[:params].delete(:code)
         response = authorization_code.get_token(code, opts)
-        if 200 == response.code.to_i
-          Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
-        else
-          # TODO
-          nil
-        end
+        h = {
+          :http => {
+            :status_code => response.code.to_i,
+          }
+        }
+        # if 200 == response.code.to_i
+        # end
+        h[:oauth2] = Hash[ JSON.parse(response.body).to_h.map { |k, v| [k.to_sym, v] }]
+        h
       end
 
     end
