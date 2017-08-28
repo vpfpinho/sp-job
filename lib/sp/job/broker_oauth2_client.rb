@@ -27,7 +27,7 @@ require 'oauth2-client'
 module SP
   module Job
 
-    class BrokerOAuth2Client < ::OAuth2Client::Client
+    class BrokerOAuth2Client
 
       public
 
@@ -112,7 +112,7 @@ module SP
         end
 
         def as_hash
-          { :error => @code, :error_description => @description }
+          { :oauth2 => { :error => @code, :error_description => @description } }
         end
 
       end
@@ -141,13 +141,19 @@ module SP
 
       end
 
+      private
+
+      @client         = nil
+      @token_path     = nil
+      @authorize_path = nil
+
       public
 
       #
       # Initializer
       #
       def initialize(a_host, a_client_id, a_client_secret, a_options = {})
-        super(a_host, a_client_id, a_client_secret, a_options)
+        @client         = ::OAuth2Client::Client.new(a_host, a_client_id, a_client_secret, a_options)
         @token_path     = '/oauth/token'
         @authorize_path = '/oauth/auth'
       end
@@ -156,8 +162,8 @@ module SP
       # Returns the authorization url, ready to be called.
       #
       def do_get_authorization_url(a_redirect_uri, a_scope = nil)
-        a_scope = normalize_scope(a_scope, ',') if a_scope
-        authorization_code.authorization_url({
+        a_scope = @client.normalize_scope(a_scope, ',') if a_scope
+        @client.authorization_code.authorization_url({
           redirect_uri: a_redirect_uri,
           scope: a_scope
         })
@@ -229,13 +235,18 @@ module SP
       #
       # Exchange an 'authorization code' for access ( and refresh ) token(s).
       #
-      def do_exchange_auth_code_for_token(a_code)
+      # @param a_code
+      # @param a_scope
+      #
+      def do_exchange_auth_code_for_token(a_code, a_scope = nil)
         unless a_code
           raise InternalError.new("Authorization code expected but was nil!")
         end
-        response = authorization_code.get_token(a_code, {
-          authenticate: :headers
-        })
+        opts = { authenticate: :headers }
+        if nil != a_scope
+          opts[:params] = { :scope => a_scope }
+        end
+        response = @client.authorization_code.get_token(a_code, opts)
         h = {
           :http => {
             :status_code => response.code.to_i,
@@ -249,12 +260,14 @@ module SP
       # Refresh an 'access token'.
       #
       # @param a_refresh_token
+      # @param a_scope
       #
-      def do_refresh_access_token (a_refresh_token)
+      def do_refresh_access_token (a_refresh_token, a_scope = nil)
         unless a_refresh_token
           raise InternalError.new("'refresh token' is expected but is nil!")
         end
-        response = refresh_token.get_token(a_refresh_token)
+        opts = nil != a_scope ? { :params => { :scope => a_scope } } : {}
+        response = @client.refresh_token.get_token(a_refresh_token, opts)
         h = {
           :http => {
             :status_code => response.code.to_i,
