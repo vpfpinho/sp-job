@@ -146,8 +146,8 @@ module SP
       #
       # Initializer
       #
-      def initialize(*args)
-        super
+      def initialize(a_host, a_client_id, a_client_secret, a_options = {})
+        super(a_host, a_client_id, a_client_secret, a_options)
         @token_path     = '/oauth/token'
         @authorize_path = '/oauth/auth'
       end
@@ -155,9 +155,12 @@ module SP
       #
       # Returns the authorization url, ready to be called.
       #
-      def do_get_authorization_url(opts={})
-        opts[:scope] = normalize_scope(opts[:scope], ',') if opts[:scope]
-        authorization_code.authorization_url(opts)
+      def do_get_authorization_url(a_redirect_uri, a_scope = nil)
+        a_scope = normalize_scope(a_scope, ',') if a_scope
+        authorization_code.authorization_url({
+          redirect_uri: a_redirect_uri,
+          scope: a_scope
+        })
       end
 
       #
@@ -165,8 +168,8 @@ module SP
       #
       # Returns CURL response object.
       #
-      def do_call_authorization_url(opts={})
-        url = do_get_authorization_url(opts)
+      def do_call_authorization_url(a_redirect_uri, a_scope = nil)
+        url = do_get_authorization_url(a_redirect_uri, a_scope)
         c = Curl::Easy.http_get(url) do |curl|
           curl.headers['Content-Type'] = "application/json";
         end
@@ -185,8 +188,8 @@ module SP
       #
       # Returns an hash with http data and oauth2 authorization code.
       #
-      def do_get_authorization_code(opts={})
-        url = do_get_authorization_url(opts)
+      def do_get_authorization_code(a_redirect_uri, a_scope = nil)
+        url = do_get_authorization_url(a_redirect_uri, a_scope)
         c = Curl::Easy.http_get(url) do |curl|
           curl.headers['Content-Type'] = "application/json";
         end
@@ -196,7 +199,7 @@ module SP
           if not http_headers.has_key?('Location')
             raise InternalError.new("Response is missing 'Location' header!")
           end
-          if false == http_headers['Location'].start_with?("#{opts[:redirect_uri]}")
+          if false == http_headers['Location'].start_with?("#{a_redirect_uri}")
             raise InternalError.new("Unable to parse 'Location'")
           end
           h = {
@@ -226,13 +229,13 @@ module SP
       #
       # Exchange an 'authorization code' for access ( and refresh ) token(s).
       #
-      def do_exchange_auth_code_for_token(opts={})
-        unless (opts[:params] && opts[:params][:code])
+      def do_exchange_auth_code_for_token(a_code)
+        unless a_code
           raise InternalError.new("Authorization code expected but was nil!")
         end
-        opts[:authenticate] = :headers
-        code = opts[:params].delete(:code)
-        response = authorization_code.get_token(code, opts)
+        response = authorization_code.get_token(a_code, {
+          authenticate: :headers
+        })
         h = {
           :http => {
             :status_code => response.code.to_i,
