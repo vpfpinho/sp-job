@@ -2,6 +2,7 @@
 require 'json'
 require 'erb'
 require 'ostruct'
+require 'awesome_print'
 
 conf = {
   service_id: 'development',
@@ -54,6 +55,7 @@ task :config_jobs do
 
   @config = JSON.parse(json, object_class: OpenStruct)
 
+  ap @config
   #debugger
 
   Dir.glob("#{toconline_directory}/jobs/*").each do |job|
@@ -61,9 +63,9 @@ task :config_jobs do
     puts("#{host}: #{job_name}")
     if File.exists? "#{job}/conf.json.erb"
       file     = "#{prefix}/etc/#{job_name}/conf.json"
-      contents = ERB.new(File.read("#{job}/conf.json.erb")).result()
+      contents = ERB.new(File.read("#{job}/conf.json.erb"), 0, '>').result()
       puts("   writing configuration to #{file}")
-      File.write(file,contents)
+      File.write(file,JSON.pretty_generate(JSON.parse(contents)))
     end
   end
 

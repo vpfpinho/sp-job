@@ -16,9 +16,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
+# encoding: utf-8
+#
 
 module SP
   module Job
-  	MODULE_PATH = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
-  end
-end
+
+    class Worker < Backburner::Workers::Simple
+
+      def initialize (tube_names=nil)
+        super(tube_names)
+      end
+
+      def start
+        prepare
+        loop do 
+          work_one_job
+          unless connection.connected?
+            log_error "Connection to beanstalk closed, exiting now"
+            exit
+          end
+        end
+      end
+
+      private
+
+    end # Worker
+  end # Module Job
+end # Module SP
