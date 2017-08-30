@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2016 Servicepartner LDA. All rights reserved.
+# Copyright (c) 2011-2017 Servicepartner LDA. All rights reserved.
 #
 # This file is part of sp-job.
 #
@@ -28,15 +28,16 @@ module SP
     #
     # Beanstalk job that scales uploaded images
     #
-    class UploadedImageConverter < BeanRunner
+    class UploadedImageConverter
+      extend SP::Job::Common
 
-      def process (job)
+      def self.perform (job)
 
         raise Exception.new("i18n_entity_id_must_be_defined") if job[:entity_id].nil? || job[:entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
-        original    = File.join(@@config[:paths][:temporary_uploads], job[:original])
-        destination = File.join(@@config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
+        original    = File.join($config[:paths][:temporary_uploads], job[:original])
+        destination = File.join($config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
 
         FileUtils::mkdir_p destination
         image = Magick::Image.read(original).first
@@ -48,7 +49,7 @@ module SP
           end
           img_copy.write(File.join(destination, copy[:name]))
           update_progress(step: step, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry])
-          sleep 3
+          logger.debug("Done image #{copy[:geometry]}")
         end
         update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
       end
