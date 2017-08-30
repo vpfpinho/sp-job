@@ -144,6 +144,8 @@ module SP
       private
 
       @client         = nil
+      @redirect_uri   = nil
+      @scope          = nil
       @token_path     = nil
       @authorize_path = nil
 
@@ -152,8 +154,10 @@ module SP
       #
       # Initializer
       #
-      def initialize(a_host, a_client_id, a_client_secret, a_options = {})
+      def initialize(a_host, a_client_id, a_client_secret, a_redirect_uri, a_scope, a_options = {})
         @client         = ::OAuth2Client::Client.new(a_host, a_client_id, a_client_secret, a_options)
+        @redirect_uri   = a_redirect_uri
+        @scope          = a_scope
         @token_path     = '/oauth/token'
         @authorize_path = '/oauth/auth'
       end
@@ -161,7 +165,7 @@ module SP
       #
       # Returns the authorization url, ready to be called.
       #
-      def do_get_authorization_url(a_redirect_uri, a_scope = nil)
+      def get_authorization_url(a_redirect_uri, a_scope = nil)
         a_scope = @client.normalize_scope(a_scope, ',') if a_scope
         @client.authorization_code.authorization_url({
           redirect_uri: a_redirect_uri,
@@ -174,8 +178,8 @@ module SP
       #
       # Returns CURL response object.
       #
-      def do_call_authorization_url(a_redirect_uri, a_scope = nil)
-        url = do_get_authorization_url(a_redirect_uri, a_scope)
+      def call_authorization_url(a_redirect_uri, a_scope = nil)
+        url = get_authorization_url(a_redirect_uri, a_scope)
         c = Curl::Easy.http_get(url) do |curl|
           curl.headers['Content-Type'] = "application/json";
         end
@@ -194,8 +198,8 @@ module SP
       #
       # Returns an hash with http data and oauth2 authorization code.
       #
-      def do_get_authorization_code(a_redirect_uri, a_scope = nil)
-        url = do_get_authorization_url(a_redirect_uri, a_scope)
+      def get_authorization_code(a_redirect_uri, a_scope = nil)
+        url = get_authorization_url(a_redirect_uri || @redirect_uri, a_scope)
         c = Curl::Easy.http_get(url) do |curl|
           curl.headers['Content-Type'] = "application/json";
         end
@@ -238,7 +242,7 @@ module SP
       # @param a_code
       # @param a_scope
       #
-      def do_exchange_auth_code_for_token(a_code, a_scope = nil)
+      def exchange_auth_code_for_token(a_code, a_scope = nil)
         unless a_code
           raise InternalError.new("Authorization code expected but was nil!")
         end
@@ -262,7 +266,7 @@ module SP
       # @param a_refresh_token
       # @param a_scope
       #
-      def do_refresh_access_token (a_refresh_token, a_scope = nil)
+      def refresh_access_token (a_refresh_token, a_scope = nil)
         unless a_refresh_token
           raise InternalError.new("'refresh token' is expected but is nil!")
         end
@@ -277,7 +281,7 @@ module SP
         h
       end
 
-    end
+    end # BrokerOAuth2Client
 
   end # module 'Job'
 end # module 'SP'
