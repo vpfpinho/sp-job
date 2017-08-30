@@ -217,7 +217,7 @@ module SP
       def do_http_post (a_uri, a_body, a_content_type = 'application/vnd.api+json')
         http_request = Curl::Easy.http_post(a_uri, a_body) do |curl|
           curl.headers['Content-Type']  = a_content_type;
-          curl.headers['Authorization'] = "Bearer #{@@session.access_token}"
+          curl.headers['Authorization'] = "Bearer #{@session.access_token}"
         end
         Response.new(http_request)
       end
@@ -232,7 +232,7 @@ module SP
       def do_http_patch (a_uri, a_body, a_content_type = 'application/vnd.api+json')
         http_request = Curl.http(:PATCH, a_uri, a_body) do |curl|
           curl.headers['Content-Type']  = a_content_type;
-          curl.headers['Authorization'] = "Bearer #{@@session.access_token}"
+          curl.headers['Authorization'] = "Bearer #{@session.access_token}"
         end
         Response.new(http_request)
       end
