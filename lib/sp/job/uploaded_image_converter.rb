@@ -22,6 +22,8 @@
 ### IMPORTANT - serious this is important
 # YOU must require 'rmagick' on the script that uses this class
 
+require_relative 'back_burner'
+
 module SP
   module Job
 

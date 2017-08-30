@@ -86,7 +86,7 @@ Backburner.configure do |config|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
     "[#{date_format}] #{severity}: #{msg}\n"
   end
-  config.logger.level = Logger::INFO
+  #config.logger.level = Logger::INFO
   config.logger.datetime_format = "%Y-%m-%d %H:%M:%S" 
   config.primary_queue          = $args[:program_name]
   config.reserve_timeout        = nil
