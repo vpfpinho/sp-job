@@ -171,7 +171,7 @@ module SP
       # @param a_body
       # @param a_content_type
       #
-      def patch(a_uri, a_body, a_content_type = 'application/vnd.api+json')
+      def patch(a_uri, a_body, a_content_type = 'application/vnd.api+json', a_auto_renew_token = true)
         if true == a_auto_renew_token || nil == @session.access_token
           response = call_and_try_to_recover do
             do_http_patch(a_uri, a_body, a_content_type)
@@ -188,7 +188,7 @@ module SP
       # @param a_body
       # @param a_content_type
       #
-      def delete(a_uri, a_body = nil, a_content_type = 'application/vnd.api+json')
+      def delete(a_uri, a_body = nil, a_content_type = 'application/vnd.api+json', a_auto_renew_token = true)
         if true == a_auto_renew_token || nil == @session.access_token
           response = call_and_try_to_recover do
             do_http_delete(a_uri, a_body, a_content_type)
