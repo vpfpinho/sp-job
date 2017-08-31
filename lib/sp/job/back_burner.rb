@@ -22,12 +22,13 @@
 #
 # Initialize global data needed for configuration
 #
-$prefix              = OS.mac? ? '/usr/local' : '/'
-$rollbar             = false
-$bury                = false
-$min_progress        = 3 # TODO to config??
-$args                = {
+$prefix       = OS.mac? ? '/usr/local' : '/'
+$rollbar      = false
+$bury         = false
+$min_progress = 3 # TODO to config??
+$args         = {
   stdout:       false,
+  log_level:    'info',
   program_name: File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
   config_file:  File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
   log_file:     File.join($prefix, 'var', 'log', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
@@ -41,6 +42,7 @@ $option_parser = OptionParser.new do |opts|
   opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:config_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
   opts.on('-l', '--log=LOGFILE'       , "path to log file (default: '#{$args[:log_file]}')")                   { |v| $args[:log_file]    = File.expand_path(v) }
   opts.on('-d', '--debug'             , "developer mode: log to stdout and print job")                         { $args[:debug]           = true                }
+  opts.on('-v', '--log_level=LEVEL'   , "Log level DEBUG, INFO, WARN, ERROR, FATAL")                           { |v| $args[:log_level]   = v                   }
 end
 $option_parser.parse!
 
@@ -66,27 +68,43 @@ end
 Backburner.configure do |config|
 
   config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  config.tube_namespace      = 'toc-dev' # TODO service id
-  config.namespace_separator = '.'
   config.on_error            = lambda { |e| 
     update_progress(status: 'error', message: e)
     if $rollbar
       Rollbar.error(e)
     end
+    catch_fatal_exceptions(e)
   }
   #config.priority_labels     = { :custom => 50, :useless => 1000 }
   #config.max_job_retries     = 0 # default 0 retries
   #config.retry_delay         = 5 # default 5 seconds
   #config.default_priority    = 65536
-  config.retry_delay_proc       = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
-  config.respond_timeout        = 120
-  config.default_worker         = SP::Job::Worker
-  config.logger                 = Logger.new(STDOUT) # $args[:debug] ? Logger.new(STDOUT) : Logger.new($args[:log_file])
+  config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
+  config.respond_timeout  = 120
+  config.default_worker   = SP::Job::Worker
+  config.logger           = $args[:debug] ? Logger.new(STDOUT) : Logger.new($args[:log_file])
   config.logger.formatter = proc do |severity, datetime, progname, msg|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
     "[#{date_format}] #{severity}: #{msg}\n"
   end
-  #config.logger.level = Logger::INFO
+  if $args[:log_level].nil?
+    config.logger.level = Logger::INFO
+  else
+    case $args[:log_level]
+    when 'debug'
+      config.logger.level = Logger::DEBUG
+    when 'info'
+      config.logger.level = Logger::INFO
+    when 'warn'
+      config.logger.level = Logger::WARN
+    when 'error'
+      config.logger.level = Logger::ERROR
+    when 'fatal'
+      config.logger.level = Logger::FATAL
+    else
+      config.logger.level = Logger::INFO
+    end
+  end
   config.logger.datetime_format = "%Y-%m-%d %H:%M:%S" 
   config.primary_queue          = $args[:program_name]
   config.reserve_timeout        = nil
@@ -96,6 +114,19 @@ Backburner.configure do |config|
     rv[:args] = [JSON.parse(body, :symbolize_names => true)]
     rv 
   }
+end
+
+#
+# Monkey patch to keep the tube name as plain vannila job name
+#
+module Backburner
+  module Helpers
+
+    def expand_tube_name(tube)
+      tube
+    end
+
+  end
 end
 
 #
@@ -119,11 +150,19 @@ module SP
       end
 
       def before_perform (job)
+
+        if $connected == false
+          database_connect
+          $redis.get "#{$config}:jobs:sequential_id"
+          $connected = true
+        end
+
         $job_status = { 
           action:       'response',
           content_type: 'application/json',
           progress:      0
         }
+
         $job_status[:progress] = 0
         $redis_key             = $config[:service_id] + ':' + $args[:program_name] + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : body[:validity].to_i
@@ -251,6 +290,17 @@ module SP
         end
       end
 
+      def catch_fatal_exceptions (e)
+        case e
+        when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
+          logger.fatal "Lost connection to database exiting now"
+          exit
+        when Redis::CannotConnectError
+          logger.fatal "Can't connect to redis exiting now"
+          exit
+        end
+      end
+
     end # Module Common
   end # Module Job
 end # Module SP
@@ -261,6 +311,9 @@ extend SP::Job::Common
 #
 # Now create the global data needed by the mix-in methods
 #
+$connected          = false
+$job_status         = {}
+$validity           = 2
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $progress           = 0
 $check_db_life_span = false
@@ -273,6 +326,5 @@ $status_timer       = Concurrent::TimerTask.new(execution_interval: $min_progres
                           $status_timer.shutdown
                         end
                       end
-database_connect
 
 

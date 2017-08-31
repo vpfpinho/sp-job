@@ -20,22 +20,39 @@
 #
 
 ### IMPORTANT - serious this is important
-# YOU must require 'rmagick' on the script that uses this class
-
-require_relative 'back_burner'
+# YOU must require 'rmagick' on the script that uses this class, should be used like this
+#
+# require 'rmagick'
+# require 'sp-job'
+# require 'sp/job/back_burner'
+# require 'sp/job/uploaded_image_converter'
+# 
+# class CLASSNAME
+#   extend SP::Job::Common
+#   extend SP::Job::UploadedImageConverter
+# 
+#   def self.perform(job)
+# 
+#     ... Your code before the image conversion ...
+#
+#     SP::Job::UploadedImageConverter.perform(job)
+# 
+#     ... your code after the conversion ...
+#
+#   end
+# end
+# 
+# Backburner.work
+#
 
 module SP
   module Job
-
-    #
-    # Beanstalk job that scales uploaded images
-    #
-    class UploadedImageConverter
+    module UploadedImageConverter
       extend SP::Job::Common
 
       def self.perform (job)
 
-        raise Exception.new("i18n_entity_id_must_be_defined") if job[:entity_id].nil? || job[:entity_id].to_i == 0
+        throw Exception.new("i18n_entity_id_must_be_defined") if job[:entity_id].nil? || job[:entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
         original    = File.join($config[:paths][:temporary_uploads], job[:original])
@@ -56,7 +73,6 @@ module SP
         update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
       end
 
-    end # class
-
-  end
-end
+    end # UploadedImageConverter
+  end # Job
+end # SP
