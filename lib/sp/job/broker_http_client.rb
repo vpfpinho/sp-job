@@ -110,6 +110,15 @@ module SP
 
       public
 
+      def session
+        # Avoid exposing the original session
+        Session.new(
+          @session.access_token,
+          @session.refresh_token,
+          @session.scope
+        )
+      end
+
       #
       # Initializer
       #

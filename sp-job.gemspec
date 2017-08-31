@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'os'
   spec.add_dependency 'sp-duh', '>= 0.2.5'
   spec.add_dependency 'redis'
-  spec.add_dependency 'beaneater'
+  spec.add_dependency 'backburner'
   spec.add_dependency 'pg'
   spec.add_dependency 'oauth2'
   spec.add_dependency 'oauth2-client'

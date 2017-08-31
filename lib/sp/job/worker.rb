@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2016 Servicepartner LDA. All rights reserved.
+# Copyright (c) 2011-2017 Servicepartner LDA. All rights reserved.
 #
 # This file is part of sp-job.
 #
@@ -16,30 +16,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
+# encoding: utf-8
+#
 
-# require 'byebug'
-require 'awesome_print'
-require 'rollbar'
-require 'redis'
-require 'backburner'
-require 'json'
-require 'fileutils'
-require 'concurrent'
-require 'optparse'
-require 'os'
-require 'pg'
-require 'sp-duh'
-require 'oauth2'
-require 'oauth2-client'
-require 'curb'
-require 'rails'
-require 'erb'
-require 'ostruct'
-require 'json'
+module SP
+  module Job
 
-require 'sp/job'
-require 'sp/job/engine'
-require 'sp/job/version'
-require 'sp/job/bean_runner'
-require 'sp/job/worker'
-require 'sp/job/broker_oauth2_client'
+    class Worker < Backburner::Workers::Simple
+
+      def initialize (tube_names=nil)
+        super(tube_names)
+      end
+
+      def start
+        prepare
+        loop do 
+          work_one_job
+          unless connection.connected?
+            log_error "Connection to beanstalk closed, exiting now"
+            exit
+          end
+        end
+      end
+
+      private
+
+    end # Worker
+  end # Module Job
+end # Module SP
