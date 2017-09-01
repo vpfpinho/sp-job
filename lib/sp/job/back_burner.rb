@@ -31,7 +31,7 @@ $args         = {
   log_level:    'info',
   program_name: File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
   config_file:  File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
-  log_file:     File.join($prefix, 'var', 'log', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
+  log_file:     File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
 #
@@ -162,7 +162,7 @@ module SP
           content_type: 'application/json',
           progress:      0
         }
-
+        $report_time_stamp     = 0
         $job_status[:progress] = 0
         $redis_key             = $config[:service_id] + ':' + $args[:program_name] + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : body[:validity].to_i
@@ -201,26 +201,19 @@ module SP
           end
         end
 
-        if status == 'completed' || status == 'error' || barrier
-          unless barrier
-            $status_timer.shutdown
-          end
-          $status_dirty.make_false
-          update_job_status_on_redis
-        elsif $status_timer.running?
-          $status_dirty.make_true
-        else
-          update_job_status_on_redis
-          $status_timer.execute
+        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress
+          #puts "**** No delay 1-#{status == 'completed'} 2-#{status == 'error'} 3-#{$timer_running == false} 4-#{$first_job_report}"
+          update_progress_on_redis
         end
       end
 
-      def update_job_status_on_redis
+      def update_progress_on_redis
         $redis.pipelined do
           redis_str = $job_status.to_json
           $redis.publish $redis_key, redis_str
           $redis.setex   $redis_key, $validity, redis_str
         end
+        $report_time_stamp = Time.now.to_f 
       end
 
       def get_jsonapi!(path, params, jsonapi_args)
@@ -315,16 +308,5 @@ $connected          = false
 $job_status         = {}
 $validity           = 2
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$progress           = 0
 $check_db_life_span = false
-$status_dirty       = Concurrent::AtomicBoolean.new
-$status_timer       = Concurrent::TimerTask.new(execution_interval: $min_progress) do
-                        if $status_dirty.true?
-                          $status_dirty.make_false
-                          update_job_status_on_redis
-                        else
-                          $status_timer.shutdown
-                        end
-                      end
-
-
+$status_dirty       = false

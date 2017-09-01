@@ -9,11 +9,9 @@ gem 'concurrent-ruby'
 gem 'os'
 gem 'rollbar'
 gem 'pg'
-
 gem 'oauth2'
 gem 'oauth2-client'
 gem 'curb'
-gem 'ostruct'
 
 group :development, :test do
   gem 'byebug'
