@@ -188,7 +188,8 @@ module SP
         else
           message = nil
         end
-        $job_status[:progress] = step.nil? ? progress : ($job_status[:progress] + step.to_f).round(2)
+        $job_status[:progress] = progress.to_f.round(2) unless progress.nil? 
+        $job_status[:progress] = ($job_status[:progress] + step.to_f).round(2) unless step.nil?
         $job_status[:message]  = message unless message.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
         if args.has_key? :link
