@@ -202,8 +202,7 @@ module SP
           end
         end
 
-        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress
-          #puts "**** No delay 1-#{status == 'completed'} 2-#{status == 'error'} 3-#{$timer_running == false} 4-#{$first_job_report}"
+        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier 
           update_progress_on_redis
         end
       end
