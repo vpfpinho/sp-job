@@ -18,9 +18,10 @@
 #
 # encoding: utf-8
 #
-
 ### IMPORTANT - serious this is important
 # YOU must require 'rmagick' on the script that uses this class, should be used like this
+#
+# How to use this to implement a customized image conversion
 #
 # require 'rmagick'
 # require 'sp-job'
@@ -58,18 +59,30 @@ module SP
         original    = File.join($config[:paths][:temporary_uploads], job[:original])
         destination = File.join($config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
 
+        #
+        # Read the original image, any format that image magic can handle will be ok
+        # 
         FileUtils::mkdir_p destination
         image = Magick::Image.read(original).first
         update_progress(step: step, message: 'i18n_reading_original_$image', image: job[:original])
+
+        barrier = true # To force progress on first scalling
+
+        #
+        # Iterate the copies array
+        #
         job[:copies].each do |copy|
           img_copy = image.copy()
           img_copy.change_geometry(copy[:geometry].to_s) do |cols, rows, img|
             img.resize!(cols, rows)
           end
           img_copy.write(File.join(destination, copy[:name]))
-          update_progress(step: step, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry])
-          logger.debug("Done image #{copy[:geometry]}")
+          update_progress(step: step, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry], barrier: barrier)
+          logger.debug("Scaled to geometry #{copy[:geometry]}")
+          barrier = false
         end
+
+        # Closing arguments, all done
         update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
       end
 
