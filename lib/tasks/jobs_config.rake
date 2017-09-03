@@ -82,7 +82,6 @@ task :configure do
 
   ap conf
 
-  exit
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
   #
