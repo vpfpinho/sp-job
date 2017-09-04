@@ -30,13 +30,17 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       FileUtils::mkdir_p File.dirname path
     end
     if ! File.exists?(path)
-      File.write(path,"")
+      if File.writable? path
+        File.write(path,"")
+      else
+        %x[sudo touch #{path}]
+      end
     end
     if true == diff
-      tmp_file = "#{path}.tmp"
+      tmp_file = Tempfile.new File.basename path
       FileUtils::mkdir_p File.dirname tmp_file
       File.write(tmp_file,contents)
-      diff_contents = %x[diff -u #{path} #{tmp_file}]
+      diff_contents = %x[diff -u #{path} #{tmp_file.path}]
       if 0 == $?.exitstatus
         puts "      * #{path} not changed".green
         return
@@ -45,19 +49,16 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       puts diff_contents
     end
     puts "      * Writing #{path}".green
-    if true == dry_run && true == diff
-      FileUtils.rm(tmp_file)
-    elsif true == diff
-      FileUtils.mv(tmp_file, path)
-    else
-      if File.writable? path
-        File.write(tmp_file, contents)
-      else
-        %x[sudo chown #{$user}:#{$group} #{path}]
-        File.write(tmp_file, contents)
-        %x[sudo chown root:root #{path}]
-      end
+    unless dry_run
+       if File.writable? path
+         File.write(path, contents)
+       else
+         %x[sudo chown #{$user}:#{$group} #{path}]
+         File.write(path, contents)
+         %x[sudo chown root:root #{path}]
+       end
     end
+    FileUtils.rm(tmp_file)
 end
 
 desc 'Update project configurations'
@@ -167,7 +168,7 @@ task :configure do
     unless File.exists? template
       throw "Missing configuration file for #{@job_name}" 
     end
-    create_directory "#{@config.prefix}/etc/#{@job_name}/conf.json"
+    create_directory "#{@config.prefix}/etc/#{@job_name}"
     create_directory "#{@config.prefix}/var/log/#{@job_name}"
     diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template)).result())),
                    path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
