@@ -192,7 +192,7 @@ task :configure do
     end
 
     diff_and_write(contents: ERB.new(File.read(template)).result(),
-                   path: "#{@config.prefix}/lib/systemd/system/#{@job_name}.service@",
+                   path: "#{@config.prefix}/lib/systemd/system/#{@job_name}@.service",
                    diff: diff_before_copy,
                    dry_run: dry_run
     )
