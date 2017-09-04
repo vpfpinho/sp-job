@@ -6,6 +6,60 @@ require 'awesome_print'
 require 'os'
 require 'fileutils'
 
+def create_directory (path:, user:, group:)
+
+  if ! Dir.exists?(path)
+    %x[sudo mkdir -p #{path}]
+    if 0 != $?.exitstatus
+      puts "      * Failed to create #{path}".red
+    end
+    %x[sudo chown #{user}:#{group} #{path}]
+    if 0 != $?.exitstatus
+      puts "      * Failed to change ownership to #{path}".red
+    end
+    %x[sudo chmod 755 #{path}]
+    if 0 != $?.exitstatus
+      puts "      * Failed to change permissions to #{path}".red
+    end
+  end
+
+end
+
+def diff_and_write (contents:, path:, diff: true, dry_run: false)
+    if ! Dir.exists?(File.dirname path)      
+      FileUtils::mkdir_p File.dirname path
+    end
+    if ! File.exists?(path)
+      File.write(path,"")
+    end
+    if true == diff
+      tmp_file = "#{path}.tmp"
+      FileUtils::mkdir_p File.dirname tmp_file
+      File.write(tmp_file,contents)
+      diff_contents = %x[diff -u #{path} #{tmp_file}]
+      if 0 == $?.exitstatus
+        puts "      * #{path} not changed".green
+        return
+      end
+      puts "      * #{path} changed:".red
+      puts diff_contents
+    end
+    puts "      * Writing #{path}".green
+    if true == dry_run && true == diff
+      FileUtils.rm(tmp_file)
+    elsif true == diff
+      FileUtils.mv(tmp_file, path)
+    else
+      if File.writable? path
+        File.write(tmp_file, contents)
+      else
+        %x[sudo chown #{@config.user}:#{@config.user} #{path}]
+        File.write(tmp_file, contents)
+        %x[sudo chown root:root #{path}]
+      end
+    end
+end
+
 desc 'Update project configurations'
 task :configure do
 
@@ -18,6 +72,9 @@ task :configure do
 
   hostname = %x[hostname -s].strip
   project = Dir.pwd
+  user_home = File.expand_path('~')
+  diff_before_copy = true
+  dry_run = false
 
   #
   # Pick file named 'hostname', or use 'developer' as basefile
@@ -77,6 +134,9 @@ task :configure do
     if path.start_with? '$project'
       conf['paths'][name] = path.sub('$project', project)
       FileUtils.mkdir_p conf['paths'][name]
+    elsif path.start_with? '$user_home'
+      conf['paths'][name] = path.sub('$user_home', user_home)
+      FileUtils.mkdir_p conf['paths'][name]
     end
   end
 
@@ -105,11 +165,22 @@ task :configure do
     unless File.exists? template
       throw "Missing configuration file for #{@job_name}" 
     end
-    contents = ERB.new(File.read(template)).result()
-    file = "#{@config.prefix}/etc/#{@job_name}/conf.json"
-    puts("     writing job configuration to #{file}")
-    FileUtils::mkdir_p File.dirname file
-    File.write(file,JSON.pretty_generate(JSON.parse(contents)))
+
+    create_directory(path:"#{@config.prefix}/etc/#{@job_name}/conf.json",
+                     user: @config.user,
+                     group: @config.group
+    )
+
+    create_directory(path:"#{@config.prefix}/var/log/#{@job_name}",
+                     user: @config.user,
+                     group: @config.group
+    )
+
+    diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template)).result())),
+                   path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
+                   diff: diff_before_copy,
+                   dry_run: dry_run
+    )    
 
     if File.exists? "#{@job_dir}/service.erb"
       template = "#{@job_dir}/service.erb"
@@ -119,11 +190,12 @@ task :configure do
     unless File.exists? template
       throw "Missing service file for #{@job_name}" 
     end
-    contents = ERB.new(File.read(template)).result()
-    file = "#{@config.paths.staging_dir}/lib/systemd/system/#{@job_name}.service@1"
-    puts("     writing job service unit to #{file}")
-    FileUtils::mkdir_p File.dirname file
-    File.write(file,contents)
+
+    diff_and_write(contents: ERB.new(File.read(template)).result(),
+                   path: "#{@config.prefix}/lib/systemd/system/#{@job_name}.service@1",
+                   diff: diff_before_copy,
+                   dry_run: dry_run
+    )
 
   end
 
