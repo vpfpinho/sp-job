@@ -9,15 +9,23 @@ require 'fileutils'
 def create_directory (path)
 
   if ! Dir.exists?(path)
-    %x[sudo mkdir -p #{path}]
+    if OS.mac?
+      %x[mkdir -p #{path}]
+    else
+      %x[sudo mkdir -p #{path}]
+    end
     if 0 != $?.exitstatus
       puts "      * Failed to create #{path}".red
     end
-    %x[sudo chown #{$user}:#{$group} #{path}]
+    if ! OS.mac?
+      %x[sudo chown #{$user}:#{$group} #{path}]
+    end
     if 0 != $?.exitstatus
       puts "      * Failed to change ownership to #{path}".red
     end
-    %x[sudo chmod 755 #{path}]
+    if ! OS.mac?
+      %x[sudo chmod 755 #{path}]
+    end
     if 0 != $?.exitstatus
       puts "      * Failed to change permissions to #{path}".red
     end
@@ -30,7 +38,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       FileUtils::mkdir_p File.dirname path
     end
     if ! File.exists?(path)
-      if File.writable? path
+      if OS.mac? || File.writable?(path)
         File.write(path,"")
       else
         %x[sudo touch #{path}]
@@ -50,7 +58,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     end
     puts "      * Writing #{path}".green
     unless dry_run
-       if File.writable? path
+       if OS.mac? || File.writable?(path)
          File.write(path, contents)
        else
          %x[sudo chown #{$user}:#{$group} #{path}]
@@ -143,8 +151,6 @@ task :configure do
     end
   end
 
-  ap conf
-
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
   #
@@ -186,7 +192,7 @@ task :configure do
     end
 
     diff_and_write(contents: ERB.new(File.read(template)).result(),
-                   path: "#{@config.prefix}/lib/systemd/system/#{@job_name}.service@1",
+                   path: "#{@config.prefix}/lib/systemd/system/#{@job_name}.service@",
                    diff: diff_before_copy,
                    dry_run: dry_run
     )
