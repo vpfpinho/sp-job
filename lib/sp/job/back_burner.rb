@@ -211,7 +211,8 @@ module SP
         $redis.pipelined do
           redis_str = $job_status.to_json
           $redis.publish $redis_key, redis_str
-          $redis.setex   $redis_key, $validity, redis_str
+          $redis.hset    $redis_key, 'status', redis_str
+          $redis.expire  $redis_key, $validity
         end
         $report_time_stamp = Time.now.to_f 
       end
