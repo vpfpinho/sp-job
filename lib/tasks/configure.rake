@@ -6,14 +6,14 @@ require 'awesome_print'
 require 'os'
 require 'fileutils'
 
-def create_directory (path:, user:, group:)
+def create_directory (path)
 
   if ! Dir.exists?(path)
     %x[sudo mkdir -p #{path}]
     if 0 != $?.exitstatus
       puts "      * Failed to create #{path}".red
     end
-    %x[sudo chown #{user}:#{group} #{path}]
+    %x[sudo chown #{$user}:#{$group} #{path}]
     if 0 != $?.exitstatus
       puts "      * Failed to change ownership to #{path}".red
     end
@@ -53,7 +53,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       if File.writable? path
         File.write(tmp_file, contents)
       else
-        %x[sudo chown #{@config.user}:#{@config.user} #{path}]
+        %x[sudo chown #{$user}:#{$group} #{path}]
         File.write(tmp_file, contents)
         %x[sudo chown root:root #{path}]
       end
@@ -117,6 +117,8 @@ task :configure do
   if conf['group'].nil?
     conf['group'] = %x[id -g -nr].strip
   end
+  $user  = conf['user']
+  $group = conf['group']
 
   #
   # Pre-cook the connection string
@@ -165,17 +167,8 @@ task :configure do
     unless File.exists? template
       throw "Missing configuration file for #{@job_name}" 
     end
-
-    create_directory(path:"#{@config.prefix}/etc/#{@job_name}/conf.json",
-                     user: @config.user,
-                     group: @config.group
-    )
-
-    create_directory(path:"#{@config.prefix}/var/log/#{@job_name}",
-                     user: @config.user,
-                     group: @config.group
-    )
-
+    create_directory "#{@config.prefix}/etc/#{@job_name}/conf.json"
+    create_directory "#{@config.prefix}/var/log/#{@job_name}"
     diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template)).result())),
                    path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                    diff: diff_before_copy,
