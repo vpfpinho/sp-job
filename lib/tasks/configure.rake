@@ -34,7 +34,7 @@ def create_directory (path)
 end
 
 def diff_and_write (contents:, path:, diff: true, dry_run: false)
-    if ! Dir.exists?(File.dirname path)      
+    if OS.mac? && ! Dir.exists?(File.dirname path)
       FileUtils::mkdir_p File.dirname path
     end
     if ! File.exists?(path)
@@ -96,7 +96,7 @@ task :configure do
 
   #
   # Follow configuration dependencies and merge the configurations
-  # 
+  #
   configs = [ conf ]
   loop do
     break if conf['extends'].nil?
@@ -172,7 +172,7 @@ task :configure do
       template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
     end
     unless File.exists? template
-      throw "Missing configuration file for #{@job_name}" 
+      throw "Missing configuration file for #{@job_name}"
     end
     create_directory "#{@config.prefix}/etc/#{@job_name}"
     create_directory "#{@config.prefix}/var/log/#{@job_name}"
@@ -180,7 +180,7 @@ task :configure do
                    path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                    diff: diff_before_copy,
                    dry_run: dry_run
-    )    
+    )
 
     if File.exists? "#{@job_dir}/service.erb"
       template = "#{@job_dir}/service.erb"
@@ -188,7 +188,7 @@ task :configure do
       template = "#{@config.paths.working_directory}/jobs/default.service.erb"
     end
     unless File.exists? template
-      throw "Missing service file for #{@job_name}" 
+      throw "Missing service file for #{@job_name}"
     end
 
     diff_and_write(contents: ERB.new(File.read(template)).result(),
