@@ -174,6 +174,9 @@ task :configure do
     unless File.exists? template
       throw "Missing configuration file for #{@job_name}"
     end
+    if OS.mac?
+      create_directory("/usr/local/var/lock/#{@job_name}/")
+    end
     create_directory "#{@config.prefix}/etc/#{@job_name}"
     create_directory "#{@config.prefix}/var/log/#{@job_name}"
     diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template)).result())),

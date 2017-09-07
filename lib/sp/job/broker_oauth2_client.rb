@@ -123,22 +123,28 @@ module SP
       # Access denied error.
       #
       class AccessDenied < Error
-
         def initialize(a_description)
           super "access_denied", a_description
         end
-
       end
+
+      #
+      # Unauthorized User
+      #
+      class UnauthorizedUser< Error
+        def initialize(a_description)
+          super "unauthorized_user", a_description
+        end
+      end
+
 
       #
       # Internal error.
       #
       class InternalError < Error
-
         def initialize(a_description)
           super "internal_error", a_description
         end
-
       end
 
       private
@@ -168,7 +174,7 @@ module SP
         @client.authorization_code.authorization_url({
           redirect_uri: a_redirect_uri,
           scope: a_scope
-        })
+          })
       end
 
       #
@@ -217,22 +223,22 @@ module SP
               :params      => Hash[ URI::decode_www_form(URI(http_headers['Location']).query).to_h.map { |k, v| [k.to_sym, v] }]
               },
             }
-          if not h[:http][:params][:code]
-            if h[:http][:params][:error]
-              raise Error.new(h[:http][:params][:error], h[:http][:params][:error_description])
+            if not h[:http][:params][:code]
+              if h[:http][:params][:error]
+                raise Error.new(h[:http][:params][:error], h[:http][:params][:error_description])
+              else
+                raise InternalError.new("Unable to retrieve an authorization code!")
+              end
             else
-              raise InternalError.new("Unable to retrieve an authorization code!")
+              h[:oauth2] = {
+                :code => h[:http][:params][:code]
+              }
             end
+            h
           else
-            h[:oauth2] = {
-              :code => h[:http][:params][:code]
-            }
+            raise InternalError.new("Unable to retrieve an authorization code - unexpected HTTP status code #{c.response_code}!")
           end
-          h
-        else
-          raise InternalError.new("Unable to retrieve an authorization code - unexpected HTTP status code #{c.response_code}!")
         end
-      end
 
       #
       # Exchange an 'authorization code' for access ( and refresh ) token(s).
