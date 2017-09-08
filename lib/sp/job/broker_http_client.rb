@@ -224,7 +224,6 @@ module SP
       # @param a_content_type
       #
       def do_http_post (a_uri, a_body, a_content_type = 'application/vnd.api+json')
-        File.open('/tmp/julia-api.log', 'a+') { |f| f.puts(a_uri) ; f.puts(a_content_type) ; f.puts(a_body) }
         http_request = Curl::Easy.http_post(a_uri, a_body) do |curl|
           curl.headers['Content-Type']  = a_content_type;
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
