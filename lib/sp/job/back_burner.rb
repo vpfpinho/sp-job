@@ -122,7 +122,7 @@ end
 module Backburner
   module Helpers
 
-    def expand_tube_name(tube)
+    def expand_tube_name (tube)
       tube
     end
 
@@ -130,7 +130,7 @@ module Backburner
 end
 
 #
-# And this is the mix-en we'll apply to Job execution class
+# And this is the mix-in we'll apply to Job execution class
 # 
 module SP
   module Job

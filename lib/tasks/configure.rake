@@ -69,11 +69,11 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 end
 
-desc 'Update project configurations'
-task :configure do
+desc 'Update project configurations no args just diff use rake configure[overwrite] to overwrite system files'
+task :configure, [ :overwrite ] do |task, args|
 
   class ::Hash
-    def deep_merge(second)
+    def deep_merge (second)
         merger = proc { |key, v1, v2| Hash === v1 && Hash === v2 ? v1.merge(v2, &merger) : Array === v1 && Array === v2 ? v1 | v2 : [:undefined, nil, :nil].include?(v2) ? v1 : v2 }
         self.merge(second.to_h, &merger)
     end
@@ -83,7 +83,12 @@ task :configure do
   @project = Dir.pwd
   @user_home = File.expand_path('~')
   diff_before_copy = true
-  dry_run = false
+ 
+  if args[:overwrite] == "overwrite"
+    dry_run = false
+  else
+    dry_run = true
+  end    
 
   #
   # Pick file named 'hostname', or use 'developer' as basefile
@@ -165,10 +170,10 @@ task :configure do
     Dir.glob("#{@project}/configure/#{src}/**/*.erb") do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
       create_directory(File.dirname dst_file)
-      diff_and_write(contents: ERB.new(File.read(template)).result(),
+      diff_and_write(contents: ERB.new(File.read(template), nil, '-').result(),
                      path: dst_file,
-                     diff: true,
-                     dry_run: true
+                     diff: diff_before_copy,
+                     dry_run: dry_run
       )
     end
   end
@@ -196,7 +201,7 @@ task :configure do
     end
     create_directory "#{@config.prefix}/etc/#{@job_name}"
     create_directory "#{@config.prefix}/var/log/#{@job_name}"
-    diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template)).result())),
+    diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template), nil, '-').result())),
                    path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                    diff: diff_before_copy,
                    dry_run: dry_run
