@@ -80,18 +80,18 @@ task :configure do
   end
 
   hostname = %x[hostname -s].strip
-  project = Dir.pwd
-  user_home = File.expand_path('~')
+  @project = Dir.pwd
+  @user_home = File.expand_path('~')
   diff_before_copy = true
   dry_run = false
 
   #
   # Pick file named 'hostname', or use 'developer' as basefile
   #
-  if File.exists?("#{project}/configure/#{hostname}.yml")
-    conf = YAML.load_file("#{project}/configure/#{hostname}.yml")
+  if File.exists?("#{@project}/configure/#{hostname}.yml")
+    conf = YAML.load_file("#{@project}/configure/#{hostname}.yml")
   else
-    conf = YAML.load_file("#{project}/configure/developer.yml")
+    conf = YAML.load_file("#{@project}/configure/developer.yml")
   end
 
   #
@@ -100,7 +100,7 @@ task :configure do
   configs = [ conf ]
   loop do
     break if conf['extends'].nil?
-    conf = YAML.load_file("#{project}/configure/#{conf['extends']}.yml")
+    conf = YAML.load_file("#{@project}/configure/#{conf['extends']}.yml")
     configs << conf
   end
   conf = configs[-1]
@@ -110,11 +110,13 @@ task :configure do
   end
 
   #
-  # if job! is found it will replace the merged jobs
+  # if check overides that turn off config inheritance
   #
-  unless configs[0]['jobs!'].nil?
-    conf['jobs'] = configs[0]['jobs!']
-    conf.delete 'jobs!'
+  ['jobs!', 'nginx_broker!', 'nginx_epaper!'].each do |key|
+    unless configs[0][key].nil?
+      conf[key[0..-2]] = configs[0][key]
+      conf.delete key
+    end
   end
 
   #
@@ -143,10 +145,10 @@ task :configure do
   #
   conf['paths'].each do |name, path|
     if path.start_with? '$project'
-      conf['paths'][name] = path.sub('$project', project)
+      conf['paths'][name] = path.sub('$project', @project)
       FileUtils.mkdir_p conf['paths'][name]
     elsif path.start_with? '$user_home'
-      conf['paths'][name] = path.sub('$user_home', user_home)
+      conf['paths'][name] = path.sub('$user_home', @user_home)
       FileUtils.mkdir_p conf['paths'][name]
     end
   end
@@ -155,6 +157,21 @@ task :configure do
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
   #
   @config = JSON.parse(conf.to_json, object_class: OpenStruct)
+
+  #
+  # Configure system, projects and user files 
+  # 
+  { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home}.each do |src, dest|
+    Dir.glob("#{@project}/configure/#{src}/**/*.erb") do |template|
+      dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
+      create_directory(File.dirname dst_file)
+      diff_and_write(contents: ERB.new(File.read(template)).result(),
+                     path: dst_file,
+                     diff: true,
+                     dry_run: true
+      )
+    end
+  end
 
   #
   # Configure JOBS
