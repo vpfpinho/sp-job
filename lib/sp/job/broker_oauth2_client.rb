@@ -224,10 +224,15 @@ module SP
               },
             }
             if not h[:http][:params][:code]
-              if h[:http][:params][:error]
-                raise Error.new(h[:http][:params][:error], h[:http][:params][:error_description])
+              if not h[:http][:params][:error]
+                raise InternalError.new("Unable to retrieve an authorization code or error!")
               else
-                raise InternalError.new("Unable to retrieve an authorization code!")
+                h[:oauth2] = {
+                  :error => h[:http][:params][:error]
+                }
+                if h[:http][:params][:error_description]
+                  h[:oauth2][:error_description] = h[:http][:params][:error_description]
+                end
               end
             else
               h[:oauth2] = {
