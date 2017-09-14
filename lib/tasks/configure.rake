@@ -69,7 +69,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 end
 
-desc 'Update project configurations no args just diff use rake configure[overwrite] to overwrite system files'
+desc 'Update project configurations: no args just diffs, use rake configure[overwrite] to overwrite files'
 task :configure, [ :overwrite ] do |task, args|
 
   class ::Hash
@@ -146,7 +146,7 @@ task :configure, [ :overwrite ] do |task, args|
   conf['db']['connection_string'] = "host=#{dbhost} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
 
   #
-  # Resolve project relative paths
+  # Resolve project and user relative paths
   #
   conf['paths'].each do |name, path|
     if path.start_with? '$project'
@@ -166,15 +166,66 @@ task :configure, [ :overwrite ] do |task, args|
   #
   # Configure system, projects and user files 
   # 
+  locations = {}
+  used_locations = []
   { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home}.each do |src, dest|
+    puts "Configuring #{src.upcase}"
     Dir.glob("#{@project}/configure/#{src}/**/*.erb") do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
+
+      # Nginx Locations must be filtered, only handle locations that are used
+      m = /.*\.location$/.match(dst_file)
+      if m 
+        locations[dst_file] = template
+        next
+      end
+
+      # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
+      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
+      if m && m.size == 3
+        key_l1 = m[1].gsub('-', '_') 
+        if conf[key_l1].nil? or conf[key_l1][m[2]].nil? 
+          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
+          next
+        end
+      end
+
+      # Now expand the template 
+      file_contents = ERB.new(File.read(template), nil, '-').result()
+
+      if /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
+        includes = file_contents.scan(/^\s*include\s+conf\.d\/(.*)\.location\;/)
+        includes.each do |m|
+          used_locations << m[0]
+        end
+      end
+
+      # Write text expanded configuration file
       create_directory(File.dirname dst_file)
-      diff_and_write(contents: ERB.new(File.read(template), nil, '-').result(),
+      diff_and_write(contents: file_contents,
                      path: dst_file,
                      diff: diff_before_copy,
                      dry_run: dry_run
       )
+    end
+  end
+
+  #
+  # configure the nginx locations that are used
+  #
+  if used_locations.size
+    puts "Configuring NGINX LOCATIONS"
+    locations.each do |dst_file, template|
+      m = /.*\/(.*).location$/.match dst_file
+      if used_locations.include? m[1]
+        # Write text expanded configuration file
+        create_directory(File.dirname dst_file)
+        diff_and_write(contents: ERB.new(File.read(template), nil, '-').result(),
+                       path: dst_file,
+                       diff: diff_before_copy,
+                       dry_run: dry_run
+        )
+      end
     end
   end
 
