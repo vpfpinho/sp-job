@@ -158,6 +158,8 @@ task :configure, [ :overwrite ] do |task, args|
     end
   end
 
+  ap conf
+
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
   #
