@@ -115,9 +115,14 @@ task :configure, [ :overwrite ] do |task, args|
   end
 
   #
-  # if check overides that turn off config inheritance
+  # Allow overide of project directory
   #
-  ['jobs!', 'nginx_broker!', 'nginx_epaper!'].each do |key|
+  conf['paths']['project'] ||= @project
+
+  #
+  # if check overrides that turn off config inheritance
+  #
+  ['jobs!', 'nginx_broker!', 'nginx_epaper!', 'redis!'].each do |key|
     unless configs[0][key].nil?
       conf[key[0..-2]] = configs[0][key]
       conf.delete key
@@ -150,7 +155,7 @@ task :configure, [ :overwrite ] do |task, args|
   #
   conf['paths'].each do |name, path|
     if path.start_with? '$project'
-      conf['paths'][name] = path.sub('$project', @project)
+      conf['paths'][name] = path.sub('$project', conf['paths']['project'] || @project)
       FileUtils.mkdir_p conf['paths'][name]
     elsif path.start_with? '$user_home'
       conf['paths'][name] = path.sub('$user_home', @user_home)
