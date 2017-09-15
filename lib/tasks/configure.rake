@@ -83,12 +83,12 @@ task :configure, [ :overwrite ] do |task, args|
   @project = Dir.pwd
   @user_home = File.expand_path('~')
   diff_before_copy = true
- 
+
   if args[:overwrite] == "overwrite"
     dry_run = false
   else
     dry_run = true
-  end    
+  end
 
   #
   # Pick file named 'hostname', or use 'developer' as basefile
@@ -169,8 +169,8 @@ task :configure, [ :overwrite ] do |task, args|
   @config = JSON.parse(conf.to_json, object_class: OpenStruct)
 
   #
-  # Configure system, projects and user files 
-  # 
+  # Configure system, projects and user files
+  #
   locations = {}
   used_locations = []
   { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home}.each do |src, dest|
@@ -178,9 +178,14 @@ task :configure, [ :overwrite ] do |task, args|
     Dir.glob("#{@project}/configure/#{src}/**/*.erb") do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
 
+      # developer exception
+      if OS.mac? && @config.nginx_broker.nginx.suffix
+        dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+
       # Nginx Locations must be filtered, only handle locations that are used
       m = /.*\.location$/.match(dst_file)
-      if m 
+      if m
         locations[dst_file] = template
         next
       end
@@ -188,14 +193,14 @@ task :configure, [ :overwrite ] do |task, args|
       # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
       m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
       if m && m.size == 3
-        key_l1 = m[1].gsub('-', '_') 
-        if conf[key_l1].nil? or conf[key_l1][m[2]].nil? 
+        key_l1 = m[1].gsub('-', '_')
+        if conf[key_l1].nil? or conf[key_l1][m[2]].nil?
           puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
           next
         end
       end
 
-      # Now expand the template 
+      # Now expand the template
       file_contents = ERB.new(File.read(template), nil, '-').result()
 
       if /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
