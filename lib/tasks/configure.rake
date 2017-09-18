@@ -169,6 +169,23 @@ task :configure, [ :overwrite ] do |task, args|
   @config = JSON.parse(conf.to_json, object_class: OpenStruct)
 
   #
+  # Create required paths
+  #
+  if @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.paths
+    @config.nginx_broker.nginx.paths.each do |path|
+      if OS.mac? && @config.nginx_broker.nginx.suffix
+        path = path.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+      create_directory "#{@config.prefix}#{path}"
+    end
+  end
+  if @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.paths
+    @config.nginx_epaper.nginx.paths.each do |path|
+      create_directory "#{@config.prefix}#{path}"
+    end
+  end
+
+  #
   # Configure system, projects and user files
   #
   locations = {}
