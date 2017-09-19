@@ -5,12 +5,24 @@ require 'ostruct'
 require 'awesome_print'
 require 'os'
 require 'fileutils'
+require 'etc'
 
 def create_directory (path)
 
   if ! Dir.exists?(path)
     if OS.mac?
-      %x[mkdir -p #{path}]
+      if path.match("^/usr/local/")
+        info = Etc.getpwnam(Etc.getlogin)
+        puts "      * Creating '#{path}'...".yellow
+        %x[sudo mkdir -p #{path}]
+        next_parent_path = File.join("/usr/local", path.split(File::SEPARATOR).map {|x| x=="" ? File::SEPARATOR : x}[1..-1][2])
+        if ! next_parent_path
+          throw "Unable to create path #{path} - parent not found!"
+        end
+        %x[sudo chown -R #{info.name}:#{Etc.getgrgid(info.gid).name} #{next_parent_path}]
+      else
+        %x[mkdir -p #{path}]
+      end
     else
       %x[sudo mkdir -p #{path}]
     end
