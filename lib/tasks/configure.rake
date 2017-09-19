@@ -15,19 +15,28 @@ def create_directory (path)
         info = Etc.getpwnam(Etc.getlogin)
         puts "      * Creating '#{path}'...".yellow
         %x[sudo mkdir -p #{path}]
+        if 0 != $?.exitstatus
+          puts "      * Failed to create #{path}".red
+        end
         next_parent_path = File.join("/usr/local", path.split(File::SEPARATOR).map {|x| x=="" ? File::SEPARATOR : x}[1..-1][2])
         if ! next_parent_path
           throw "Unable to create path #{path} - parent not found!"
         end
         %x[sudo chown -R #{info.name}:#{Etc.getgrgid(info.gid).name} #{next_parent_path}]
+        if 0 != $?.exitstatus
+          puts "      * Failed to change ownership to #{path}".red
+        end
       else
         %x[mkdir -p #{path}]
+        if 0 != $?.exitstatus
+          puts "      * Failed to create #{path}".red
+        end
       end
     else
       %x[sudo mkdir -p #{path}]
-    end
-    if 0 != $?.exitstatus
-      puts "      * Failed to create #{path}".red
+      if 0 != $?.exitstatus
+        puts "      * Failed to create #{path}".red
+      end
     end
     if ! OS.mac?
       %x[sudo chown #{$user}:#{$group} #{path}]
@@ -46,8 +55,8 @@ def create_directory (path)
 end
 
 def diff_and_write (contents:, path:, diff: true, dry_run: false)
-    if OS.mac? && ! Dir.exists?(File.dirname path)
-      FileUtils::mkdir_p File.dirname path
+    if OS.mac?
+      create_directory File.dirname path
     end
     if ! File.exists?(path)
       if OS.mac? || File.writable?(path)
@@ -174,8 +183,6 @@ task :configure, [ :overwrite ] do |task, args|
       FileUtils.mkdir_p conf['paths'][name]
     end
   end
-
-  ap conf
 
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
