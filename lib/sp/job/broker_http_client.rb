@@ -86,7 +86,9 @@ module SP
       #
       class Session
 
+        attr_accessor :is_new
         attr_accessor :access_token
+        attr_accessor :expires_in
         attr_accessor :refresh_token
         attr_accessor :scope
 
@@ -96,9 +98,12 @@ module SP
         # @param a_access_token
         # @param a_refresh_token
         # @param a_scope
+        # @param a_expires_in
         #
-        def initialize(a_access_token, a_refresh_token, a_scope)
+        def initialize(a_access_token, a_refresh_token, a_scope, a_expires_in = -1)
+          @is_new        = ( nil == a_access_token )
           @access_token  = a_access_token
+          @expires_in    = a_expires_in
           @refresh_token = a_refresh_token
           @scope         = a_scope
           self
@@ -115,7 +120,8 @@ module SP
         Session.new(
           @session.access_token,
           @session.refresh_token,
-          @session.scope
+          @session.scope,
+          @session.expires_in
         )
       end
 
@@ -124,11 +130,14 @@ module SP
       #
       # @param a_session
       # @param a_config
-      # @param a_options
+      # @param a_refreshed_callback
+      # @param a_auto_renew_refresh_token
       #
-      def initialize(a_session, a_oauth2_client)
-        @session       = a_session
-        @oauth2_client = a_oauth2_client
+      def initialize(a_session, a_oauth2_client, a_refreshed_callback, a_auto_renew_refresh_token)
+        @session                  = a_session
+        @oauth2_client            = a_oauth2_client
+        @refreshed_callback       = a_refreshed_callback
+        @auto_renew_refresh_token = a_auto_renew_refresh_token
       end
 
       #
@@ -279,19 +288,30 @@ module SP
           tokens_response = @oauth2_client.refresh_access_token(@session.refresh_token, @session.scope)
           if 200 == tokens_response[:http][:status_code] && tokens_response[:oauth2] && ! tokens_response[:oauth2][:error]
             # success: keep track of new data
+            @session.is_new        = false
             @session.access_token  = tokens_response[:oauth2][:access_token]
             @session.refresh_token = tokens_response[:oauth2][:refresh_token]
             @session.scope         = tokens_response[:oauth2][:scope] || @session.scope
-            # retry http request
-            response = yield
+            @session.expires_in    = tokens_response[:oauth2][:expires_in] || -1
+            # notify owner
+            if nil != @refreshed_callback
+              @refreshed_callback.call(@session)
+            end
           else
-            response = fetch_new_tokens()
+            fetch_new_tokens()
           end
+          # retry http request
+          response = yield
         end
         response
       end
 
       def fetch_new_tokens()
+        # this is only allower for server 2 server usage
+        # and when the client configuration has company data already set
+        if false == @auto_renew_refresh_token
+          raise ::SP::Job::BrokerOAuth2Client::UnauthorizedUser.new(nil)
+        end
         # failure: request a new 'authorization code'
         auth_code_response = @oauth2_client.get_authorization_code(
           a_redirect_uri = nil,
@@ -303,9 +323,15 @@ module SP
           tokens_response = @oauth2_client.exchange_auth_code_for_token(auth_code_response[:oauth2][:code])
           if 200 == tokens_response[:http][:status_code] && tokens_response[:oauth2] && ! tokens_response[:oauth2][:error]
             # success: keep track of new data
+            @session.is_new        = true
             @session.access_token  = tokens_response[:oauth2][:access_token]
             @session.refresh_token = tokens_response[:oauth2][:refresh_token]
             @session.scope         = tokens_response[:oauth2][:scope] || @session.scope
+            @session.expires_in    = tokens_response[:oauth2][:expires_in] || -1
+            # notify owner
+            if nil != @refreshed_callback
+              @refreshed_callback.call(@session)
+            end
           end
         end
       end
