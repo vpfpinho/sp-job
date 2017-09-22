@@ -68,7 +68,7 @@ end
 Backburner.configure do |config|
 
   config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  config.on_error            = lambda { |e| 
+  config.on_error            = lambda { |e|
     update_progress(status: 'error', message: e)
     if $rollbar
       Rollbar.error(e)
@@ -105,14 +105,14 @@ Backburner.configure do |config|
       config.logger.level = Logger::INFO
     end
   end
-  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S" 
+  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S"
   config.primary_queue          = $args[:program_name]
   config.reserve_timeout        = nil
   config.job_parser_proc        = lambda { |body|
     rv = Hash.new
     rv[:class] = $args[:program_name]
     rv[:args] = [JSON.parse(body, :symbolize_names => true)]
-    rv 
+    rv
   }
 end
 
@@ -131,7 +131,7 @@ end
 
 #
 # And this is the mix-in we'll apply to Job execution class
-# 
+#
 module SP
   module Job
     module Common
@@ -157,7 +157,7 @@ module SP
           $connected = true
         end
 
-        $job_status = { 
+        $job_status = {
           action:       'response',
           content_type: 'application/json',
           progress:      0
@@ -188,7 +188,7 @@ module SP
         else
           message = nil
         end
-        $job_status[:progress] = progress.to_f.round(2) unless progress.nil? 
+        $job_status[:progress] = progress.to_f.round(2) unless progress.nil?
         $job_status[:progress] = ($job_status[:progress] + step.to_f).round(2) unless step.nil?
         $job_status[:message]  = message unless message.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
@@ -202,7 +202,7 @@ module SP
           end
         end
 
-        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier 
+        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier
           update_progress_on_redis
         end
       end
@@ -214,27 +214,27 @@ module SP
           $redis.hset    $redis_key, 'status', redis_str
           $redis.expire  $redis_key, $validity
         end
-        $report_time_stamp = Time.now.to_f 
+        $report_time_stamp = Time.now.to_f
       end
 
-      def get_jsonapi!(path, params, jsonapi_args)
+      def get_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.get!(path, params, jsonapi_args)
+        $jsonapi.adapter.get!(path, params)
       end
 
-      def post_jsonapi!(path, params, jsonapi_args)
+      def post_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.post!(path, params, jsonapi_args)
+        $jsonapi.adapter.post!(path, params)
       end
 
-      def patch_jsonapi!(path, params, jsonapi_args)
+      def patch_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.patch!(path, params, jsonapi_args)
+        $jsonapi.adapter.patch!(path, params)
       end
 
-      def delete_jsonapi!(path, jsonapi_args)
+      def delete_jsonapi!(path)
         check_db_life_span()
-        $jsonapi.adapter.delete!(path, jsonapi_args)
+        $jsonapi.adapter.delete!(path)
       end
 
       def db_exec (query)
@@ -258,7 +258,7 @@ module SP
           end
         end
       end
-      
+
       def define_db_life_span_treshhold
         min = $config[:postgres][:min_queries_per_conn]
         max = $config[:postgres][:max_queries_per_conn]
@@ -274,7 +274,7 @@ module SP
           end
         end
       end
-      
+
       def check_db_life_span
         return unless $check_db_life_span
         $db_life_span += 1
