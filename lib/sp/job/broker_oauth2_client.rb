@@ -129,6 +129,15 @@ module SP
       end
 
       #
+      # Invalid e-mail or password error.
+      #
+      class InvalidEmailOrPassword < AccessDenied
+        def initialize(a_description="Invalid email or password!")
+          super a_description
+        end
+      end
+
+      #
       # Unauthorized User
       #
       class UnauthorizedUser< Error
