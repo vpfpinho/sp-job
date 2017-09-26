@@ -218,24 +218,24 @@ module SP
         $report_time_stamp = Time.now.to_f
       end
 
-      def get_jsonapi!(path, params, jsonapi_args)
+      def get_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.get!(path, params, jsonapi_args)
+        $jsonapi.adapter.get!(path, params)
       end
 
-      def post_jsonapi!(path, params, jsonapi_args)
+      def post_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.post!(path, params, jsonapi_args)
+        $jsonapi.adapter.post!(path, params)
       end
 
-      def patch_jsonapi!(path, params, jsonapi_args)
+      def patch_jsonapi!(path, params)
         check_db_life_span()
-        $jsonapi.adapter.patch!(path, params, jsonapi_args)
+        $jsonapi.adapter.patch!(path, params)
       end
 
-      def delete_jsonapi!(path, jsonapi_args)
+      def delete_jsonapi!(path)
         check_db_life_span()
-        $jsonapi.adapter.delete!(path, jsonapi_args)
+        $jsonapi.adapter.delete!(path)
       end
 
       def db_exec (query)
