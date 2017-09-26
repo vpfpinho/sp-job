@@ -34,7 +34,7 @@ module SP
       #
       @owner      = nil
       @config     = nil
-      @pg         = nil
+      @connection = nil
       @treshold   = -1
       @counter    = 0
       @statements = []
@@ -44,7 +44,7 @@ module SP
       #
       # Public Attributes
       #
-      attr_accessor :pg
+      attr_accessor :connection
 
       #
       # Prepare database connection configuration.
@@ -55,7 +55,7 @@ module SP
       def initialize (owner:, config:)
         @owner      = owner
         @config     = config
-        @pg         = nil
+        @connection         = nil
         @treshold   = -1
         @counter    = 0
         @statements = []
@@ -79,21 +79,21 @@ module SP
       #
       def connect ()
         disconnect()
-        @pg = PG.connect(@config[:conn_str])
+        @connection = PG.connect(@config[:conn_str])
       end
 
       #
       # Close currenly open database connection.
       #
       def disconnect ()
-        if @pg.nil?
+        if @connection.nil?
           return
         end
         while @statements.count > 0 do
-            @pg.exec("DEALLOCATE #{@statements.pop()}")
+            @connection.exec("DEALLOCATE #{@statements.pop()}")
         end
-        @pg.close
-        @pg = nil
+        @connection.close
+        @connection = nil
         @counter = 0
       end
 
@@ -105,14 +105,15 @@ module SP
       # @return Statement id.
       #
       def prepare_statement (query:)
-        if nil == @pg
+        if nil == @connection
           connect()
         end
+        id = "#{@owner}_#{Digest::MD5.hexdigest(query)}"
         if @statements.include? id
           return id
         else
           @statements << id
-          @pg.prepare(@statements.last, query)
+          @connection.prepare(@statements.last, query)
           return @statements.last
         end
       end
@@ -127,7 +128,7 @@ module SP
       #
       def execute_statement (id:, args:)
         check_life_span()
-        @pg.exec_prepared(id, args)
+        @connection.exec_prepared(id, args)
       end
 
       #
@@ -139,11 +140,23 @@ module SP
       def dealloc_statement (id:)
         if nil == id
           while @statements.count > 0 do
-              @pg.exec("DEALLOCATE #{@statements.pop()}")
+              @connection.exec("DEALLOCATE #{@statements.pop()}")
           end
         else
           @statements.delete!(id)
-          @pg.exec("DEALLOCATE #{id}")
+          @connection.exec("DEALLOCATE #{id}")
+        end
+      end
+
+      #
+      # Execute a query,
+      #
+      # @param query
+      #
+      def query (query:)
+        unless query.nil?
+          check_life_span()
+          @connection.exec(query)
         end
       end
 

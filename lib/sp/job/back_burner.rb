@@ -18,6 +18,7 @@
 #
 # encoding: utf-8
 #
+require 'sp/job/pg_connection'
 
 #
 # Initialize global data needed for configuration
@@ -68,7 +69,7 @@ end
 Backburner.configure do |config|
 
   config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  config.on_error            = lambda { |e| 
+  config.on_error            = lambda { |e|
     update_progress(status: 'error', message: e)
     if $rollbar
       Rollbar.error(e)
@@ -105,14 +106,14 @@ Backburner.configure do |config|
       config.logger.level = Logger::INFO
     end
   end
-  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S" 
+  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S"
   config.primary_queue          = $args[:program_name]
   config.reserve_timeout        = nil
   config.job_parser_proc        = lambda { |body|
     rv = Hash.new
     rv[:class] = $args[:program_name]
     rv[:args] = [JSON.parse(body, :symbolize_names => true)]
-    rv 
+    rv
   }
 end
 
@@ -131,7 +132,7 @@ end
 
 #
 # And this is the mix-in we'll apply to Job execution class
-# 
+#
 module SP
   module Job
     module Common
@@ -157,7 +158,7 @@ module SP
           $connected = true
         end
 
-        $job_status = { 
+        $job_status = {
           action:       'response',
           content_type: 'application/json',
           progress:      0
@@ -188,7 +189,7 @@ module SP
         else
           message = nil
         end
-        $job_status[:progress] = progress.to_f.round(2) unless progress.nil? 
+        $job_status[:progress] = progress.to_f.round(2) unless progress.nil?
         $job_status[:progress] = ($job_status[:progress] + step.to_f).round(2) unless step.nil?
         $job_status[:message]  = message unless message.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
@@ -202,7 +203,7 @@ module SP
           end
         end
 
-        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier 
+        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier
           update_progress_on_redis
         end
       end
@@ -214,7 +215,7 @@ module SP
           $redis.hset    $redis_key, 'status', redis_str
           $redis.expire  $redis_key, $validity
         end
-        $report_time_stamp = Time.now.to_f 
+        $report_time_stamp = Time.now.to_f
       end
 
       def get_jsonapi!(path, params, jsonapi_args)
@@ -238,27 +239,29 @@ module SP
       end
 
       def db_exec (query)
-        unless query.nil?
-          check_db_life_span()
-          $pg.exec(query)
-        end
+        $pg.query(query: query)
       end
 
       def database_connect
-        $pg.close if !$pg.nil? && !$pg.finished?
-        current_url = ($jsonapi.nil? ? nil : $jsonapi.url)
-        $jsonapi.close unless $jsonapi.nil?
-        $pg = $jsonapi = nil
-        unless $config[:postgres].nil? || $config[:postgres][:conn_str].nil?
-          $pg = PG.connect($config[:postgres][:conn_str])
-          # Connect to postgresql
-          define_db_life_span_treshhold()
+        # any connection to close?
+        if ! $jsonapi.nil?
+          $jsonapi.close
+          $jsonapi = nil
+        end
+        if nil != $pg
+          $pg.disconnect()
+          $pg = nil
+        end
+        # establish new connection?
+        if $config[:postgres] && $config[:postgres][:conn_str]
+          $pg = ::SP::Job::PGConnection.new(owner: 'back_burner', config: $config[:postgres])
+          $pg.connect()
           if $config[:options][:jsonapi] == true
-            $jsonapi = SP::Duh::JSONAPI::Service.new($pg, current_url)
+            $jsonapi = SP::Duh::JSONAPI::Service.new($pg.connection, ($jsonapi.nil? ? nil : $jsonapi.url))
           end
         end
       end
-      
+
       def define_db_life_span_treshhold
         min = $config[:postgres][:min_queries_per_conn]
         max = $config[:postgres][:max_queries_per_conn]
@@ -274,7 +277,7 @@ module SP
           end
         end
       end
-      
+
       def check_db_life_span
         return unless $check_db_life_span
         $db_life_span += 1
@@ -311,3 +314,6 @@ $validity           = 2
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $check_db_life_span = false
 $status_dirty       = false
+if $config[:postgres] && $config[:postgres][:conn_str]
+  $pg = ::SP::Job::PGConnection.new(owner: 'back_burner', config: $config[:postgres])
+end
