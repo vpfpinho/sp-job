@@ -90,7 +90,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 end
 
-desc 'Update project configurations: no args just diffs, use rake configure[overwrite] to overwrite all files, use configure[hotfix] to change project only'
+desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
 task :configure, [ :action ] do |task, args|
 
   class ::Hash
