@@ -165,7 +165,7 @@ module SP
       public
 
       #
-      # Initializer
+      # Initializer ( deprecated )
       #
       def initialize(a_host, a_client_id, a_client_secret, a_redirect_uri, a_scope, a_options = {})
         @client                = ::OAuth2Client::Client.new(a_host, a_client_id, a_client_secret, a_options)
@@ -174,6 +174,22 @@ module SP
         @client.token_path     = '/oauth/token'
         @client.authorize_path = '/oauth/auth'
       end
+
+      #
+      # Initializer
+      #
+      def initialize(protocol:, host:, port:, client_id:, client_secret:, redirect_uri:, scope:, options: {})
+        host = "#{protocol}://#{host}"
+        if ( 'https' == protocol && 443 != port ) || ( 'http' == protocol && 80 != port )
+          host += ":#{port}"
+        end
+        @client                = ::OAuth2Client::Client.new(host, client_id, client_secret, options)
+        @redirect_uri          = redirect_uri
+        @scope                 = scope
+        @client.token_path     = '/oauth/token'
+        @client.authorize_path = '/oauth/auth'
+      end
+
 
       #
       # Returns the authorization url, ready to be called.

@@ -75,7 +75,7 @@ module SP
       end
 
       def content_type ()
-        "application/vnd.api+json;;charset=utf-8"
+        "application/vnd.api+json;charset=utf-8"
       end
 
       def body ()
