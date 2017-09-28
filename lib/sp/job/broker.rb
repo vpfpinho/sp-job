@@ -138,9 +138,12 @@ module SP
             at_response = @client.exchange_auth_code_for_token(
               ac_response[:oauth2][:code]
             )
+            # return 'oauth2' at object
+            return at_response
+          else
+            # return 'oauth2' ac object
+            return ac_response
           end
-          # return 'oauth2' object
-          ac_response
         end
 
         #
