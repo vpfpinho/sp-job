@@ -126,14 +126,27 @@ module SP
         #
         # @param scope
         #
-        def authorize (scope: nil)
+        def authorize (scope: nil, fields: nil)
           # obtain an 'authorization code'
           ac_response = @client.get_authorization_code(
             a_redirect_uri = nil,
             a_scope = scope
-          )
+          )          
           # got a valid 'authorization code'?
           if ac_response[:oauth2].has_key?(:code)
+            # got fields?
+            if nil != fields
+              # prepare redis arguments: field value, [field value, ...]
+              array = []
+              fields.each do |k,v|
+                array << k.to_s
+                array << v
+              end
+              $redis.hmset("#{@service_id}:oauth:authorization_code:#{ac_response[:oauth2][:code]}",
+                array,
+                'patched_by', 'toconline-session'
+              )
+           end
             # exchange it for a 'access' and a 'refresh' token
             at_response = @client.exchange_auth_code_for_token(
               ac_response[:oauth2][:code]
@@ -263,7 +276,6 @@ module SP
         #
         #
         def initialize (config:)
-          ap config
           if nil != config && nil != config[:oauth2]
             @oauth2 = OAuth2.new(service_id: config[:service_id], config: config[:oauth2], redis: config[:redis])
           else
