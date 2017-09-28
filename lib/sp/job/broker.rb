@@ -83,6 +83,17 @@ module SP
       end
 
       #
+      # Helper class that defined an 'Unauthorized' error.
+      #
+      class Unauthorized < Error
+
+        def initialize (i18n:, internal:)
+          super(i18n: i18n, code: 401, internal: internal)
+        end
+
+      end
+
+      #
       #
       #
       class OAuth2
@@ -171,41 +182,46 @@ module SP
         #
         # Patch a pair of tokens, by generating new ones
         #
-        # @param access
-        # @param refresh
+        # @param access_token
+        # @param refresh_token
         # @param fields
         #
-        def patch (access:, refresh:, fields:)
-          debugger
+        def patch (access_token:, refresh_token:, fields:)
           if nil == @redis || nil == @service_id
             raise InternalError.new(i18n: nil, internal: nil)
           end
           # generate new pair, based on provided refresh_token
-          new_tokens = @client.refresh()
+          at_response = @client.refresh_access_token(
+            a_refresh_token = refresh_token,
+            a_scope = nil # keep current scope
+          )
+          if true == at_response[:oauth2].has_key?(:error)
+            return at_response
+          end
           # prepare redis arguments: field value, [field value, ...]
           array = []
           fields.each do |k,v|
-            array << k
+            array << k.to_s
             array << v
           end
           # patch new tokens
           @redis.multi do |multi|
-            multi.hmset("#{@service_id}:oauth:refresh_token:#{new_tokens[:refresh_token]}",
+            multi.hmset("#{@service_id}:oauth:refresh_token:#{at_response[:oauth2][:refresh_token]}",
                array,
               'patched_by', 'toconline-session'
             )
-            multi.hmset("#{@service_id}:oauth:access_token:#{new_tokens[:access_token]}",
+            multi.hmset("#{@service_id}:oauth:access_token:#{at_response[:oauth2][:access_token]}",
                array,
               'patched_by', 'toconline-session'
             )
           end
           # delete old tokens from redis
           @redis.multi do |multi|
-            multi.del("#{@service_id}:oauth:access_token:#{access}")
-            multi.del("#{@service_id}:oauth:refresh_token:#{refresh}")
+            multi.del("#{@service_id}:oauth:access_token:#{access_token}")
+            multi.del("#{@service_id}:oauth:refresh_token:#{refresh_token}")
           end
-          # return new tokens
-          new_tokens
+          # return oauth response
+          return at_response
         end
 
         #
