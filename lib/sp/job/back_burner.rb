@@ -91,16 +91,16 @@ Backburner.configure do |config|
   if $args[:log_level].nil?
     config.logger.level = Logger::INFO
   else
-    case $args[:log_level]
-    when 'debug'
+    case $args[:log_level].upcase
+    when 'DEBUG'
       config.logger.level = Logger::DEBUG
-    when 'info'
+    when 'INFO'
       config.logger.level = Logger::INFO
-    when 'warn'
+    when 'WARN'
       config.logger.level = Logger::WARN
-    when 'error'
+    when 'ERROR'
       config.logger.level = Logger::ERROR
-    when 'fatal'
+    when 'FATAL'
       config.logger.level = Logger::FATAL
     else
       config.logger.level = Logger::INFO
