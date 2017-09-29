@@ -102,10 +102,39 @@ desc 'Update project configuration: action=overwrite => update system,user,proje
 task :configure, [ :action ] do |task, args|
 
   class ::Hash
-    def deep_merge (second)
-        merger = proc { |key, v1, v2| Hash === v1 && Hash === v2 ? v1.merge(v2, &merger) : Array === v1 && Array === v2 ? v1 | v2 : [:undefined, nil, :nil].include?(v2) ? v1 : v2 }
-        self.merge(second.to_h, &merger)
+
+    def deep_merge (second) 
+
+      second.each do |skey, sval|
+        if self.has_key?(skey+'!')
+          self[skey] = self[skey+'!']
+          self.delete(skey+'!')
+          next
+        elsif skey[-1] == '!'
+          tkey = skey[0..-2]
+          if self.has_key?(tkey)
+            if Array === self[tkey] && Array === sval
+              self[tkey] = self[tkey] | sval
+            elsif Hash === self[tkey] && Hash === sval
+              self[tkey].deep_merge(sval)
+            else
+              raise "Error can't merge #{skey} with different types"
+            end
+          end
+        end
+
+        if ! self.has_key?(skey) 
+          self[skey] = sval         
+        else
+          if Array === self[skey] && Array === sval
+            self[skey] = self[skey] | sval
+          elsif Hash === self[skey] && Hash === sval
+            self[skey].deep_merge(sval)
+          end          
+        end
+      end
     end
+
   end
 
   hostname = %x[hostname -s].strip
@@ -142,26 +171,18 @@ task :configure, [ :action ] do |task, args|
     conf = YAML.load_file("#{@project}/configure/#{conf['extends']}.yml")
     configs << conf
   end
-  conf = configs[-1]
+
   (configs.size - 2).downto(0).each do |i|
-    puts "Merging with #{configs[i]['extends']}"
-    conf = conf.deep_merge(configs[i])
+    puts "#{i} #{configs[i]['machine']['name']} merging with #{configs[i+1]['machine']['name']}"
+    configs[i].deep_merge(configs[i+1])
   end
+
+  conf = configs[0]
 
   #
   # Allow overide of project directory
   #
   conf['paths']['project'] ||= @project
-
-  #
-  # if check overrides that turn off config inheritance
-  #
-  ['jobs!', 'nginx_broker!', 'nginx_epaper!', 'redis!'].each do |key|
-    unless configs[0][key].nil?
-      conf[key[0..-2]] = configs[0][key]
-      conf.delete key
-    end
-  end
 
   #
   # Resolve user and group if needed
@@ -196,6 +217,7 @@ task :configure, [ :action ] do |task, args|
       FileUtils.mkdir_p conf['paths'][name]
     end
   end
+
 
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
@@ -261,8 +283,8 @@ task :configure, [ :action ] do |task, args|
 
       if /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
         includes = file_contents.scan(/^\s*include\s+conf\.d\/(.*)\.location\;/)
-        includes.each do |m|
-          used_locations << m[0]
+        includes.each do |loc|
+          used_locations << loc[0]
         end
       end
 
