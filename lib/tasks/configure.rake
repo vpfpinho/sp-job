@@ -33,19 +33,28 @@ def create_directory (path)
         end
       end
     else
-      %x[sudo mkdir -p #{path}]
+      if path.match("^/home/")
+        %x[mkdir -p #{path}]
+      else
+        %x[sudo mkdir -p #{path}]
+      end
       if 0 != $?.exitstatus
         puts "      * Failed to create #{path}".red
       end
     end
-    if ! OS.mac?
+    if ! OS.mac? && !path.match("^/home/")
       %x[sudo chown #{$user}:#{$group} #{path}]
+    else
+      %x[chown #{$user}:#{$group} #{path}]
     end
     if 0 != $?.exitstatus
       puts "      * Failed to change ownership to #{path}".red
     end
-    if ! OS.mac?
+    if ! OS.mac?  && !path.match("^/home/")
       %x[sudo chmod 755 #{path}]
+    else
+      %x[chmod 755 #{path}]
+    end
     end
     if 0 != $?.exitstatus
       puts "      * Failed to change permissions to #{path}".red
@@ -107,13 +116,13 @@ task :configure, [ :action ] do |task, args|
 
   if args[:action] == 'overwrite'
     dry_run = false
-    action = 'overwrite' 
+    action = 'overwrite'
   elsif args[:action] == 'hotfix'
     dry_run = false
-    action = 'hotfix' 
+    action = 'hotfix'
   else
     dry_run = true
-    action = 'dry-run' 
+    action = 'dry-run'
   end
 
   #
@@ -298,7 +307,7 @@ task :configure, [ :action ] do |task, args|
       @job_name        = name
       @job_description = "TODO Description"
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
-  
+
       puts "  #{name}:"
       if File.exists? "#{@job_dir}/conf.json.erb"
         template = "#{@job_dir}/conf.json.erb"
@@ -318,7 +327,7 @@ task :configure, [ :action ] do |task, args|
                      diff: diff_before_copy,
                      dry_run: dry_run
       )
-  
+
       if File.exists? "#{@job_dir}/service.erb"
         template = "#{@job_dir}/service.erb"
       else
@@ -327,7 +336,7 @@ task :configure, [ :action ] do |task, args|
       unless File.exists? template
         throw "Missing service file for #{@job_name}"
       end
-  
+
       diff_and_write(contents: ERB.new(File.read(template)).result(),
                      path: "#{@config.prefix}/lib/systemd/system/#{@job_name}@.service",
                      diff: diff_before_copy,
