@@ -55,7 +55,6 @@ def create_directory (path)
     else
       %x[chmod 755 #{path}]
     end
-    end
     if 0 != $?.exitstatus
       puts "      * Failed to change permissions to #{path}".red
     end
