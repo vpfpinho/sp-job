@@ -67,7 +67,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       create_directory File.dirname path
     end
     if ! File.exists?(path)
-      if OS.mac? || File.writable?(path)
+      if OS.mac? || File.writable?(path) || path.match("^/home/")
         File.write(path,"")
       else
         %x[sudo touch #{path}]
@@ -87,7 +87,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     end
     puts "      * Writing #{path}".green
     unless dry_run
-       if OS.mac? || File.writable?(path)
+       if OS.mac? || File.writable?(path) || path.match("^/home/")
          File.write(path, contents)
        else
          %x[sudo chown #{$user}:#{$group} #{path}]
