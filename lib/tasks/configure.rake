@@ -103,7 +103,7 @@ task :configure, [ :action ] do |task, args|
 
   class ::Hash
 
-    def deep_merge (second) 
+    def deep_merge (second)
 
       second.each do |skey, sval|
         if self.has_key?(skey+'!')
@@ -123,14 +123,14 @@ task :configure, [ :action ] do |task, args|
           end
         end
 
-        if ! self.has_key?(skey) 
-          self[skey] = sval         
+        if ! self.has_key?(skey)
+          self[skey] = sval
         else
           if Array === self[skey] && Array === sval
             self[skey] = self[skey] | sval
           elsif Hash === self[skey] && Hash === sval
             self[skey].deep_merge(sval)
-          end          
+          end
         end
       end
     end
@@ -158,8 +158,10 @@ task :configure, [ :action ] do |task, args|
   #
   if File.exists?("#{@project}/configure/#{hostname}.yml")
     conf = YAML.load_file("#{@project}/configure/#{hostname}.yml")
+    conf['file_name'] = hostname
   else
     conf = YAML.load_file("#{@project}/configure/developer.yml")
+    conf['file_name'] = 'developer'
   end
 
   #
@@ -169,11 +171,12 @@ task :configure, [ :action ] do |task, args|
   loop do
     break if conf['extends'].nil?
     conf = YAML.load_file("#{@project}/configure/#{conf['extends']}.yml")
+    conf['file_name'] = conf['extends'] || 'developer'
     configs << conf
   end
 
   (configs.size - 2).downto(0).each do |i|
-    puts "#{i} #{configs[i]['machine']['name']} merging with #{configs[i+1]['machine']['name']}"
+    puts "Step #{i}: merging '#{configs[i]['file_name']}' with '#{configs[i+1]['file_name']}'"
     configs[i].deep_merge(configs[i+1])
   end
 
@@ -247,7 +250,7 @@ task :configure, [ :action ] do |task, args|
   locations = {}
   used_locations = []
   if action == 'dry-run' || action == 'overwrite'
-    paths = { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home}
+    paths = { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home} #  TODO
   else
     paths = { 'project' => @project }
   end
