@@ -103,7 +103,7 @@ task :configure, [ :action ] do |task, args|
 
   class ::Hash
 
-    def deep_merge (second) 
+    def deep_merge (second)
 
       second.each do |skey, sval|
         if self.has_key?(skey+'!')
@@ -123,14 +123,14 @@ task :configure, [ :action ] do |task, args|
           end
         end
 
-        if ! self.has_key?(skey) 
-          self[skey] = sval         
+        if ! self.has_key?(skey)
+          self[skey] = sval
         else
           if Array === self[skey] && Array === sval
             self[skey] = self[skey] | sval
           elsif Hash === self[skey] && Hash === sval
             self[skey].deep_merge(sval)
-          end          
+          end
         end
       end
     end
@@ -172,9 +172,13 @@ task :configure, [ :action ] do |task, args|
     configs << conf
   end
 
-  (configs.size - 2).downto(0).each do |i|
-    puts "#{i} #{configs[i]['machine']['name']} merging with #{configs[i+1]['machine']['name']}"
-    configs[i].deep_merge(configs[i+1])
+  if configs.size < 3
+    configs[0].deep_merge(configs[1]) if configs.size == 2
+  else
+    (configs.size - 2).downto(0).each do |i|
+      puts "#{i} #{configs[i]['machine']['name']} merging with #{configs[i+1]['machine']['name']}"
+      configs[i].deep_merge(configs[i+1])
+    end
   end
 
   conf = configs[0]
