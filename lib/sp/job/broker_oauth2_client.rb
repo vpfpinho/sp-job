@@ -165,17 +165,6 @@ module SP
       public
 
       #
-      # Initializer ( deprecated )
-      #
-      def initialize(a_host, a_client_id, a_client_secret, a_redirect_uri, a_scope, a_options = {})
-        @client                = ::OAuth2Client::Client.new(a_host, a_client_id, a_client_secret, a_options)
-        @redirect_uri          = a_redirect_uri
-        @scope                 = a_scope
-        @client.token_path     = '/oauth/token'
-        @client.authorize_path = '/oauth/auth'
-      end
-
-      #
       # Initializer
       #
       def initialize(protocol:, host:, port:, client_id:, client_secret:, redirect_uri:, scope:, options: {})
