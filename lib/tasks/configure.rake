@@ -108,7 +108,8 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
 
     # If file was created just for the diff, delete it
     if to_delete
-      if OS.mac? &&
+      # Don't use SUDO on macosx
+      if OS.mac?
         %x[rm -rf #{path}]
       else
         %x[sudo rm -rf #{path}]
