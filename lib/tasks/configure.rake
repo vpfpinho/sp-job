@@ -13,10 +13,10 @@ def create_directory (path)
     if OS.mac?
       if path.match("^/usr/local/")
         info = Etc.getpwnam(Etc.getlogin)
-        puts "      * Creating '#{path}'...".yellow
+        puts "\t* Creating '#{path}'...".yellow
         %x[sudo mkdir -p #{path}]
         if 0 != $?.exitstatus
-          puts "      * Failed to create #{path}".red
+          puts "\t* Failed to create #{path}".red
         end
         next_parent_path = File.join("/usr/local", path.split(File::SEPARATOR).map {|x| x=="" ? File::SEPARATOR : x}[1..-1][2])
         if ! next_parent_path
@@ -24,12 +24,12 @@ def create_directory (path)
         end
         %x[sudo chown -R #{info.name}:#{Etc.getgrgid(info.gid).name} #{next_parent_path}]
         if 0 != $?.exitstatus
-          puts "      * Failed to change ownership to #{path}".red
+          puts "\t* Failed to change ownership to #{path}".red
         end
       else
         %x[mkdir -p #{path}]
         if 0 != $?.exitstatus
-          puts "      * Failed to create #{path}".red
+          puts "\t* Failed to create #{path}".red
         end
       end
     else
@@ -39,7 +39,7 @@ def create_directory (path)
         %x[sudo mkdir -p #{path}]
       end
       if 0 != $?.exitstatus
-        puts "      * Failed to create #{path}".red
+        puts "\t* Failed to create #{path}".red
       end
     end
     if ! OS.mac? && !path.match("^/home/")
@@ -48,7 +48,7 @@ def create_directory (path)
       %x[chown #{$user}:#{$group} #{path}]
     end
     if 0 != $?.exitstatus
-      puts "      * Failed to change ownership to #{path}".red
+      puts "\t* Failed to change ownership to #{path}".red
     end
     if ! OS.mac?  && !path.match("^/home/")
       %x[sudo chmod 755 #{path}]
@@ -56,17 +56,17 @@ def create_directory (path)
       %x[chmod 755 #{path}]
     end
     if 0 != $?.exitstatus
-      puts "      * Failed to change permissions to #{path}".red
+      puts "\t* Failed to change permissions to #{path}".red
     end
   end
 
 end
 
 def diff_and_write (contents:, path:, diff: true, dry_run: false)
-    if OS.mac?
+    if OS.mac? && ! dry_run
       create_directory File.dirname path
     end
-    if ! File.exists?(path)
+    if ! File.exists?(path) && ! dry_run
       if OS.mac? || File.writable?(path) || path.match("^/home/")
         File.write(path,"")
       else
@@ -77,15 +77,20 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
       tmp_file = Tempfile.new File.basename path
       FileUtils::mkdir_p File.dirname tmp_file
       File.write(tmp_file,contents)
-      diff_contents = %x[diff -u #{path} #{tmp_file.path}]
+      diff_contents = %x[diff -u #{path} #{tmp_file.path} 2>/dev/null]
       if 0 == $?.exitstatus
-        puts "      * #{path} not changed".green
+        puts "\t* #{path} not changed".green
         return
       end
-      puts "      * #{path} changed:".red
-      puts diff_contents
+      if File.exists?(path)
+        puts "\t* #{path} changed:".red
+        puts diff_contents
+      else
+        puts "\t* #{path} does not exist. Will be created".blue
+      end
+
     end
-    puts "      * Writing #{path}".green
+    puts "\t* Writing #{path}".green
     unless dry_run
        if OS.mac? || File.writable?(path) || path.match("^/home/")
          File.write(path, contents)
@@ -250,13 +255,18 @@ task :configure, [ :action ] do |task, args|
   locations = {}
   used_locations = []
   if action == 'dry-run' || action == 'overwrite'
-    paths = { 'system' => @config.prefix, 'project' => @project} # , 'user' => @user_home TODO
+    paths = { 'system' => @config.prefix, 'project' => @project, 'user' => @user_home}
   else
     paths = { 'project' => @project }
   end
   paths.each do |src, dest|
     puts "Configuring #{src.upcase}"
-    Dir.glob("#{@project}/configure/#{src}/**/*.erb") do |template|
+
+    # List all .erb files in hidden and visible folders
+    erblist = Dir.glob("#{@project}/configure/#{src}/.**/*.erb") +
+              Dir.glob("#{@project}/configure/#{src}/**/*.erb")
+
+    erblist.each do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
 
       # developer exception
