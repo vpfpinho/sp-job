@@ -107,10 +107,12 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 
     # If file was created just for the diff, delete it
-    if OS.mac? && to_delete
-      %x[rm -rf #{path}]
-    else
-      %x[sudo rm -rf #{path}]
+    if to_delete
+      if OS.mac? &&
+        %x[rm -rf #{path}]
+      else
+        %x[sudo rm -rf #{path}]
+      end
     end
 
 end
