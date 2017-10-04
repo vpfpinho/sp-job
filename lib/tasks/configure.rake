@@ -63,15 +63,19 @@ def create_directory (path)
 end
 
 def diff_and_write (contents:, path:, diff: true, dry_run: false)
-    if OS.mac? && ! dry_run
+    to_delete = false
+
+    if OS.mac?
       create_directory File.dirname path
     end
-    if ! File.exists?(path) && ! dry_run
+    if ! File.exists?(path)
       if OS.mac? || File.writable?(path) || path.match("^/home/")
-        File.write(path,"")
+        %x[touch #{path}]
       else
         %x[sudo touch #{path}]
       end
+      # If file was created just for the diff, delete it
+      to_delete = true
     end
     if true == diff
       tmp_file = Tempfile.new File.basename path
@@ -101,6 +105,14 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
        end
     end
     FileUtils.rm(tmp_file)
+
+    # If file was created just for the diff, delete it
+    if OS.mac? && to_delete
+      %x[rm -rf #{path}]
+    else
+      %x[sudo rm -rf #{path}]
+    end
+
 end
 
 desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
