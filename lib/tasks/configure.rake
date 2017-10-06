@@ -1,4 +1,4 @@
-#require 'byebug'
+# require 'byebug'
 require 'json'
 require 'erb'
 require 'ostruct'
@@ -7,6 +7,12 @@ require 'os'
 require 'fileutils'
 require 'etc'
 
+def safesudo(cmd)
+  unless true == system(cmd)
+    system("sudo #{cmd}")
+  end
+end
+
 def create_directory (path)
 
   if ! Dir.exists?(path)
@@ -14,7 +20,7 @@ def create_directory (path)
       if path.match("^/usr/local/")
         info = Etc.getpwnam(Etc.getlogin)
         puts "\t* Creating '#{path}'...".yellow
-        %x[sudo mkdir -p #{path}]
+        safesudo("mkdir -p #{path}")
         if 0 != $?.exitstatus
           puts "\t* Failed to create #{path}".red
         end
@@ -22,38 +28,38 @@ def create_directory (path)
         if ! next_parent_path
           throw "Unable to create path #{path} - parent not found!"
         end
-        %x[sudo chown -R #{info.name}:#{Etc.getgrgid(info.gid).name} #{next_parent_path}]
+        safesudo("chown -R #{info.name}:#{Etc.getgrgid(info.gid).name} #{next_parent_path}")
         if 0 != $?.exitstatus
           puts "\t* Failed to change ownership to #{path}".red
         end
       else
-        %x[mkdir -p #{path}]
+        safesudo("mkdir -p #{path}")
         if 0 != $?.exitstatus
           puts "\t* Failed to create #{path}".red
         end
       end
     else
       if path.match("^/home/")
-        %x[mkdir -p #{path}]
+        safesudo("mkdir -p #{path}")
       else
-        %x[sudo mkdir -p #{path}]
+        safesudo("mkdir -p #{path}")
       end
       if 0 != $?.exitstatus
         puts "\t* Failed to create #{path}".red
       end
     end
     if ! OS.mac? && !path.match("^/home/")
-      %x[sudo chown #{$user}:#{$group} #{path}]
+      safesudo("chown #{$user}:#{$group} #{path}")
     else
-      %x[chown #{$user}:#{$group} #{path}]
+      safesudo("chown #{$user}:#{$group} #{path}")
     end
     if 0 != $?.exitstatus
       puts "\t* Failed to change ownership to #{path}".red
     end
     if ! OS.mac?  && !path.match("^/home/")
-      %x[sudo chmod 755 #{path}]
+      safesudo("chmod 755 #{path}")
     else
-      %x[chmod 755 #{path}]
+      safesudo("chmod 755 #{path}")
     end
     if 0 != $?.exitstatus
       puts "\t* Failed to change permissions to #{path}".red
@@ -63,20 +69,15 @@ def create_directory (path)
 end
 
 def diff_and_write (contents:, path:, diff: true, dry_run: false)
-    to_delete = false
 
     if OS.mac?
       create_directory File.dirname path
     end
+
     if ! File.exists?(path)
-      if OS.mac? || File.writable?(path) || path.match("^/home/")
-        %x[touch #{path}]
-      else
-        %x[sudo touch #{path}]
-      end
-      # If file was created just for the diff, delete it
-      to_delete = true
+      safesudo("touch #{path}")
     end
+
     if true == diff
       tmp_file = Tempfile.new File.basename path
       FileUtils::mkdir_p File.dirname tmp_file
@@ -99,23 +100,12 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
        if OS.mac? || File.writable?(path) || path.match("^/home/")
          File.write(path, contents)
        else
-         %x[sudo chown #{$user}:#{$group} #{path}]
+         safesudo("chown #{$user}:#{$group} #{path}")
          File.write(path, contents)
-         %x[sudo chown root:root #{path}]
+         safesudo("chown root:root #{path}")
        end
     end
     FileUtils.rm(tmp_file)
-
-    # If file was created just for the diff, delete it
-    if to_delete
-      # Don't use SUDO on macosx
-      if OS.mac?
-        %x[rm -rf #{path}]
-      else
-        %x[sudo rm -rf #{path}]
-      end
-    end
-
 end
 
 desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
