@@ -296,6 +296,15 @@ task :configure, [ :action ] do |task, args|
         end
       end
 
+      # 2nd filtered
+      if @config.erb_exclusion_list
+        base_filename = File.basename(dst_file)
+        if @config.erb_exclusion_list.include?(base_filename)
+          puts "Filtered #{base_filename}".yellow
+          next
+        end
+      end
+
       # Now expand the template
       file_contents = ERB.new(File.read(template), nil, '-').result()
 
