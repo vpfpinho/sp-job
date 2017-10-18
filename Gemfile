@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-gem 'sp-duh', git: 'git@github.com:vpfpinho/sp-duh.git', branch: 'feature/commercial'
+gem 'sp-duh', git: 'git@github.com:vpfpinho/sp-duh.git'
 gem 'redis'
 gem 'backburner'
 gem 'json'
