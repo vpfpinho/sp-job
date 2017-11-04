@@ -75,7 +75,12 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     end
 
     if ! File.exists?(path)
-      safesudo("touch #{path}")
+      if contents.length == 0 
+        puts "\t* #{path} does not exist and it's empty, ignored".green
+        return
+      else
+        safesudo("touch #{path}")
+      end
     end
 
     if true == diff
