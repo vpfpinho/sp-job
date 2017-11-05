@@ -211,7 +211,7 @@ module SP
             a_refresh_token = refresh_token,
             a_scope = nil # keep current scope
           )
-          if true == at_response[:oauth2].has_key?(:error)
+          if at_response[:oauth2].has_key?(:error)
             return at_response
           end
           # prepare redis arguments: field value, [field value, ...]
@@ -250,6 +250,11 @@ module SP
           if nil == @redis || nil == @service_id
             raise InternalError.new(i18n: nil, internal: nil)
           end
+
+          if refresh.nil? 
+            refresh = @redis.hget("#{@service_id}:oauth:access_token:#{access}",'refresh_token')
+          end
+          
           # delete tokens from redis
           @redis.multi do |multi|
             multi.del("#{@service_id}:oauth:access_token:#{access}")

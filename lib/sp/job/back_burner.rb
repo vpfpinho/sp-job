@@ -111,8 +111,8 @@ Backburner.configure do |config|
   config.reserve_timeout        = nil
   config.job_parser_proc        = lambda { |body|
     rv = Hash.new
-    rv[:class] = $args[:program_name]
     rv[:args] = [JSON.parse(body, :symbolize_names => true)]
+    rv[:class] = rv[:args][0][:tube] || $args[:program_name]
     rv
   }
 end
