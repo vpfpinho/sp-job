@@ -185,8 +185,9 @@ task :configure, [ :action ] do |task, args|
   configs = [ conf ]
   loop do
     break if conf['extends'].nil?
-    conf = YAML.load_file("#{@project}/configure/#{conf['extends']}.yml")
-    conf['file_name'] = conf['extends'] || 'developer'
+    ancestor = conf['extends']
+    conf = YAML.load_file("#{@project}/configure/#{ancestor}.yml")
+    conf['file_name'] = ancestor || 'developer'
     configs << conf
   end
 
@@ -235,7 +236,6 @@ task :configure, [ :action ] do |task, args|
       FileUtils.mkdir_p conf['paths'][name]
     end
   end
-
 
   #
   # Transform the configuration into ostruct @config will be accessible to the ERB templates
@@ -310,6 +310,7 @@ task :configure, [ :action ] do |task, args|
         end
       end
 
+      # puts "Expanding #{template}".red
       # Now expand the template
       file_contents = ERB.new(File.read(template), nil, '-').result()
 
