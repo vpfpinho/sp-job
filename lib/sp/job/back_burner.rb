@@ -70,7 +70,10 @@ Backburner.configure do |config|
 
   config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
   config.on_error            = lambda { |e|
-    update_progress(status: 'error', message: e)
+    if $exception_reported == false
+      $exception_reported == true
+      update_progress(status: 'error', message: e)
+    end
     if $rollbar
       Rollbar.error(e)
     end
@@ -165,11 +168,21 @@ module SP
         }
         $report_time_stamp     = 0
         $job_status[:progress] = 0
+        $exception_reported    = false
         $redis_key             = $config[:service_id] + ':' + $args[:program_name] + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : body[:validity].to_i
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
-          $jsonapi.set_url(job_body[:prefix])
+          $jsonapi.set_url(job[:prefix])
+          init_params = {}
+          init_params[:user_id] = job[:user_id] unless job[:user_id].blank?
+          init_params[:company_id] = job[:company_id] unless job[:company_id].blank?
+          init_params[:company_schema] = job[:company_schema] unless job[:company_schema].blank?
+          init_params[:sharded_schema] = job[:sharded_schema] unless job[:sharded_schema].blank?
+          init_params[:accounting_prefix] = job[:accounting_prefix] unless job[:accounting_prefix].blank?
+          init_params[:accounting_schema] = job[:accounting_schema] unless job[:accounting_schema].blank?
+
+          $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::Parameters.new(init_params))
         end
       end
 
@@ -206,6 +219,13 @@ module SP
         if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier
           update_progress_on_redis
         end
+      end
+
+      def raise_error (args)
+        args[:status] = 'error'
+        update_progress(args)
+        $exception_reported = true
+        raise args[:message]
       end
 
       def update_progress_on_redis
