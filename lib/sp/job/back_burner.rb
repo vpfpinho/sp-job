@@ -192,11 +192,12 @@ module SP
         progress = args[:progress]
         barrier  = args[:barrier]
         p_index  = args[:index]
+        response = args[:response]
 
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index].include? key
+            next if [:step, :progress, :message, :status, :barrier, :index, :response].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
@@ -208,6 +209,7 @@ module SP
         $job_status[:message]  = message unless message.nil?
         $job_status[:index]    = p_index unless p_index.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
+        $job_status[:response] = response unless response.nil?
         if args.has_key? :link
           $job_status[:link] = args[:link]
         end

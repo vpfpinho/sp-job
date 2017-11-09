@@ -369,7 +369,7 @@ task :configure, [ :action ] do |task, args|
         template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
       end
       unless File.exists? template
-        throw "Missing configuration file for #{@job_name}"
+        throw "Missing #{template} => configuration file for #{@job_name}"
       end
       if OS.mac?
         create_directory("/usr/local/var/lock/#{@job_name}/")
