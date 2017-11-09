@@ -32,7 +32,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'os'
   spec.add_dependency 'sp-duh', '>= 0.2.5'
   spec.add_dependency 'redis'
-  spec.add_dependency 'beaneater'
   spec.add_dependency 'backburner'
   spec.add_dependency 'pg'
   spec.add_dependency 'oauth2'
@@ -40,6 +39,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'curb'
   spec.add_dependency 'rails'
   spec.add_dependency 'json'
+  spec.add_dependency 'awesome_print'
+  spec.add_dependency 'rollbar'
 
   spec.add_development_dependency 'bundler', '~> 1.14'
   spec.add_development_dependency 'rake', '~> 10.0'
