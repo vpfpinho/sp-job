@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'oauth2'
   spec.add_dependency 'oauth2-client'
   spec.add_dependency 'curb'
+  spec.add_dependency 'mail'
   spec.add_dependency 'rails'
   spec.add_dependency 'json'
   spec.add_dependency 'awesome_print'

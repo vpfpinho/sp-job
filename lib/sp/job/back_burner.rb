@@ -121,6 +121,15 @@ Backburner.configure do |config|
 end
 
 #
+# Configure mail
+#
+if $config[:smtp]
+  Mail.defaults do
+    delivery_method :smtp, { address: $config[:smtp][:host], port: $config[:smtp][:port] || 25, enable_starttls_auto: false }
+  end
+end
+
+#
 # Monkey patch to keep the tube name as plain vannila job name
 #
 module Backburner
@@ -267,6 +276,26 @@ module SP
 
       def db_exec (query)
         $pg.query(query: query)
+      end
+
+      def send_email (args)
+        template = args[:template]
+        if template[0] == '/'
+          erb_template = File.read(template)
+        else
+          erb_template = File.read(File.expand_path('.', template))
+        end
+
+        Mail.deliver do
+          from     $mail_from
+          to       args[:to]
+          subject  args[:subject]
+
+          html_part do
+            content_type 'text/html; charset=UTF-8'
+            body ERB.new(erb_template).result()
+          end
+        end
       end
 
       def database_connect
