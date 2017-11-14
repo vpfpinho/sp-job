@@ -154,7 +154,10 @@ module SP
       end
 
       def before_perform (job)
+        initialize_job(job)
+      end
 
+      def initialize_job (job)
         if $connected == false
           database_connect
           $redis.get "#{$config}:jobs:sequential_id"
@@ -169,7 +172,7 @@ module SP
         $report_time_stamp     = 0
         $job_status[:progress] = 0
         $exception_reported    = false
-        $redis_key             = $config[:service_id] + ':' + $args[:program_name] + ':' + job[:id]
+        $redis_key             = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : body[:validity].to_i
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?

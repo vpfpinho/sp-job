@@ -75,7 +75,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     end
 
     if ! File.exists?(path)
-      if contents.length == 0 
+      if contents.length == 0
         puts "\t* #{path} does not exist and it's empty, ignored".green
         return
       else
@@ -280,7 +280,7 @@ task :configure, [ :action ] do |task, args|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
 
       # developer exception
-      if OS.mac? && @config.nginx_broker.nginx.suffix
+      if OS.mac? && @config.nginx_broker && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
       end
 
