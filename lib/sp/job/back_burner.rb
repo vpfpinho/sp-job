@@ -19,7 +19,7 @@
 # encoding: utf-8
 #
 require 'sp/job/pg_connection'
-
+require 'roadie'
 #
 # Initialize global data needed for configuration
 #
@@ -118,15 +118,6 @@ Backburner.configure do |config|
     rv[:class] = rv[:args][0][:tube] || $args[:program_name]
     rv
   }
-end
-
-#
-# Configure mail
-#
-if $config[:smtp]
-  Mail.defaults do
-    delivery_method :smtp, { address: $config[:smtp][:host], port: $config[:smtp][:port] || 25, enable_starttls_auto: false }
-  end
 end
 
 #
@@ -280,22 +271,56 @@ module SP
 
       def send_email (args)
         template = args[:template]
+        if File.extname(template) == ''
+          template += '.erb'
+        end
         if template[0] == '/'
           erb_template = File.read(template)
         else
-          erb_template = File.read(File.expand_path('.', template))
+          erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template))
         end
 
-        Mail.deliver do
-          from     $mail_from
+        Mail.defaults do
+          delivery_method :smtp, {
+            :address => $config[:mail][:smtp][:address],
+            :port => $config[:mail][:smtp][:port].to_i,
+            :domain =>  $config[:mail][:smtp][:domain],
+            :user_name => $config[:mail][:smtp][:user_name],
+            :password => $config[:mail][:smtp][:password],
+            :authentication => $config[:mail][:smtp][:authentication],
+            :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
+          }
+        end
+
+        email_body = ERB.new(erb_template).result(binding)
+
+        document = Roadie::Document.new email_body
+        email_body = document.transform
+
+        m = Mail.new do
+          from     $config[:mail][:from]
           to       args[:to]
           subject  args[:subject]
 
           html_part do
             content_type 'text/html; charset=UTF-8'
-            body ERB.new(erb_template).result()
+            body email_body
           end
         end
+
+        begin
+          m.deliver!
+          ap m.to_s
+          return OpenStruct.new(status: true)
+        rescue Net::OpenTimeout => e
+          ap ["OpenTimeout", e]
+          return OpenStruct.new(status: false, message: e.message)
+        rescue Exception => e
+          ap e
+          return OpenStruct.new(status: false, message: e.message)
+        end
+
+
       end
 
       def database_connect
