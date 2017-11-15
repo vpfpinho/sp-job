@@ -120,6 +120,20 @@ Backburner.configure do |config|
   }
 end
 
+if $config[:email]
+  Mail.defaults do
+    delivery_method :smtp, {
+      :address => $config[:mail][:smtp][:address],
+      :port => $config[:mail][:smtp][:port].to_i,
+      :domain =>  $config[:mail][:smtp][:domain],
+      :user_name => $config[:mail][:smtp][:user_name],
+      :password => $config[:mail][:smtp][:password],
+      :authentication => $config[:mail][:smtp][:authentication],
+      :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
+    }
+  end
+end
+
 #
 # Monkey patch to keep the tube name as plain vannila job name
 #
@@ -280,17 +294,17 @@ module SP
           erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template))
         end
 
-        Mail.defaults do
-          delivery_method :smtp, {
-            :address => $config[:mail][:smtp][:address],
-            :port => $config[:mail][:smtp][:port].to_i,
-            :domain =>  $config[:mail][:smtp][:domain],
-            :user_name => $config[:mail][:smtp][:user_name],
-            :password => $config[:mail][:smtp][:password],
-            :authentication => $config[:mail][:smtp][:authentication],
-            :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
-          }
-        end
+#        Mail.defaults do
+#          delivery_method :smtp, {
+#            :address => $config[:mail][:smtp][:address],
+#            :port => $config[:mail][:smtp][:port].to_i,
+#            :domain =>  $config[:mail][:smtp][:domain],
+#            :user_name => $config[:mail][:smtp][:user_name],
+#            :password => $config[:mail][:smtp][:password],
+#            :authentication => $config[:mail][:smtp][:authentication],
+#            :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
+#          }
+#        end
 
         email_body = ERB.new(erb_template).result(binding)
 
