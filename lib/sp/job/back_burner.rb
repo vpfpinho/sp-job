@@ -120,7 +120,7 @@ Backburner.configure do |config|
   }
 end
 
-if $config[:email]
+if $config[:mail]
   Mail.defaults do
     delivery_method :smtp, {
       :address => $config[:mail][:smtp][:address],
