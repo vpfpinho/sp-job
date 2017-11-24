@@ -42,6 +42,23 @@ class ::Hash
     end
   end
 
+  def clean_keys!
+    tmp = Hash.new
+
+    self.each do |key, val|
+      if Hash === val
+        val.clean_keys!
+      end
+
+      if key[-1] == '!'
+        tmp[key[0..-2]] = val
+        self.delete(key)
+      end
+    end
+
+    self.merge! tmp
+  end
+
 end
 
 def safesudo(cmd)
@@ -210,7 +227,6 @@ def get_config
   dbpass = conf['db']['password'] || ''
   conf['db']['connection_string'] = "host=#{dbhost} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
 
-
   #
   # Resolve project and user relative paths
   #
@@ -222,6 +238,9 @@ def get_config
     end
   end
 
+  conf.clean_keys!
+
+  ap conf
   return JSON.parse(conf.to_json, object_class: OpenStruct), conf
 end
 
@@ -240,6 +259,11 @@ task :configure, [ :action ] do |task, args|
   end
 
   #
+  # Read the configuration into ostruct @config will be accessible to the ERB templates
+  #
+  @config, conf = get_config()
+
+  #
   # Resolve project and user again to create the relative paths
   #
   conf['paths'].each do |name, path|
@@ -252,10 +276,6 @@ task :configure, [ :action ] do |task, args|
     end
   end
 
-  #
-  # Read the configuration into ostruct @config will be accessible to the ERB templates
-  #
-  @config, conf = get_config()
 
   # Set helper variables on the task context
   $user  = @config.user
