@@ -7,6 +7,43 @@ require 'os'
 require 'fileutils'
 require 'etc'
 
+# Monkey patch for configuration deep merge
+class ::Hash
+
+  def deep_merge (second)
+
+    second.each do |skey, sval|
+      if self.has_key?(skey+'!')
+        self[skey] = self[skey+'!']
+        self.delete(skey+'!')
+        next
+      elsif skey[-1] == '!'
+        tkey = skey[0..-2]
+        if self.has_key?(tkey)
+          if Array === self[tkey] && Array === sval
+            self[tkey] = self[tkey] | sval
+          elsif Hash === self[tkey] && Hash === sval
+            self[tkey].deep_merge(sval)
+          else
+            raise "Error can't merge #{skey} with different types"
+          end
+        end
+      end
+
+      if ! self.has_key?(skey)
+        self[skey] = sval
+      else
+        if Array === self[skey] && Array === sval
+          self[skey] = self[skey] | sval
+        elsif Hash === self[skey] && Hash === sval
+          self[skey].deep_merge(sval)
+        end
+      end
+    end
+  end
+
+end
+
 def safesudo(cmd)
   unless true == system(cmd)
     system("sudo #{cmd}")
@@ -113,60 +150,11 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 end
 
-desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
-task :configure, [ :action ] do |task, args|
-
-  class ::Hash
-
-    def deep_merge (second)
-
-      second.each do |skey, sval|
-        if self.has_key?(skey+'!')
-          self[skey] = self[skey+'!']
-          self.delete(skey+'!')
-          next
-        elsif skey[-1] == '!'
-          tkey = skey[0..-2]
-          if self.has_key?(tkey)
-            if Array === self[tkey] && Array === sval
-              self[tkey] = self[tkey] | sval
-            elsif Hash === self[tkey] && Hash === sval
-              self[tkey].deep_merge(sval)
-            else
-              raise "Error can't merge #{skey} with different types"
-            end
-          end
-        end
-
-        if ! self.has_key?(skey)
-          self[skey] = sval
-        else
-          if Array === self[skey] && Array === sval
-            self[skey] = self[skey] | sval
-          elsif Hash === self[skey] && Hash === sval
-            self[skey].deep_merge(sval)
-          end
-        end
-      end
-    end
-
-  end
+def get_config
 
   hostname = %x[hostname -s].strip
   @project = Dir.pwd
   @user_home = File.expand_path('~')
-  diff_before_copy = true
-
-  if args[:action] == 'overwrite'
-    dry_run = false
-    action = 'overwrite'
-  elsif args[:action] == 'hotfix'
-    dry_run = false
-    action = 'hotfix'
-  else
-    dry_run = true
-    action = 'dry-run'
-  end
 
   #
   # Pick file named 'hostname', or use 'developer' as basefile
@@ -212,8 +200,6 @@ task :configure, [ :action ] do |task, args|
   if conf['group'].nil?
     conf['group'] = %x[id -g -nr].strip
   end
-  $user  = conf['user']
-  $group = conf['group']
 
   #
   # Pre-cook the connection string
@@ -224,8 +210,37 @@ task :configure, [ :action ] do |task, args|
   dbpass = conf['db']['password'] || ''
   conf['db']['connection_string'] = "host=#{dbhost} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
 
+
   #
   # Resolve project and user relative paths
+  #
+  conf['paths'].each do |name, path|
+    if path.start_with? '$project'
+      conf['paths'][name] = path.sub('$project', conf['paths']['project'] || @project)
+    elsif path.start_with? '$user_home'
+      conf['paths'][name] = path.sub('$user_home', @user_home)
+    end
+  end
+
+  return JSON.parse(conf.to_json, object_class: OpenStruct), conf
+end
+
+desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
+task :configure, [ :action ] do |task, args|
+
+  if args[:action] == 'overwrite'
+    dry_run = false
+    action = 'overwrite'
+  elsif args[:action] == 'hotfix'
+    dry_run = false
+    action = 'hotfix'
+  else
+    dry_run = true
+    action = 'dry-run'
+  end
+
+  #
+  # Resolve project and user again to create the relative paths
   #
   conf['paths'].each do |name, path|
     if path.start_with? '$project'
@@ -238,9 +253,16 @@ task :configure, [ :action ] do |task, args|
   end
 
   #
-  # Transform the configuration into ostruct @config will be accessible to the ERB templates
+  # Read the configuration into ostruct @config will be accessible to the ERB templates
   #
-  @config = JSON.parse(conf.to_json, object_class: OpenStruct)
+  @config, conf = get_config()
+
+  # Set helper variables on the task context
+  $user  = @config.user
+  $group = @config.group
+  @project   = Dir.pwd
+  @user_home = File.expand_path('~')
+  diff_before_copy = true
 
   #
   # Create required paths
