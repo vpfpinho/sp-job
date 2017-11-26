@@ -20,6 +20,7 @@
 #
 require 'sp/job/pg_connection'
 require 'roadie'
+
 #
 # Initialize global data needed for configuration
 #
@@ -145,6 +146,37 @@ module Backburner
     end
 
   end
+
+  class Job
+    # Processes a job and handles any failure, deleting the job once complete
+    #
+    # @example
+    #   @task.process
+    #
+    def process
+      # Invoke before hook and stop if false
+      res = @hooks.invoke_hook_events(job_class, :before_perform, *args)
+      unless res
+        task.delete
+        return false
+      end
+      # Execute the job
+      @hooks.around_hook_events(job_class, :around_perform, *args) do
+        # We subtract one to ensure we timeout before beanstalkd does, except if:
+        #  a) ttr == 0, to support never timing out
+        #  b) ttr == 1, so that we don't accidentally set it to never time out
+        #  NB: A ttr of 1 will likely result in race conditions between
+        #  Backburner and beanstalkd and should probably be avoided
+        timeout_job_after(task.ttr > 1 ? task.ttr - 1 : task.ttr) { job_class.perform(*args) }
+      end
+      task.delete
+      # Invoke after perform hook
+      @hooks.invoke_hook_events(job_class, :after_perform, *args)
+    rescue => e
+      @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      raise e
+    end
+  end
 end
 
 #
@@ -167,11 +199,8 @@ module SP
         ]
       end
 
-      def before_perform (job)
-        initialize_job(job)
-      end
+      def before_perform_init (job)
 
-      def initialize_job (job)
         if $connected == false
           database_connect
           $redis.get "#{$config}:jobs:sequential_id"
@@ -200,6 +229,25 @@ module SP
           init_params[:accounting_schema] = job[:accounting_schema] unless job[:accounting_schema].blank?
 
           $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::Parameters.new(init_params))
+        end
+
+        # Make sure the job is still allowed to run by checking if the key exists in redis
+        $job_key = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        unless $redis.exists($job_key )
+          logger.warn "Job validity has expired: job ignored"
+          return false
+        end
+        return true
+      end
+
+      #
+      # Optionally after the jobs runs sucessfully clean the "job" key in redis
+      # 
+      def after_perform_cleanup (job)
+        if false # TODO check key namings with americo $job key and redis key
+          return if $redis.nil?
+          return if $job_key.nil?
+          $redis.del $job_key
         end
       end
 
@@ -294,18 +342,6 @@ module SP
           erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template))
         end
 
-#        Mail.defaults do
-#          delivery_method :smtp, {
-#            :address => $config[:mail][:smtp][:address],
-#            :port => $config[:mail][:smtp][:port].to_i,
-#            :domain =>  $config[:mail][:smtp][:domain],
-#            :user_name => $config[:mail][:smtp][:user_name],
-#            :password => $config[:mail][:smtp][:password],
-#            :authentication => $config[:mail][:smtp][:authentication],
-#            :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
-#          }
-#        end
-
         email_body = ERB.new(erb_template).result(binding)
 
         document = Roadie::Document.new email_body
@@ -333,7 +369,6 @@ module SP
           ap e
           return OpenStruct.new(status: false, message: e.message)
         end
-
 
       end
 
