@@ -186,9 +186,8 @@ module Backburner
   end
 end
 
-require 'sp/job/common'
-
 # Mix-in the mix-in in the script so that we can use the Common module functions
+require 'sp/job/common'
 extend SP::Job::Common
 
 #
