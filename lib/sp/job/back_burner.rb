@@ -199,6 +199,23 @@ module SP
         ]
       end
 
+      def submit_job (args)
+        job      = args[:job]
+        tube     = args[:tube] || $args[:program_name]
+        raise 'missing job argument' unless args[:job]
+
+        validity = args[:validity] || 180
+        ttr      = args[:ttr]      || 60
+        job[:id] = ($redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+        job[:tube] = tube
+        redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
+        $redis.pipelined do
+          $redis.hset(redis_key, 'status', '{"status":"queued"}')
+          $redis.expire(redis_key, validity)
+        end
+        $beaneater.tubes[tube].put job.to_json, ttr: ttr
+      end
+
       def before_perform_init (job)
 
         if $connected == false
@@ -331,8 +348,7 @@ module SP
         $pg.query(query: query)
       end
 
-      def send_email (args)
-        template = args[:template]
+      def expand_mail_body (template)
         if File.extname(template) == ''
           template += '.erb'
         end
@@ -341,8 +357,16 @@ module SP
         else
           erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template))
         end
+        ERB.new(erb_template).result(binding)
+      end
 
-        email_body = ERB.new(erb_template).result(binding)
+      def send_email (args)
+        if args.has_key?(:template)
+          template = args[:template]
+          email_body = expand_mail_body
+        else
+          email_body = args[:body]
+        end
 
         document = Roadie::Document.new email_body
         email_body = document.transform
@@ -360,7 +384,7 @@ module SP
 
         begin
           m.deliver!
-          ap m.to_s
+          # ap m.to_s
           return OpenStruct.new(status: true)
         rescue Net::OpenTimeout => e
           ap ["OpenTimeout", e]
@@ -442,6 +466,7 @@ $connected          = false
 $job_status         = {}
 $validity           = 2
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+$beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 $check_db_life_span = false
 $status_dirty       = false
 if $config[:postgres] && $config[:postgres][:conn_str]
