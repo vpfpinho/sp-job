@@ -369,8 +369,7 @@ module SP
 
       def send_email (args)
         if args.has_key?(:template)
-          template = args[:template]
-          email_body = expand_mail_body
+          email_body = expand_mail_body args[:template]
         else
           email_body = args[:body]
         end
