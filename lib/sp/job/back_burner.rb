@@ -136,7 +136,7 @@ if $config[:mail]
 end
 
 #
-# Monkey patch to keep the tube name as plain vannila job name
+# Monkey patches to keep the tube name as plain vannila job name
 #
 module Backburner
   module Helpers
@@ -145,6 +145,13 @@ module Backburner
       tube
     end
 
+  end
+
+  module Logger
+    def log_job_begin(name, args)
+      log_info "Work job #{name}"
+      @job_started_at = Time.now
+    end
   end
 
   class Job
