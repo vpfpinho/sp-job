@@ -7,60 +7,6 @@ require 'os'
 require 'fileutils'
 require 'etc'
 
-# Monkey patch for configuration deep merge
-class ::Hash
-
-  def deep_merge (second)
-
-    second.each do |skey, sval|
-      if self.has_key?(skey+'!')
-        self[skey] = self[skey+'!']
-        self.delete(skey+'!')
-        next
-      elsif skey[-1] == '!'
-        tkey = skey[0..-2]
-        if self.has_key?(tkey)
-          if Array === self[tkey] && Array === sval
-            self[tkey] = self[tkey] | sval
-          elsif Hash === self[tkey] && Hash === sval
-            self[tkey].deep_merge(sval)
-          else
-            raise "Error can't merge #{skey} with different types"
-          end
-        end
-      end
-
-      if ! self.has_key?(skey)
-        self[skey] = sval
-      else
-        if Array === self[skey] && Array === sval
-          self[skey] = self[skey] | sval
-        elsif Hash === self[skey] && Hash === sval
-          self[skey].deep_merge(sval)
-        end
-      end
-    end
-  end
-
-  def clean_keys!
-    tmp = Hash.new
-
-    self.each do |key, val|
-      if Hash === val
-        val.clean_keys!
-      end
-
-      if key[-1] == '!'
-        tmp[key[0..-2]] = val
-        self.delete(key)
-      end
-    end
-
-    self.merge! tmp
-  end
-
-end
-
 def safesudo(cmd)
   unless true == system(cmd)
     system("sudo #{cmd}")
@@ -198,7 +144,7 @@ def get_config
 
   (configs.size - 2).downto(0).each do |i|
     puts "Step #{i}: merging '#{configs[i]['file_name']}' with '#{configs[i+1]['file_name']}'"
-    configs[i].deep_merge(configs[i+1])
+    configs[i].config_merge(configs[i+1])
   end
 
   conf = configs[0]
@@ -246,6 +192,60 @@ end
 
 desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
 task :configure, [ :action ] do |task, args|
+
+  # Monkey patch for configuration deep merge
+  class ::Hash
+
+    def config_merge (second)
+
+      second.each do |skey, sval|
+        if self.has_key?(skey+'!')
+          self[skey] = self[skey+'!']
+          self.delete(skey+'!')
+          next
+        elsif skey[-1] == '!'
+          tkey = skey[0..-2]
+          if self.has_key?(tkey)
+            if Array === self[tkey] && Array === sval
+              self[tkey] = self[tkey] | sval
+            elsif Hash === self[tkey] && Hash === sval
+              self[tkey].config_merge(sval)
+            else
+              raise "Error can't merge #{skey} with different types"
+            end
+          end
+        end
+
+        if ! self.has_key?(skey)
+          self[skey] = sval
+        else
+          if Array === self[skey] && Array === sval
+            self[skey] = self[skey] | sval
+          elsif Hash === self[skey] && Hash === sval
+            self[skey].config_merge(sval)
+          end
+        end
+      end
+    end
+
+    def clean_keys!
+      tmp = Hash.new
+
+      self.each do |key, val|
+        if Hash === val
+          val.clean_keys!
+        end
+
+        if key[-1] == '!'
+          tmp[key[0..-2]] = val
+          self.delete(key)
+        end
+      end
+
+      self.merge! tmp
+    end
+
+  end
 
   if args[:action] == 'overwrite'
     dry_run = false
@@ -334,7 +334,7 @@ task :configure, [ :action ] do |task, args|
       end
 
       # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
-      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
+      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file) || /.*(nginx-broker|nginx-epaper)\/(.*)$/.match(dst_file)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil? or conf[key_l1][m[2]].nil?
