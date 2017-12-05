@@ -144,7 +144,7 @@ def get_config
 
   (configs.size - 2).downto(0).each do |i|
     puts "Step #{i}: merging '#{configs[i]['file_name']}' with '#{configs[i+1]['file_name']}'"
-    configs[i].deep_merge(configs[i+1])
+    configs[i].config_merge(configs[i+1])
   end
 
   conf = configs[0]
@@ -196,13 +196,9 @@ task :configure, [ :action ] do |task, args|
   # Monkey patch for configuration deep merge
   class ::Hash
 
-    def deep_merge (second)
-
-      ap second
+    def config_merge (second)
 
       second.each do |skey, sval|
-
-        puts self.has_key?
         if self.has_key?(skey+'!')
           self[skey] = self[skey+'!']
           self.delete(skey+'!')
@@ -213,7 +209,7 @@ task :configure, [ :action ] do |task, args|
             if Array === self[tkey] && Array === sval
               self[tkey] = self[tkey] | sval
             elsif Hash === self[tkey] && Hash === sval
-              self[tkey].deep_merge(sval)
+              self[tkey].config_merge(sval)
             else
               raise "Error can't merge #{skey} with different types"
             end
@@ -226,7 +222,7 @@ task :configure, [ :action ] do |task, args|
           if Array === self[skey] && Array === sval
             self[skey] = self[skey] | sval
           elsif Hash === self[skey] && Hash === sval
-            self[skey].deep_merge(sval)
+            self[skey].config_merge(sval)
           end
         end
       end
@@ -250,7 +246,7 @@ task :configure, [ :action ] do |task, args|
     end
 
   end
-  
+
   if args[:action] == 'overwrite'
     dry_run = false
     action = 'overwrite'
