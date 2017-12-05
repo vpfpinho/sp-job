@@ -53,7 +53,7 @@ module SP
         $job_status[:progress] = 0
         $exception_reported    = false
         $redis_key             = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        $validity              = job[:validity].nil? ? 300 : body[:validity].to_i
+        $validity              = job[:validity].nil? ? 300 : job[:validity].to_i
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
           $jsonapi.set_url(job[:prefix])
