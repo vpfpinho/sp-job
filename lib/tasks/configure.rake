@@ -7,60 +7,6 @@ require 'os'
 require 'fileutils'
 require 'etc'
 
-# Monkey patch for configuration deep merge
-class ::Hash
-
-  def deep_merge (second)
-
-    second.each do |skey, sval|
-      if self.has_key?(skey+'!')
-        self[skey] = self[skey+'!']
-        self.delete(skey+'!')
-        next
-      elsif skey[-1] == '!'
-        tkey = skey[0..-2]
-        if self.has_key?(tkey)
-          if Array === self[tkey] && Array === sval
-            self[tkey] = self[tkey] | sval
-          elsif Hash === self[tkey] && Hash === sval
-            self[tkey].deep_merge(sval)
-          else
-            raise "Error can't merge #{skey} with different types"
-          end
-        end
-      end
-
-      if ! self.has_key?(skey)
-        self[skey] = sval
-      else
-        if Array === self[skey] && Array === sval
-          self[skey] = self[skey] | sval
-        elsif Hash === self[skey] && Hash === sval
-          self[skey].deep_merge(sval)
-        end
-      end
-    end
-  end
-
-  def clean_keys!
-    tmp = Hash.new
-
-    self.each do |key, val|
-      if Hash === val
-        val.clean_keys!
-      end
-
-      if key[-1] == '!'
-        tmp[key[0..-2]] = val
-        self.delete(key)
-      end
-    end
-
-    self.merge! tmp
-  end
-
-end
-
 def safesudo(cmd)
   unless true == system(cmd)
     system("sudo #{cmd}")
@@ -247,6 +193,64 @@ end
 desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'
 task :configure, [ :action ] do |task, args|
 
+  # Monkey patch for configuration deep merge
+  class ::Hash
+
+    def deep_merge (second)
+
+      ap second
+
+      second.each do |skey, sval|
+
+        puts self.has_key?
+        if self.has_key?(skey+'!')
+          self[skey] = self[skey+'!']
+          self.delete(skey+'!')
+          next
+        elsif skey[-1] == '!'
+          tkey = skey[0..-2]
+          if self.has_key?(tkey)
+            if Array === self[tkey] && Array === sval
+              self[tkey] = self[tkey] | sval
+            elsif Hash === self[tkey] && Hash === sval
+              self[tkey].deep_merge(sval)
+            else
+              raise "Error can't merge #{skey} with different types"
+            end
+          end
+        end
+
+        if ! self.has_key?(skey)
+          self[skey] = sval
+        else
+          if Array === self[skey] && Array === sval
+            self[skey] = self[skey] | sval
+          elsif Hash === self[skey] && Hash === sval
+            self[skey].deep_merge(sval)
+          end
+        end
+      end
+    end
+
+    def clean_keys!
+      tmp = Hash.new
+
+      self.each do |key, val|
+        if Hash === val
+          val.clean_keys!
+        end
+
+        if key[-1] == '!'
+          tmp[key[0..-2]] = val
+          self.delete(key)
+        end
+      end
+
+      self.merge! tmp
+    end
+
+  end
+  
   if args[:action] == 'overwrite'
     dry_run = false
     action = 'overwrite'
