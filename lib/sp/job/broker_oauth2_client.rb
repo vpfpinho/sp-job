@@ -23,6 +23,7 @@
 
 require 'oauth2'
 require 'oauth2-client'
+require 'curb'
 
 module SP
   module Job
@@ -156,6 +157,70 @@ module SP
         end
       end
 
+      #
+      #
+      #
+      class CurbConnectionClient
+
+        class Response
+
+          attr_accessor :code
+          attr_accessor :body
+
+          @code = nil
+          @body = nil
+
+          def initialize(code:, body:)
+            @code = code
+            @body = body
+          end
+
+        end
+
+        def initialize(site_url, connection_options={})
+          # set url and connection options
+          @site_url = site_url
+          @connection_options = connection_options
+        end
+
+        def base_url(path)
+          @site_url + path
+        end
+
+        def send_request(http_method, request_path, options={})
+
+          # options may contain optional arguments like http headers, request parameters etc
+          # send http request over the inter-webs
+
+          params          = options[:params] || {}
+          headers         = options[:headers]|| {}
+          url             = base_url(request_path)
+          handle          = Curl::Easy.new(url)
+          headers.each do |key, value|
+            handle.headers[key] = value
+          end         
+
+          case http_method
+          when :get
+            handle.http_get()
+            return Response.new(code: handle.response_code.to_s, headers: nil)
+          when :post
+            args = []
+            params.each do |key, value|
+              args << Curl::PostField.content(key, value)
+            end            
+            handle.http_post(args)
+            return Response.new(code: handle.response_code.to_s, body: handle.body_str)
+          when :delete
+          when :put
+            raise UnhandledHTTPMethodError.new("Unsupported HTTP method, #{http_method}")
+          else
+            raise UnhandledHTTPMethodError.new("Unsupported HTTP method, #{http_method}")
+          end
+        end
+      end
+
+
       private
 
       @client         = nil
@@ -172,6 +237,9 @@ module SP
         if ( 'https' == protocol && 443 != port ) || ( 'http' == protocol && 80 != port )
           host += ":#{port}"
         end
+        options.merge!({
+          :connection_client => CurbConnectionClient
+        })
         @client                = ::OAuth2Client::Client.new(host, client_id, client_secret, options)
         @redirect_uri          = redirect_uri
         @scope                 = scope
