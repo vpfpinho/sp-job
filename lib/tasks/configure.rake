@@ -334,10 +334,19 @@ task :configure, [ :action ] do |task, args|
       end
 
       # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
-      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file) || /.*(nginx-broker|nginx-epaper)\/(.*)$/.match(dst_file)
+      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil? or conf[key_l1][m[2]].nil?
+          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
+          next
+        end
+      end
+      # do not touch config files on top folder if that nginx is not requested
+      m =  /.*(nginx-broker|nginx-epaper)\/(.*)$/.match(dst_file)
+      if m && m.size == 3
+        key_l1 = m[1].gsub('-', '_')
+        if conf[key_l1].nil?
           puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
           next
         end
