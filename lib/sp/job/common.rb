@@ -24,6 +24,10 @@ module SP
   module Job
     module Common
 
+      def config
+        $config
+      end
+
       def logger
         Backburner.configuration.logger
       end
