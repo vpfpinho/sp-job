@@ -52,7 +52,8 @@ module SP
         $report_time_stamp     = 0
         $job_status[:progress] = 0
         $exception_reported    = false
-        $redis_key             = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        $publish_key           = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        $job_key               = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : job[:validity].to_i
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
@@ -69,7 +70,6 @@ module SP
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
-        $job_key = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         unless $redis.exists($job_key )
           logger.warn "Job validity has expired: job ignored"
           return false
@@ -137,9 +137,9 @@ module SP
       def update_progress_on_redis
         $redis.pipelined do
           redis_str = $job_status.to_json
-          $redis.publish $redis_key, redis_str
-          $redis.hset    $redis_key, 'status', redis_str
-          $redis.expire  $redis_key, $validity
+          $redis.publish $publish_key, redis_str
+          $redis.hset    $job_key, 'status', redis_str
+          $redis.expire  $job_key, $validity
         end
         $report_time_stamp = Time.now.to_f
       end
