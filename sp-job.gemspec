@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(test|spec|features)/})
   end
-  spec.bindir        = 'exe'
+  spec.bindir        = 'bin'
   spec.executables   = 'queue-job'
   spec.require_paths = ['lib']
   spec.add_dependency 'concurrent-ruby'
