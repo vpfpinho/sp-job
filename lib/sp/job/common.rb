@@ -115,14 +115,12 @@ module SP
         step     = args[:step]
         status   = args[:status]
         progress = args[:progress]
-        barrier  = args[:barrier]
         p_index  = args[:index]
-        response = args[:response]
 
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index, :response].include? key
+            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
@@ -134,20 +132,23 @@ module SP
         $job_status[:message]  = message unless message.nil?
         $job_status[:index]    = p_index unless p_index.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
-        $job_status[:response] = response unless response.nil?
-        if args.has_key? :link
-          $job_status[:link] = args[:link]
-        end
+        
+        $job_status[:link]         = args[:link]         if args.has_key? :link
+        $job_status[:content_type] = args[:content_type] if args.has_key? :content_type
+        $job_status[:response]     = args[:response]     if args.has_key? :response 
+        $job_status[:status_code]  = args[:status_code]  if args.has_key? :status_code
 
-        if args.has_key? :extra
-          args[:extra].each do |key, value|
-            $job_status[key] = value
-          end
-        end
-
-        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || barrier
+        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
           update_progress_on_redis
         end
+      end
+
+      def send_response (args)
+        args[:status]         = 'completed'
+        args[:action]       ||= 'response'
+        args[:content_type] ||= 'application/json'
+        args[:status_code]  ||= 200
+        update_progress(args)
       end
 
       def raise_error (args)
