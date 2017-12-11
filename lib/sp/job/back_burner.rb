@@ -27,9 +27,9 @@ module SP
 
       def task (sequence, text, success = true)
         if success
-          logger.info "[#{sequence}] #{text} \xE2\x9C\x94".green
+          info "[#{sequence}] #{text} \xE2\x9C\x94".green
         else
-          logger.info "[#{sequence}] #{text} \xE2\x9D\x8C".red
+          info "[#{sequence}] #{text} \xE2\x9D\x8C".red
         end
       end
     end
