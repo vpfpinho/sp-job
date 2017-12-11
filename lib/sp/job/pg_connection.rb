@@ -66,7 +66,7 @@ module SP
           new_min, new_max = [min, max].minmax
           new_min = new_min if new_min <= 0
           if new_min + new_min > 0
-            @treshold = (new_min + (new_min - new_min) * rand).to_i
+            @treshold = (new_min + (new_max - new_min) * rand).to_i
           else
             @treshold = new_min.to_i
           end

@@ -21,6 +21,22 @@
 require 'sp/job/pg_connection'
 require 'roadie'
 
+module SP
+  module Job
+    class Logger < ::Logger
+
+      def task (sequence, text, success = true)
+        if success
+          logger.info "[#{sequence}] #{text} \xE2\x9C\x94".green
+        else
+          logger.info "[#{sequence}] #{text} \xE2\x9D\x8C".red
+        end
+      end
+    end
+
+  end
+end
+
 #
 # Initialize global data needed for configuration
 #
@@ -72,7 +88,7 @@ Backburner.configure do |config|
   config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
   config.on_error            = lambda { |e|
     if $exception_reported == false
-      $exception_reported == true
+      $exception_reported = true
       update_progress(status: 'error', message: e)
     end
     if $rollbar
@@ -87,7 +103,7 @@ Backburner.configure do |config|
   config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
   config.respond_timeout  = 120
   config.default_worker   = SP::Job::Worker
-  config.logger           = $args[:debug] ? Logger.new(STDOUT) : Logger.new($args[:log_file])
+  config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
   config.logger.formatter = proc do |severity, datetime, progname, msg|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
     "[#{date_format}] #{severity}: #{msg}\n"

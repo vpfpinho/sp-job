@@ -112,7 +112,6 @@ module SP
       end
 
       def update_progress (args)
-        step     = args[:step]
         status   = args[:status]
         progress = args[:progress]
         p_index  = args[:index]
@@ -127,8 +126,9 @@ module SP
         else
           message = nil
         end
+        $job_status = {}
         $job_status[:progress] = progress.to_f.round(2) unless progress.nil?
-        $job_status[:progress] = ($job_status[:progress] + step.to_f).round(2) unless step.nil?
+        #$job_status[:progress] = ($job_status[:progress] + step.to_f).round(2) unless step.nil?
         $job_status[:message]  = message unless message.nil?
         $job_status[:index]    = p_index unless p_index.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
@@ -268,7 +268,7 @@ module SP
           new_min, new_max = [min, max].minmax
           new_min = new_min if new_min <= 0
           if new_min + new_min > 0
-            $db_treshold = (new_min + (new_min - new_min) * rand).to_i
+            $db_treshold = (new_min + (new_max - new_min) * rand).to_i
           else
             $db_treshold = new_min.to_i
           end
