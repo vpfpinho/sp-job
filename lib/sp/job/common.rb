@@ -132,11 +132,15 @@ module SP
         $job_status[:message]  = message unless message.nil?
         $job_status[:index]    = p_index unless p_index.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
-        
-        $job_status[:link]         = args[:link]         if args.has_key? :link
-        $job_status[:content_type] = args[:content_type] if args.has_key? :content_type
-        $job_status[:response]     = args[:response]     if args.has_key? :response 
-        $job_status[:status_code]  = args[:status_code]  if args.has_key? :status_code
+
+        if args.has_key? :response
+          $job_status[:response]     = args[:response]
+          $job_status[:link]         = args[:link] if args[:link]
+          $job_status[:content_type] = args[:content_type]
+          $job_status[:status_code]  = args[:status_code]
+          $job_status[:action]       = args[:action]
+        end
+
 
         if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
           update_progress_on_redis
