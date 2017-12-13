@@ -32,12 +32,13 @@ module SP
       #
       # Private Data
       #
-      @owner      = nil
-      @config     = nil
-      @connection = nil
-      @treshold   = -1
-      @counter    = 0
-      @statements = []
+      #@owner      = nil
+      #@config     = nil
+      #@connection = nil
+      #@treshold   = -1
+      #@counter    = 0
+      #@statements = []
+      #@id_cache   = {}
 
       public
 
@@ -59,6 +60,7 @@ module SP
         @treshold   = -1
         @counter    = 0
         @statements = []
+        @id_cache   = {}
         min = @config[:min_queries_per_conn]
         max = @config[:max_queries_per_conn]
         if (!max.nil? && max > 0) || (!min.nil? && min > 0)
@@ -89,12 +91,38 @@ module SP
         if @connection.nil?
           return
         end
-        while @statements.count > 0 do
-            @connection.exec("DEALLOCATE #{@statements.pop()}")
+        @id_cache.each do |query, id| 
+          @connection.exec("DEALLOCATE #{id}")
         end
+
+        while @statements.count > 0 do
+          @connection.exec("DEALLOCATE #{@statements.pop()}")
+        end
+        
         @connection.close
         @connection = nil
         @counter = 0
+      end
+
+      #
+      # Prepare an SQL statement.
+      #
+      # @param query
+      #
+      # @return Statement id.
+      #
+      def exec (query, *args)
+        if nil == @connection
+          connect()
+        end
+        unless @id_cache.has_key? query
+          id = "#{@owner}_#{Digest::MD5.hexdigest(query)}"
+          @connection.prepare(id, query)
+          @id_cache[query] = id
+        else
+          id = @id_cache[query]
+        end
+        @connection.exec_prepared(id, args)
       end
 
       #
