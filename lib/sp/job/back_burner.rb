@@ -202,10 +202,6 @@ module Backburner
   end
 end
 
-# Mix-in the mix-in in the script so that we can use the Common module functions
-require 'sp/job/common'
-extend SP::Job::Common
-
 #
 # Now create the global data needed by the mix-in methods
 #

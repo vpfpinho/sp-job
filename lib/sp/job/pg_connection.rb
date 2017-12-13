@@ -27,21 +27,6 @@ module SP
 
     class PGConnection
 
-      private
-
-      #
-      # Private Data
-      #
-      #@owner      = nil
-      #@config     = nil
-      #@connection = nil
-      #@treshold   = -1
-      #@counter    = 0
-      #@statements = []
-      #@id_cache   = {}
-
-      public
-
       #
       # Public Attributes
       #
@@ -98,7 +83,7 @@ module SP
         while @statements.count > 0 do
           @connection.exec("DEALLOCATE #{@statements.pop()}")
         end
-        
+
         @connection.close
         @connection = nil
         @counter = 0
@@ -107,9 +92,9 @@ module SP
       #
       # Prepare an SQL statement.
       #
-      # @param query
-      #
-      # @return Statement id.
+      # @param query the SQL query with data binding
+      # @param args all the args for the query
+      # @return query result.
       #
       def exec (query, *args)
         if nil == @connection

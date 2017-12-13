@@ -312,7 +312,7 @@ module SP
 
         #
         # Perform an OAuth2 request, catch errors
-        # and convertem them to a common result hash.
+        # and convert them to a common result hash.
         #
         # @param callback
         #
