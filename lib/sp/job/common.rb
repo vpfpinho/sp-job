@@ -24,6 +24,31 @@ module SP
   module Job
     module Common
 
+      def http (oauth_client_id:, oauth_client_secret:)
+  
+        $http_oauth_clients ||= {}
+        $http_oauth_clients[oauth_client_id] ||= ::SP::Job::BrokerHTTPClient.new(
+                  a_session =  ::SP::Job::BrokerHTTPClient::Session.new(
+                                  a_access_token  = nil,
+                                  a_refresh_token = nil,
+                                  a_scope         = $config[:api][:oauth][:scope]
+                                ),
+                  a_oauth2_client = ::SP::Job::BrokerOAuth2Client.new(
+                    protocol:      $config[:api][:oauth][:protocol],
+                    host:          $config[:api][:oauth][:host],
+                    port:          $config[:api][:oauth][:port],
+                    client_id:     oauth_client_id,
+                    client_secret: oauth_client_secret,
+                    redirect_uri:  $config[:api][:oauth][:redirect_uri],
+                    scope:         $config[:api][:oauth][:scope],
+                    options:       {}
+                  ),
+                  a_refreshed_callback = nil,
+                  a_auto_renew_refresh_token = true
+        )
+        $http_oauth_clients[oauth_client_id]
+      end
+
       def config
         $config
       end
