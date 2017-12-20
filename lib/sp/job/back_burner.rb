@@ -85,11 +85,11 @@ end
 #
 Backburner.configure do |config|
 
-  config.beanstalk_url       = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  config.on_error            = lambda { |e|
+  config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+  config.on_error      = lambda { |e|
     if $exception_reported == false
       $exception_reported = true
-      update_progress(status: 'error', message: e)
+      raise_error(message: e)
     end
     if $rollbar
       Rollbar.error(e)
@@ -201,6 +201,9 @@ module Backburner
     end
   end
 end
+
+# Mix-in the common mix-in to make code available for the lambdas used in this file
+extend SP::Job::Common
 
 #
 # Now create the global data needed by the mix-in methods
