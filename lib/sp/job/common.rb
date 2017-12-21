@@ -183,6 +183,7 @@ module SP
         args[:status] = 'error'
         update_progress(args)
         $exception_reported = true
+        $suppress_rollbar = (args[:rollbar] != nil && args[:rollbar] == false) ? true : false
         raise args[:message]
       end
 
@@ -255,7 +256,6 @@ module SP
 
         begin
           m.deliver!
-          # ap m.to_s
           return OpenStruct.new(status: true)
         rescue Net::OpenTimeout => e
           ap ["OpenTimeout", e]
@@ -287,6 +287,7 @@ module SP
         end
       end
 
+      # TODO move this out of here by forcing json api to use new class made by americo
       def define_db_life_span_treshhold
         min = $config[:postgres][:min_queries_per_conn]
         max = $config[:postgres][:max_queries_per_conn]
@@ -303,23 +304,13 @@ module SP
         end
       end
 
+      # TODO move this out of here by forcing json api to use new class made by americo
       def check_db_life_span
         return unless $check_db_life_span
         $db_life_span += 1
         if $db_life_span > $db_treshold
           # Reset pg connection
           database_connect()
-        end
-      end
-
-      def catch_fatal_exceptions (e)
-        case e
-        when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
-          logger.fatal "Lost connection to database exiting now"
-          exit
-        when Redis::CannotConnectError
-          logger.fatal "Can't connect to redis exiting now"
-          exit
         end
       end
 

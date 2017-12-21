@@ -56,15 +56,32 @@ module SP
         throw Exception.new("i18n_entity_id_must_be_defined") if job[:entity_id].nil? || job[:entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
+        progress    = step
         original    = File.join($config[:paths][:temporary_uploads], job[:original])
         destination = File.join($config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
 
         #
-        # Read the original image, any format that image magic can handle will be ok
+        # Check the original image, check format and limits
         # 
         FileUtils::mkdir_p destination
-        image = Magick::Image.read(original).first
-        update_progress(step: step, message: 'i18n_reading_original_$image', image: job[:original])
+        update_progress(progress: progress, message: 'i18n_reading_original_$image', image: job[:original])
+        img_info = %x[identify #{original}]
+        m = %r[.*\.ul\s(\w+)\s(\d+)x(\d+)\s.*].match img_info
+        if $?.success? == false
+          raise_error(message: 'i18n_invalid_image')
+        end
+        if m.size != 4 
+          raise_error(message: 'i18n_invalid_image', rollbar: false)
+        end
+        unless $config[:options][:formats].include? m[1]
+          raise_error(message: 'i18n_unsupported_$format', format: m[1], rollbar: false)
+        end
+        if m[2].to_i > $config[:options][:max_width]
+          raise_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  $config[:options][:max_width], rollbar: false)
+        end
+        if m[3].to_i > $config[:options][:max_height]
+          raise_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: $config[:options][:max_height], rollbar: false)
+        end
 
         barrier = true # To force progress on first scalling
 
@@ -72,18 +89,23 @@ module SP
         # Iterate the copies array
         #
         job[:copies].each do |copy|
-          img_copy = image.copy()
-          img_copy.change_geometry(copy[:geometry].to_s) do |cols, rows, img|
-            img.resize!(cols, rows)
+          %x[convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
+          unless $?.success?
+            logger.error("convert failed to scale #{original} to #{copy[:geometry]}")
+            raise_error(message: 'i18n_internal_error')
           end
-          img_copy.write(File.join(destination, copy[:name]))
-          update_progress(step: step, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry], barrier: barrier)
+          progress += step
+          update_progress(progress: progress, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry], barrier: barrier)
           logger.debug("Scaled to geometry #{copy[:geometry]}")
           barrier = false
         end
 
         # Closing arguments, all done
         update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
+
+        # Remove original file
+        FileUtils::rm_f(original) if $config[:options][:delete_originals] 
+
       end
 
     end # UploadedImageConverter

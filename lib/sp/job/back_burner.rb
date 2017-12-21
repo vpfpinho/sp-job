@@ -40,11 +40,12 @@ end
 #
 # Initialize global data needed for configuration
 #
-$prefix       = OS.mac? ? '/usr/local' : '/'
-$rollbar      = false
-$bury         = false
-$min_progress = 3 # TODO to config??
-$args         = {
+$prefix           = OS.mac? ? '/usr/local' : '/'
+$rollbar          = false
+$suppress_rollbar = false
+$bury             = false
+$min_progress     = 3
+$args = {
   stdout:       false,
   log_level:    'info',
   program_name: File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
@@ -68,6 +69,7 @@ $option_parser.parse!
 # Read configuration
 #
 $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize_names: true)
+$min_progress = $config[:options][:min_progress]
 
 #
 # Configure rollbar
@@ -89,12 +91,28 @@ Backburner.configure do |config|
   config.on_error      = lambda { |e|
     if $exception_reported == false
       $exception_reported = true
-      raise_error(message: e)
+      begin
+        raise_error(message: e)
+      rescue => e
+        # Do not retrow!!!!
+      end
     end
-    if $rollbar
+
+    # Report exception to rollbar the thrower supressed the report
+    if $rollbar && $suppress_rollbar == false
       Rollbar.error(e)
     end
-    catch_fatal_exceptions(e)
+    $suppress_rollbar = true
+
+    # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
+    case e
+    when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
+      logger.fatal "Lost connection to database exiting now"
+      exit
+    when Redis::CannotConnectError
+      logger.fatal "Can't connect to redis exiting now"
+      exit
+    end
   }
   #config.priority_labels     = { :custom => 50, :useless => 1000 }
   #config.max_job_retries     = 0 # default 0 retries
