@@ -70,7 +70,8 @@ module SP
         if $?.success? == false
           raise_error(message: 'i18n_invalid_image')
         end
-        if m.size != 4 
+        if m.nil? || m.size != 4 
+          logger.error "Image #{original} can't be identified '#{img_info}'"
           raise_error(message: 'i18n_invalid_image', rollbar: false)
         end
         unless $config[:options][:formats].include? m[1]
