@@ -102,7 +102,7 @@ module SP
         end
 
         # Closing arguments, all done
-        update_progress(status: 'completed', message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
+        send_response(message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
 
         # Remove original file
         FileUtils::rm_f(original) if $config[:options][:delete_originals] 
