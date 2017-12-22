@@ -68,7 +68,7 @@ module SP
         img_info = %x[identify #{original}]
         m = %r[.*\.ul\s(\w+)\s(\d+)x(\d+)\s.*].match img_info
         if $?.success? == false
-          raise_error(message: 'i18n_invalid_image')
+          return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
         if m.nil? || m.size != 4 
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
