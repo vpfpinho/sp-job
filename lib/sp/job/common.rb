@@ -156,8 +156,8 @@ module SP
         $job_status[:message]  = message unless message.nil?
         $job_status[:index]    = p_index unless p_index.nil?
         $job_status[:status]   = status.nil? ? 'in-progress' : status
+        $job_status[:link]     = args[:link] if args[:link]
 
-        $job_status[:link] = args[:link] if args[:link]
         if args.has_key? :response
           $job_status[:response]     = args[:response]
           $job_status[:content_type] = args[:content_type]
@@ -178,11 +178,19 @@ module SP
         update_progress(args)
       end
 
+      def report_error (args)
+        args[:status] = 'error'
+        update_progress(args)
+        logger.error(args)
+        $exception_reported = true
+        true
+      end
+
       def raise_error (args)
         args[:status] = 'error'
         update_progress(args)
+        logger.error(args)
         $exception_reported = true
-        $suppress_rollbar = (args[:rollbar] != nil && args[:rollbar] == false) ? true : false
         raise args[:message]
       end
 

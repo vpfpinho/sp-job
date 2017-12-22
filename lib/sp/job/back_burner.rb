@@ -42,8 +42,6 @@ end
 #
 $prefix           = OS.mac? ? '/usr/local' : '/'
 $rollbar          = false
-$suppress_rollbar = false
-$bury             = false
 $min_progress     = 3
 $args = {
   stdout:       false,
@@ -98,11 +96,10 @@ Backburner.configure do |config|
       end
     end
 
-    # Report exception to rollbar the thrower supressed the report
-    if $rollbar && $suppress_rollbar == false
+    # Report exception to rollbar
+    if $rollbar
       Rollbar.error(e)
     end
-    $suppress_rollbar = true
 
     # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
     case e

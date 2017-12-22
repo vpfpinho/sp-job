@@ -53,7 +53,7 @@ module SP
 
       def self.perform (job)
 
-        throw Exception.new("i18n_entity_id_must_be_defined") if job[:entity_id].nil? || job[:entity_id].to_i == 0
+        raise_error(message: 'i18n_entity_id_must_be_defined') if job[:entity_id].nil? || job[:entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
         progress    = step
@@ -71,17 +71,16 @@ module SP
           raise_error(message: 'i18n_invalid_image')
         end
         if m.nil? || m.size != 4 
-          logger.error "Image #{original} can't be identified '#{img_info}'"
-          raise_error(message: 'i18n_invalid_image', rollbar: false)
+          return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
         unless $config[:options][:formats].include? m[1]
-          raise_error(message: 'i18n_unsupported_$format', format: m[1], rollbar: false)
+          return report_error(message: 'i18n_unsupported_$format', format: m[1])
         end
         if m[2].to_i > $config[:options][:max_width]
-          raise_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  $config[:options][:max_width], rollbar: false)
+          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  $config[:options][:max_width])
         end
         if m[3].to_i > $config[:options][:max_height]
-          raise_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: $config[:options][:max_height], rollbar: false)
+          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: $config[:options][:max_height])
         end
 
         barrier = true # To force progress on first scalling
@@ -92,8 +91,7 @@ module SP
         job[:copies].each do |copy|
           %x[convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
           unless $?.success?
-            logger.error("convert failed to scale #{original} to #{copy[:geometry]}")
-            raise_error(message: 'i18n_internal_error')
+            raise_error(message: 'i18n_internal_error', info: "convert failed to scale #{original} to #{copy[:geometry]}")
           end
           progress += step
           update_progress(progress: progress, message: 'i18n_scalling_image_$name$geometry', name: copy[:name], geometry: copy[:geometry], barrier: barrier)
