@@ -170,8 +170,9 @@ def get_config
   dbname = conf['db']['dbname']
   dbuser = conf['db']['user']
   dbhost = conf['db']['host']
+  dbport = conf['db']['port'] || 5432
   dbpass = conf['db']['password'] || ''
-  conf['db']['connection_string'] = "host=#{dbhost} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
+  conf['db']['connection_string'] = "host=#{dbhost} port=#{dbport} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
 
   #
   # Resolve project and user relative paths
