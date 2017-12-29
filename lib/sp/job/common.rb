@@ -206,11 +206,7 @@ module SP
         update_progress(args)
         logger.error(args)
         $exception_reported = true
-        raise ::SP::Job::JobException.new(
-          message: args[:message] || $current_job[:tube] || $args[:program_name],
-          args: args, 
-          job: $current_job
-        )
+        raise ::SP::Job::JobException.new(args: args, job: $current_job)
       end
 
       def update_progress_on_redis

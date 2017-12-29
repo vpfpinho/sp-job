@@ -24,16 +24,15 @@ require 'roadie'
 module SP
   module Job
 
-    class JobException < Exception
+    class JobException < ::StandardError
 
       attr_reader :job
       attr_reader :args
-      attr_reader :message
 
-      def initialize (args: nil, job: nil, message: nil)
+      def initialize (args:, job: nil)
+	super(args[:message] || $current_job[:tube] || $args[:program_name])
         @job     = job
         @args    = args
-        @message = message unless message.nil?
       end
 
     end
