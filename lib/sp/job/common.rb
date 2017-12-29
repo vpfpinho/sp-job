@@ -180,6 +180,9 @@ module SP
 
       def report_error (args)
         args[:status] = 'error'
+        args[:action]       ||= 'response'
+        args[:content_type] ||= 'application/json'
+        args[:status_code]  ||= 200
         update_progress(args)
         logger.error(args)
         $exception_reported = true
@@ -188,6 +191,9 @@ module SP
 
       def raise_error (args)
         args[:status] = 'error'
+        args[:action]       ||= 'response'
+        args[:content_type] ||= 'application/json'
+        args[:status_code]  ||= 200
         update_progress(args)
         logger.error(args)
         $exception_reported = true
