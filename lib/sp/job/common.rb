@@ -43,10 +43,18 @@ module SP
                     scope:         $config[:api][:oauth][:scope],
                     options:       {}
                   ),
-                  a_refreshed_callback = nil,
+                  a_refreshed_callback = method(:refreshed_callback),
                   a_auto_renew_refresh_token = true
         )
         $http_oauth_clients[oauth_client_id]
+      end
+
+      #
+      # Called by BrokerHTTPClient when a new session was created
+      # or an older one was refreshed.
+      #
+      def refreshed_callback(a_session)
+        logger.task('#', "Session #{a_session.is_new ? 'created' : 'refreshed' }, access_token=#{a_session.access_token}, refresh_token=#{a_session.refresh_token}")
       end
 
       def config
