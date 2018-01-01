@@ -105,6 +105,7 @@ module SP
           $connected = true
         end
 
+        $current_job = job
         $job_status = {
           action:       'response',
           content_type: 'application/json',
@@ -194,6 +195,9 @@ module SP
 
       def report_error (args)
         args[:status] = 'error'
+        args[:action]       ||= 'response'
+        args[:content_type] ||= 'application/json'
+        args[:status_code]  ||= 200
         update_progress(args)
         logger.error(args)
         $exception_reported = true
@@ -202,10 +206,13 @@ module SP
 
       def raise_error (args)
         args[:status] = 'error'
+        args[:action]       ||= 'response'
+        args[:content_type] ||= 'application/json'
+        args[:status_code]  ||= 200
         update_progress(args)
         logger.error(args)
         $exception_reported = true
-        raise args[:message]
+        raise ::SP::Job::JobException.new(args: args, job: $current_job)
       end
 
       def update_progress_on_redis

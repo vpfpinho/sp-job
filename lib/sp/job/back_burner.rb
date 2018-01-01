@@ -23,6 +23,20 @@ require 'roadie'
 
 module SP
   module Job
+
+    class JobException < ::StandardError
+
+      attr_reader :job
+      attr_reader :args
+
+      def initialize (args:, job: nil)
+	super(args[:message] || $current_job[:tube] || $args[:program_name])
+        @job     = job
+        @args    = args
+      end
+
+    end
+
     class Logger < ::Logger
 
       def task (sequence, text, success = true)
@@ -98,7 +112,11 @@ Backburner.configure do |config|
 
     # Report exception to rollbar
     if $rollbar
-      Rollbar.error(e)
+      if e.instance_of? ::SP::Job::JobException
+        Rollbar.error(e, e.message, { job: e.job, args: e.args})
+      else 
+        Rollbar.error(e)
+      end
     end
 
     # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
