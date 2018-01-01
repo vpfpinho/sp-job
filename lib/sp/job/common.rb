@@ -57,6 +57,10 @@ module SP
         logger.task('#', "Session #{a_session.is_new ? 'created' : 'refreshed' }, access_token=#{a_session.access_token}, refresh_token=#{a_session.refresh_token}")
       end
 
+      def db
+        $pg
+      end
+
       def config
         $config
       end
@@ -92,11 +96,12 @@ module SP
         $beaneater.tubes[tube].put job.to_json, ttr: ttr
       end
 
-      def before_perform_init (job)
+      def prepare_job (job)
+      #def before_perform_init (job)
 
         if $connected == false
           database_connect
-          $redis.get "#{$config}:jobs:sequential_id"
+          $redis.get "#{$config}:jobs:sequential_id" # For what ??
           $connected = true
         end
 
@@ -182,6 +187,7 @@ module SP
         args[:status]         = 'completed'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
+        args[:response]     ||= {}
         args[:status_code]  ||= 200
         update_progress(args)
       end
@@ -230,10 +236,6 @@ module SP
       def delete_jsonapi!(path)
         check_db_life_span()
         $jsonapi.adapter.delete!(path)
-      end
-
-      def db_exec (query)
-        $pg.query(query: query)
       end
 
       def expand_mail_body (template)
@@ -328,6 +330,12 @@ module SP
           database_connect()
         end
       end
+
+      # TODO remove and replace all calls with db.exec
+      def db_exec (query)
+        $pg.query(query: query)
+      end
+
 
     end # Module Common
   end # Module Job

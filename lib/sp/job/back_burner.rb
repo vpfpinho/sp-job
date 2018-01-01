@@ -192,6 +192,12 @@ module Backburner
     #   @task.process
     #
     def process
+      # Invoke the job setup function, bailout if the setup returns false
+      unless job_class.prepare_job(*args)
+        task.delete
+        return false
+      end
+
       # Invoke before hook and stop if false
       res = @hooks.invoke_hook_events(job_class, :before_perform, *args)
       unless res
