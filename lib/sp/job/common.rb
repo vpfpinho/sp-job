@@ -255,17 +255,21 @@ module SP
         ERB.new(erb_template).result(binding)
       end
 
-      def send_mail (args)
+      def send_email (args)
+
         if args.has_key?(:template)
           email_body = expand_mail_body args[:template]
         else
           email_body = args[:body]
         end
+        
         submit_job(
             tube:    'mail-queue',
-            to:      job[:to],
-            subject: job[:subject],
-            body:    email_body
+            job:{
+              to:      args[:to],
+              subject: args[:subject],
+              body:    email_body
+            }
           )
       end
 
