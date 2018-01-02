@@ -7,6 +7,12 @@ require 'os'
 require 'fileutils'
 require 'etc'
 
+class SpDataStruct < OpenStruct
+  def as_json(*args)
+    super.as_json['table']
+  end
+end
+
 def safesudo(cmd)
   unless true == system(cmd)
     system("sudo #{cmd}")
@@ -114,7 +120,6 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
 end
 
 def get_config
-
   hostname = %x[hostname -s].strip
   @project = Dir.pwd
   @user_home = File.expand_path('~')
@@ -188,7 +193,7 @@ def get_config
   conf.clean_keys!
 
   ap conf
-  return JSON.parse(conf.to_json, object_class: OpenStruct), conf
+  return JSON.parse(conf.to_json, object_class: SpDataStruct), conf
 end
 
 desc 'Update project configuration: action=overwrite => update system,user,project; action => hotfix update project only; other no change (dryrun)'

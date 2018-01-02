@@ -129,10 +129,8 @@ Backburner.configure do |config|
       exit
     end
   }
-  #config.priority_labels     = { :custom => 50, :useless => 1000 }
-  #config.max_job_retries     = 0 # default 0 retries
-  #config.retry_delay         = 5 # default 5 seconds
-  #config.default_priority    = 65536
+  config.max_job_retries  = ($config[:options] && $config[:options][:max_job_retries]) ? $config[:options][:max_job_retries] : 0
+  config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
   config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
   config.respond_timeout  = 120
   config.default_worker   = SP::Job::Worker

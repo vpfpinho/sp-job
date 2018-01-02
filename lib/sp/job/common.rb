@@ -97,9 +97,7 @@ module SP
       end
 
       def prepare_job (job)
-      #def before_perform_init (job)
-
-        if $connected == false
+        if $connected == false && $config[:postgres]
           database_connect
           $redis.get "#{$config}:jobs:sequential_id" # For what ??
           $connected = true
@@ -278,17 +276,7 @@ module SP
           end
         end
 
-        begin
-          m.deliver!
-          return OpenStruct.new(status: true)
-        rescue Net::OpenTimeout => e
-          ap ["OpenTimeout", e]
-          return OpenStruct.new(status: false, message: e.message)
-        rescue Exception => e
-          ap e
-          return OpenStruct.new(status: false, message: e.message)
-        end
-
+        m.deliver!
       end
 
       def database_connect
