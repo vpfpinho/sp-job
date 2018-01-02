@@ -28,9 +28,7 @@
 # require 'sp/job/back_burner'
 # require 'sp/job/uploaded_image_converter'
 # 
-# class CLASSNAME
-#   extend SP::Job::Common
-#   extend SP::Job::UploadedImageConverter
+# class CLASSNAME < ::SP::Job::UploadedImageConverter
 # 
 #   def self.perform(job)
 # 
@@ -48,7 +46,7 @@
 
 module SP
   module Job
-    module UploadedImageConverter
+    class UploadedImageConverter
       extend SP::Job::Common
 
       def self.perform (job)
