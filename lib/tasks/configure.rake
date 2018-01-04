@@ -8,8 +8,15 @@ require 'fileutils'
 require 'etc'
 
 class SpDataStruct < OpenStruct
-  def as_json(*args)
-    super.as_json['table']
+  def to_hash (object, hash= {})
+    object.each_pair do |key, value|
+      hash[key] = value.is_a?(OpenStruct) ? to_hash(value) : value
+    end
+    hash
+  end
+  
+  def to_json
+    to_hash(self).to_json
   end
 end
 
