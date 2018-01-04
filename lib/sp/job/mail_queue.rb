@@ -18,32 +18,17 @@
 #
 # encoding: utf-8
 #
-### IMPORTANT - serious this is important
-# YOU must require 'rmagick' on the script that uses this class, should be used like this
-#
-# How to use this to implement a customized image conversion
-#
-# require 'rmagick'
 # require 'sp-job'
 # require 'sp/job/back_burner'
 # require 'sp/job/mail_queue'
 # 
-# class CLASSNAME
-#   extend SP::Job::Common
-#   extend SP::Job::MailQueue
-# 
-#   def self.perform(job)
-# 
-#     ... Your code before sending the email
+# class MailQueue < ::SP::Job::MailQueue 
 #
-#     SP::Job::MailQueue.perform(job)
-# 
-#     ... your code after sending the email conversion ...
+#    #  Overide methods if needed!
 #
-#   end
 # end
 # 
-# Backburner.work
+# Backburner.work('mail-queue') 
 #
 
 module SP

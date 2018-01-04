@@ -19,13 +19,6 @@ module SP
       #
       class I18N
 
-        private
-
-        @key
-        @args
-
-        public
-
         attr_accessor :key
         attr_accessor :args
 
@@ -98,14 +91,6 @@ module SP
       #
       class OAuth2
 
-        private
-
-        @service_id = nil
-        @client     = nil
-        @redis      = nil
-
-        public
-
         def initialize (service_id:, config:, redis: nil)
           @service_id = service_id
           @client = ::SP::Job::BrokerOAuth2Client.new(
@@ -142,7 +127,7 @@ module SP
                 array << k.to_s
                 array << v
               end
-              $redis.hmset("#{@service_id}:oauth:authorization_code:#{ac_response[:oauth2][:code]}",
+              @redis.hmset("#{@service_id}:oauth:authorization_code:#{ac_response[:oauth2][:code]}",
                 array,
                 'patched_by', 'toconline-session'
               )

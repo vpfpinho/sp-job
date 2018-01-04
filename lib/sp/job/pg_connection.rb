@@ -41,7 +41,7 @@ module SP
       def initialize (owner:, config:)
         @owner      = owner
         @config     = config
-        @connection         = nil
+        @connection = nil
         @treshold   = -1
         @counter    = 0
         @statements = []
@@ -171,6 +171,13 @@ module SP
           check_life_span()
           @connection.exec(query)
         end
+      end
+
+      #
+      # Returns the configured connection string
+      #
+      def conn_str 
+        @config[:conn_str]
       end
 
       private

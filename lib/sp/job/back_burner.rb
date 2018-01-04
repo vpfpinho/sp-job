@@ -30,7 +30,7 @@ module SP
       attr_reader :args
 
       def initialize (args:, job: nil)
-	super(args[:message] || $current_job[:tube] || $args[:program_name])
+	      super(args[:message] || $current_job[:tube] || $args[:program_name])
         @job     = job
         @args    = args
       end
@@ -113,6 +113,7 @@ Backburner.configure do |config|
     # Report exception to rollbar
     if $rollbar
       if e.instance_of? ::SP::Job::JobException
+        e.job[:password] = '<redacted>'
         Rollbar.error(e, e.message, { job: e.job, args: e.args})
       else 
         Rollbar.error(e)
