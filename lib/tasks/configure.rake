@@ -8,15 +8,15 @@ require 'fileutils'
 require 'etc'
 
 class SpDataStruct < OpenStruct
-  def to_hash (object, hash= {})
+  def to_hash_sp (object, hash= {})
     object.each_pair do |key, value|
-      hash[key] = value.is_a?(OpenStruct) ? to_hash(value) : value
+      hash[key] = value.is_a?(OpenStruct) ? to_hash_sp(value) : value
     end
     hash
   end
   
   def to_json
-    to_hash(self).to_json
+    to_hash_sp(self).to_json
   end
 end
 
@@ -440,6 +440,7 @@ task :configure, [ :action ] do |task, args|
       end
       create_directory "#{@config.prefix}/etc/#{@job_name}"
       create_directory "#{@config.prefix}/var/log/#{@job_name}"
+      debugger
       diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template), nil, '-').result())),
                      path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                      diff: diff_before_copy,
