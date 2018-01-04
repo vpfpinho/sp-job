@@ -8,16 +8,32 @@ require 'fileutils'
 require 'etc'
 
 class SpDataStruct < OpenStruct
-  def to_hash_sp (object, hash= {})
+
+  def self.to_hash_sp (object)
+    hash = {}
     object.each_pair do |key, value|
-      hash[key] = value.is_a?(OpenStruct) ? to_hash_sp(value) : value
+      if value.is_a?(SpDataStruct)
+        hash[key] = SpDataStruct::to_hash_sp(value)
+      elsif value.is_a?(Array)
+        hash[key] = []
+        value.each do |member|
+          if member.is_a?(SpDataStruct)
+            hash[key] << SpDataStruct::to_hash_sp(member)
+          else
+            hash[key] << member
+          end
+        end
+      else
+        hash[key] = value
+      end
     end
     hash
   end
   
   def to_json
-    to_hash_sp(self).to_json
+    SpDataStruct::to_hash_sp(self).to_json
   end
+
 end
 
 def safesudo(cmd)
@@ -440,7 +456,6 @@ task :configure, [ :action ] do |task, args|
       end
       create_directory "#{@config.prefix}/etc/#{@job_name}"
       create_directory "#{@config.prefix}/var/log/#{@job_name}"
-      debugger
       diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template), nil, '-').result())),
                      path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                      diff: diff_before_copy,
