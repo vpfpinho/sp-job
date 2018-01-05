@@ -164,16 +164,16 @@ module SP
           message = nil
         end
         $job_status = {}
-        $job_status[:progress] = progress.to_f.round(2) unless progress.nil?
-        $job_status[:message]  = message unless message.nil?
-        $job_status[:index]    = p_index unless p_index.nil?
-        $job_status[:status]   = status.nil? ? 'in-progress' : status
-        $job_status[:link]     = args[:link] if args[:link]
+        $job_status[:progress]    = progress.to_f.round(2) unless progress.nil?
+        $job_status[:message]     = message unless message.nil?
+        $job_status[:index]       = p_index unless p_index.nil?
+        $job_status[:status]      = status.nil? ? 'in-progress' : status
+        $job_status[:link]        = args[:link] if args[:link]
+        $job_status[:status_code] = args[:status_code] if args[:status_code]
 
         if args.has_key? :response
           $job_status[:response]     = args[:response]
           $job_status[:content_type] = args[:content_type]
-          $job_status[:status_code]  = args[:status_code]
           $job_status[:action]       = args[:action]
         end
 
@@ -195,7 +195,7 @@ module SP
         args[:status] = 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
-        args[:status_code]  ||= 200
+        args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
         $exception_reported = true
@@ -206,7 +206,7 @@ module SP
         args[:status] = 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
-        args[:status_code]  ||= 200
+        args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
         $exception_reported = true
