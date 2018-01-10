@@ -55,8 +55,8 @@ module SP
 
         step        = 100 / (job[:copies].size + 1)
         progress    = step
-        original    = File.join($config[:paths][:temporary_uploads], job[:original])
-        destination = File.join($config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
+        original    = File.join(config[:paths][:temporary_uploads], job[:original])
+        destination = File.join(config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
 
         #
         # Check the original image, check format and limits
@@ -71,14 +71,14 @@ module SP
         if m.nil? || m.size != 4 
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
-        unless $config[:options][:formats].include? m[1]
+        unless config[:options][:formats].include? m[1]
           return report_error(message: 'i18n_unsupported_$format', format: m[1])
         end
-        if m[2].to_i > $config[:options][:max_width]
-          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  $config[:options][:max_width])
+        if m[2].to_i > config[:options][:max_width]
+          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  config[:options][:max_width])
         end
-        if m[3].to_i > $config[:options][:max_height]
-          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: $config[:options][:max_height])
+        if m[3].to_i > config[:options][:max_height]
+          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: config[:options][:max_height])
         end
 
         barrier = true # To force progress on first scalling
@@ -101,7 +101,7 @@ module SP
         send_response(message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
 
         # Remove original file
-        FileUtils::rm_f(original) if $config[:options][:delete_originals] 
+        FileUtils::rm_f(original) if config[:options][:delete_originals] 
 
       end
 
