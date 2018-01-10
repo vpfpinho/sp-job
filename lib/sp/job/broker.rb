@@ -116,7 +116,7 @@ module SP
           ac_response = @client.get_authorization_code(
             a_redirect_uri = nil,
             a_scope = scope
-          )          
+          )
           # got a valid 'authorization code'?
           if ac_response[:oauth2].has_key?(:code)
             # got fields?
@@ -197,7 +197,7 @@ module SP
             a_scope = nil # keep current scope
           )
           if at_response[:oauth2].has_key?(:error)
-            return at_response
+            raise ::SP::Job::Broker::InternalError.new(i18n: nil, internal: at_response[:oauth2][:error])
           end
           # prepare redis arguments: field value, [field value, ...]
           array = []
@@ -280,13 +280,65 @@ module SP
         end
 
         #
+        # Obtain an 'access' and a 'refresh' token.
+        #
+        # @param args check the authorize method o OAuth2 class 
+        # @return hash with response content type and status code
+        #
+        def authorize (args)
+          call do
+            finalized(response: oauth2.authorize(args))
+          end
+          @output
+        end
+
+        #
+        # Refresh an access token.
+        #
+        # @param args check the refresh method o OAuth2 class 
+        # @return hash with response content type and status code
+        #
+        def refresh (args)
+          call do
+            finalized(response: oauth2.refresh(args))
+          end
+          @output
+        end
+
+        #
+        # Patch a pair of tokens, by generating new ones
+        #
+        # @param args check the patch methods o OAuth2 class 
+        # @return hash with response content type and status code
+        #
+        def patch (args)
+          call do
+            finalized(response: oauth2.patch(args))
+          end
+          @output
+        end
+
+        #
+        # Remove a pair of tokens from redis.
+        #
+        # @param args check the dispose method o OAuth2 class 
+        # @return hash with response content type and status code
+        #
+        def dispose (args)
+          call do 
+            finalized(response: oauth2.dispose(args))
+          end
+          @output
+        end
+
+        #
         # Finalize the job response.
         #
         # @param response
         # @param content_type
         # @param status_code
         #
-        # @return
+        # @return hash with response content type and status code
         #
         def finalized (response:, content_type: 'application/json', status_code: 200)
           @output[:response]     = response
@@ -302,6 +354,7 @@ module SP
         # @param callback
         #
         def call(*callback)
+          @output = {}
           begin
             @output = yield
           rescue ::SP::Job::BrokerOAuth2Client::InvalidEmailOrPassword => invalid_password
@@ -342,7 +395,7 @@ module SP
             @output[:status_code] = broker_error.code
             @output[:content_type], @output[:response] = broker_error.content_type_and_body()
           rescue Exception => e
-            internal_error = InternalError.new(i18n: nil, internal: nil)
+            internal_error = InternalError.new(i18n: nil, internal: e.message)
             @output[:status_code] = internal_error.code
             @output[:content_type], @output[:response] = internal_error.content_type_and_body()
           end

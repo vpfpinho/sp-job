@@ -142,6 +142,25 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
     FileUtils.rm(tmp_file)
 end
 
+def pg_conn_string (db)
+  "host=#{db.host} port=#{db.port} dbname=#{db.dbname} user=#{db.user}#{db.password.size != 0 ? ' password='+ db.password : '' }"
+end
+
+def expand_template (template, pretty_json: false)
+  begin
+    contents = ERB.new(File.read(template), nil, '-').result()
+    if pretty_json
+      JSON.pretty_generate(JSON.parse(contents))
+    else
+      contents
+    end
+  rescue Exception => e
+    puts "Expansion of #{template} failed".yellow
+    puts e.message.red
+    exit
+  end
+end
+
 def get_config
   hostname = %x[hostname -s].strip
   @project = Dir.pwd
@@ -193,14 +212,16 @@ def get_config
   end
 
   #
-  # Pre-cook the connection string
+  # Pre-cook the connection string # TODO remove this after Hydra goes live
   #
-  dbname = conf['db']['dbname']
-  dbuser = conf['db']['user']
-  dbhost = conf['db']['host']
-  dbport = conf['db']['port'] || 5432
-  dbpass = conf['db']['password'] || ''
-  conf['db']['connection_string'] = "host=#{dbhost} port=#{dbport} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
+  if conf['db']
+    dbname = conf['db']['dbname']
+    dbuser = conf['db']['user']
+    dbhost = conf['db']['host']
+    dbport = conf['db']['port'] || 5432
+    dbpass = conf['db']['password'] || ''
+    conf['db']['connection_string'] = "host=#{dbhost} port=#{dbport} dbname=#{dbname} user=#{dbuser}#{dbpass.size != 0 ? ' password='+ dbpass : '' }"
+  end
 
   #
   # Resolve project and user relative paths
@@ -367,7 +388,7 @@ task :configure, [ :action ] do |task, args|
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil? or conf[key_l1][m[2]].nil?
-          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
+          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}"
           next
         end
       end
@@ -376,7 +397,7 @@ task :configure, [ :action ] do |task, args|
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil?
-          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}".yellow
+          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}"
           next
         end
       end
@@ -390,9 +411,8 @@ task :configure, [ :action ] do |task, args|
         end
       end
 
-      # puts "Expanding #{template}".red
       # Now expand the template
-      file_contents = ERB.new(File.read(template), nil, '-').result()
+      file_contents = expand_template(template)
 
       if /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
         includes = file_contents.scan(/^\s*include\s+conf\.d\/(.*)\.location\;/)
@@ -422,7 +442,7 @@ task :configure, [ :action ] do |task, args|
         if used_locations.include? m[1]
           # Write text expanded configuration file
           create_directory(File.dirname dst_file)
-          diff_and_write(contents: ERB.new(File.read(template), nil, '-').result(),
+          diff_and_write(contents: expand_template(template),
                          path: dst_file,
                          diff: diff_before_copy,
                          dry_run: dry_run
@@ -456,7 +476,7 @@ task :configure, [ :action ] do |task, args|
       end
       create_directory "#{@config.prefix}/etc/#{@job_name}"
       create_directory "#{@config.prefix}/var/log/#{@job_name}"
-      diff_and_write(contents: JSON.pretty_generate(JSON.parse(ERB.new(File.read(template), nil, '-').result())),
+      diff_and_write(contents: expand_template(template, pretty_json: true),
                      path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                      diff: diff_before_copy,
                      dry_run: dry_run
@@ -471,7 +491,7 @@ task :configure, [ :action ] do |task, args|
         throw "Missing service file for #{@job_name}"
       end
 
-      diff_and_write(contents: ERB.new(File.read(template)).result(),
+      diff_and_write(contents: expand_template(template),
                      path: "#{@config.prefix}/lib/systemd/system/#{@job_name}@.service",
                      diff: diff_before_copy,
                      dry_run: dry_run

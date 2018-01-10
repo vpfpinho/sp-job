@@ -193,6 +193,15 @@ module SP
         end
       end
 
+      #
+      # Call this to check if the database is not a production database where it's
+      # dangerous to make development stuff. It checks the presence of a magic parameter
+      # on the PG configuration that marks the database as a development arena
+      #
+      def safety_check ()
+        SP::Duh::Db::safety_check(@connection)
+      end
+
     end # end class 'PGConnection'
 
   end # module 'Job'
