@@ -21,14 +21,14 @@
 # require 'sp-job'
 # require 'sp/job/back_burner'
 # require 'sp/job/mail_queue'
-# 
-# class MailQueue < ::SP::Job::MailQueue 
+#
+# class MailQueue < ::SP::Job::MailQueue
 #
 #    #  Overide methods if needed!
 #
 # end
-# 
-# Backburner.work('mail-queue') 
+#
+# Backburner.work('mail-queue')
 #
 
 module SP
@@ -41,9 +41,11 @@ module SP
 
       def self.perform (job)
         email = synchronous_send_email(
-          body:    job[:body],
-          to:      job[:to],
-          subject: job[:subject]
+          body:        job[:body],
+          template:    job[:template],
+          to:          job[:to],
+          subject:     job[:subject],
+          attachments: job[:attachments]
         )
         logger.info "mailto: #{job[:to]} - #{job[:subject]}"
       end

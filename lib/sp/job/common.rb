@@ -303,6 +303,21 @@ module SP
           end
         end
 
+        if args.has_key?(:attachments)
+          args[:attachments].each do |attach|
+            attach_uri = URI.escape("#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}/#{attach[:file]}")
+            attach_http_call = Curl::Easy.http_get(attach_uri)
+            if attach_http_call.response_code == 200
+              attributes = {}
+              attach_http_call.header_str.scan(/(\w+)="([^"]*)"/).each do |group|
+                attributes[group[0].to_sym] = group[1]
+              end
+
+              m.attachments[attributes[:filename].force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
+            end
+          end
+        end
+
         m.deliver!
       end
 

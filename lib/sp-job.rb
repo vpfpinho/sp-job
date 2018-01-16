@@ -37,6 +37,7 @@ require 'erb'
 require 'ostruct'
 require 'json'
 require 'mail'
+require 'uri'
 
 require 'sp/job'
 require 'sp/job/engine'
