@@ -25,7 +25,7 @@ module SP
     module Common
 
       def http (oauth_client_id:, oauth_client_secret:)
-  
+
         $http_oauth_clients ||= {}
         $http_oauth_clients[oauth_client_id] ||= ::SP::Job::BrokerHTTPClient.new(
                   a_session =  ::SP::Job::BrokerHTTPClient::Session.new(
@@ -139,7 +139,7 @@ module SP
 
       #
       # Optionally after the jobs runs sucessfully clean the "job" key in redis
-      # 
+      #
       def after_perform_cleanup (job)
         if false # TODO check key namings with americo $job key and redis key
           return if $redis.nil?
@@ -244,28 +244,37 @@ module SP
       end
 
       def expand_mail_body (template)
-        if File.extname(template) == ''
-          template += '.erb'
-        end
-        if template[0] == '/'
-          erb_template = File.read(template)
+        if template.class == Hash
+          template_path = template[:path]
+          erb_binding   = OpenStruct.new(template[:args]).instance_eval { binding }
         else
-          erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template))
+          template_path = template
+          erb_binding = binding
         end
-        ERB.new(erb_template).result(binding)
+
+        if File.extname(template_path) == ''
+          template_path += '.erb'
+        end
+
+        if template_path[0] == '/'
+          erb_template = File.read(template_path)
+        else
+          erb_template = File.read(File.join(File.expand_path(File.dirname($PROGRAM_NAME)), template_path))
+        end
+
+        ERB.new(erb_template).result(erb_binding)
       end
 
       def send_email (args)
-
-        if args.has_key?(:template)
+        if args.has_key?(:template) && args[:template] != nil
           email_body = expand_mail_body args[:template]
         else
           email_body = args[:body]
         end
-        
+
         submit_job(
             tube:    'mail-queue',
-            job:{
+            job: {
               to:      args[:to],
               subject: args[:subject],
               body:    email_body
@@ -274,7 +283,7 @@ module SP
       end
 
       def synchronous_send_email (args)
-        if args.has_key?(:template)
+        if args.has_key?(:template) && args[:template] != nil
           email_body = expand_mail_body args[:template]
         else
           email_body = args[:body]
