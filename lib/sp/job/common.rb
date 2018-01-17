@@ -178,7 +178,7 @@ module SP
           $job_status[:action]       = args[:action]
         end
 
-        if status == 'completed' || status == 'error' || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
+        if ['completed', 'error', 'follow-up'].include?(status) || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
           update_progress_on_redis
         end
       end
