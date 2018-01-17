@@ -94,6 +94,7 @@ module SP
           $redis.expire(redis_key, validity)
         end
         $beaneater.tubes[tube].put job.to_json, ttr: ttr
+        "#{tube}:#{job[:id]}"
       end
 
       def prepare_job (job)
@@ -183,7 +184,7 @@ module SP
       end
 
       def send_response (args)
-        args[:status]         = 'completed'
+        args[:status]       ||= 'completed'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:response]     ||= {}
