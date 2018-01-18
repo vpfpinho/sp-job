@@ -58,11 +58,11 @@ $prefix           = OS.mac? ? '/usr/local' : '/'
 $rollbar          = false
 $min_progress     = 3
 $args = {
-  stdout:       false,
-  log_level:    'info',
-  program_name: File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:  File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
-  log_file:     File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
+  stdout:           false,
+  log_level:        'info',
+  program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
+  config_file:      File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
+  default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
 #
@@ -70,15 +70,26 @@ $args = {
 #
 $option_parser = OptionParser.new do |opts|
   opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
-  opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:config_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
-  opts.on('-l', '--log=LOGFILE'       , "path to log file (default: '#{$args[:log_file]}')")                   { |v| $args[:log_file]    = File.expand_path(v) }
-  opts.on('-d', '--debug'             , "developer mode: log to stdout and print job")                         { $args[:debug]           = true                }
-  opts.on('-v', '--log_level=LEVEL'   , "Log level DEBUG, INFO, WARN, ERROR, FATAL")                           { |v| $args[:log_level]   = v                   }
-  opts.on('-i', '--index=IDX'         , "systemd instance index")                                              { |v| $args[:index]       = v                   }
+  opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:default_log_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
+  opts.on('-l', '--log=LOGFILE'       , "path to log file (default: '#{$args[:log_file]}')")                        { |v| $args[:log_file]    = File.expand_path(v) }
+  opts.on('-d', '--debug'             , "developer mode: log to stdout and print job")                              { $args[:debug]           = true                }
+  opts.on('-v', '--log_level=LEVEL'   , "Log level DEBUG, INFO, WARN, ERROR, FATAL")                                { |v| $args[:log_level]   = v                   }
+  opts.on('-i', '--index=IDX'         , "systemd instance index")                                                   { |v| $args[:index]       = v                   }
 end
 $option_parser.parse!
 
-puts Process.pid
+#
+# Adjust log file if need, user specified option always take precedence
+#
+if $args[:log_file].nil?
+  if $args[:index].nil?
+    $args[:log_file] = $args[:default_log_file]
+  else
+    $args[:log_file] = File.join($prefix, 'var', 'log', 'jobs', "#{$args[:program_name]}.#{$args[:index]}.log")
+  end
+end
+
+File.write("#{$prefix}/var/run/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
 
 #
 # Read configuration
@@ -245,6 +256,9 @@ end
 
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
+
+logger.debug "Log file ... #{$args[:log_file]}"
+logger.debug "PID ........ #{Process.pid}"
 
 #
 # Now create the global data needed by the mix-in methods
