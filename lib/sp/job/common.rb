@@ -276,9 +276,10 @@ module SP
         submit_job(
             tube:    'mail-queue',
             job: {
-              to:      args[:to],
-              subject: args[:subject],
-              body:    email_body
+              to:       args[:to],
+              subject:  args[:subject],
+              reply_to: args[:reply_to],
+              body:     email_body
             }
           )
       end
@@ -297,6 +298,7 @@ module SP
           from     $config[:mail][:from]
           to       args[:to]
           subject  args[:subject]
+          reply_to (args[:reply_to] || $config[:mail][:from])
 
           html_part do
             content_type 'text/html; charset=UTF-8'

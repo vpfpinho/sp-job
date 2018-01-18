@@ -44,6 +44,7 @@ module SP
           body:        job[:body],
           template:    job[:template],
           to:          job[:to],
+          reply_to:    job[:reply_to],
           subject:     job[:subject],
           attachments: job[:attachments]
         )
