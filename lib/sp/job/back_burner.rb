@@ -54,7 +54,7 @@ end
 #
 # Initialize global data needed for configuration
 #
-$prefix           = OS.mac? ? '/usr/local' : '/'
+$prefix           = OS.mac? ? '/usr/local' : ''
 $rollbar          = false
 $min_progress     = 3
 $args = {
@@ -89,7 +89,13 @@ if $args[:log_file].nil?
   end
 end
 
-File.write("#{$prefix}/var/run/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
+#
+# Create PID file for this jobs instance
+#
+if  OS.mac?
+  Dir.mkdir("#{$prefix}/var/run/jobs") unless Dir.exist? "#{$prefix}/var/run/jobs"
+end
+File.write("#{$prefix}/var/run/jobs/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
 
 #
 # Read configuration
