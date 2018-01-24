@@ -12,9 +12,9 @@ require 'jwt' # https://github.com/jwt/ruby-jwt
 module SP
   module Job
   	class JWT
-  		
+
 		# encode & sign jwt
-		def self.encode(payload:, key:)
+		def self.encode(key, payload)
 			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
 			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
 		end #self.encodeJWT
