@@ -7,12 +7,14 @@
 # Helper to obtain tokens to access toconline API's.
 #
 
+require 'jwt' # https://github.com/jwt/ruby-jwt
+
 module SP
   module Job
   	class JWT
 
 		# encode & sign jwt
-		def self.encodeJWT(payload:, key:)
+		def self.encode(payload:, key:)
 			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
 			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
 		end #self.encodeJWT
