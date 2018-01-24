@@ -14,7 +14,7 @@ module SP
   	class JWT
 
 		# encode & sign jwt
-		def self.encode(key, payload)
+		def self.encode(key:, payload:)
 			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
 			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
 		end #self.encodeJWT
