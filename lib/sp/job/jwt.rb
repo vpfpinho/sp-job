@@ -13,8 +13,12 @@ module SP
   module Job
   	class JWTHelper
 
+        def initialize (key: nil)
+        end
+
+
 		# encode & sign jwt
-		def self.encode(payload:, key:)
+		def encode(payload:, key:)
 			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
 			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
 		end #self.encodeJWT
