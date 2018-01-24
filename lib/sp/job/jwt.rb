@@ -11,7 +11,7 @@ require 'jwt' # https://github.com/jwt/ruby-jwt
 
 module SP
   module Job
-  	class JWT
+  	class JWTHelper
 
 		# encode & sign jwt
 		def self.encode(key:, payload:)
