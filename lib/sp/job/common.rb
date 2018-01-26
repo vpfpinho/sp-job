@@ -65,6 +65,27 @@ module SP
         $config
       end
 
+      #
+      # Returns the object you should use to perform JSON api requests
+      #
+      # jsonapi.get! (resource, params)
+      # jsonapi.post! (resource, params)
+      # jsonapi.patch! (resource, params)
+      # jsonapi.delete! (resource)
+      #
+      def jsonapi 
+        $pg.check_life_span()
+        $jsonapi.adapter
+      end
+
+      # 
+      # You should not use this method ... unless ... you REALLY need to overide the JSON:API
+      # parameters defined by the JOB object
+      #
+      def set_jsonapi_parameters (params)
+        $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
+      end
+
       def logger
         Backburner.configuration.logger
       end
@@ -119,15 +140,7 @@ module SP
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
           $jsonapi.set_url(job[:prefix])
-          init_params = {}
-          init_params[:user_id] = job[:user_id] unless job[:user_id].blank?
-          init_params[:company_id] = job[:company_id] unless job[:company_id].blank?
-          init_params[:company_schema] = job[:company_schema] unless job[:company_schema].blank?
-          init_params[:sharded_schema] = job[:sharded_schema] unless job[:sharded_schema].blank?
-          init_params[:accounting_prefix] = job[:accounting_prefix] unless job[:accounting_prefix].blank?
-          init_params[:accounting_schema] = job[:accounting_schema] unless job[:accounting_schema].blank?
-
-          $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::Parameters.new(init_params))
+          $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(job))
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
@@ -224,26 +237,6 @@ module SP
         $report_time_stamp = Time.now.to_f
       end
 
-      def get_jsonapi!(path, params)
-        check_db_life_span()
-        $jsonapi.adapter.get!(path, params)
-      end
-
-      def post_jsonapi!(path, params)
-        check_db_life_span()
-        $jsonapi.adapter.post!(path, params)
-      end
-
-      def patch_jsonapi!(path, params)
-        check_db_life_span()
-        $jsonapi.adapter.patch!(path, params)
-      end
-
-      def delete_jsonapi!(path)
-        check_db_life_span()
-        $jsonapi.adapter.delete!(path)
-      end
-
       def expand_mail_body (template)
         if template.class == Hash
           template_path = template[:path]
@@ -323,59 +316,6 @@ module SP
 
         m.deliver!
       end
-
-      def database_connect
-        # any connection to close?
-        if ! $jsonapi.nil?
-          $jsonapi.close
-          $jsonapi = nil
-        end
-        if nil != $pg
-          $pg.disconnect()
-          $pg = nil
-        end
-        # establish new connection?
-        if $config[:postgres] && $config[:postgres][:conn_str]
-          $pg = ::SP::Job::PGConnection.new(owner: 'back_burner', config: $config[:postgres])
-          $pg.connect()
-          if $config[:options][:jsonapi] == true
-            $jsonapi = SP::Duh::JSONAPI::Service.new($pg.connection, ($jsonapi.nil? ? nil : $jsonapi.url))
-          end
-        end
-      end
-
-      # TODO move this out of here by forcing json api to use new class made by americo
-      def define_db_life_span_treshhold
-        min = $config[:postgres][:min_queries_per_conn]
-        max = $config[:postgres][:max_queries_per_conn]
-        if (!max.nil? && max > 0) || (!min.nil? && min > 0)
-          $db_life_span       = 0
-          $check_db_life_span = true
-          new_min, new_max = [min, max].minmax
-          new_min = new_min if new_min <= 0
-          if new_min + new_min > 0
-            $db_treshold = (new_min + (new_max - new_min) * rand).to_i
-          else
-            $db_treshold = new_min.to_i
-          end
-        end
-      end
-
-      # TODO move this out of here by forcing json api to use new class made by americo
-      def check_db_life_span
-        return unless $check_db_life_span
-        $db_life_span += 1
-        if $db_life_span > $db_treshold
-          # Reset pg connection
-          database_connect()
-        end
-      end
-
-      # TODO remove and replace all calls with db.exec
-      def db_exec (query)
-        $pg.query(query: query)
-      end
-
 
     end # Module Common
   end # Module Job

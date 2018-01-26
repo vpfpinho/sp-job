@@ -107,6 +107,7 @@ module SP
         else
           id = @id_cache[query]
         end
+        check_life_span()
         @connection.exec_prepared(id, args)
       end
 

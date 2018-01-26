@@ -277,5 +277,8 @@ $beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:b
 $check_db_life_span = false
 $status_dirty       = false
 if $config[:postgres] && $config[:postgres][:conn_str]
-  $pg = ::SP::Job::PGConnection.new(owner: 'back_burner', config: $config[:postgres])
+  $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres])
+  if $config[:options][:jsonapi] == true
+    $jsonapi = SP::Duh::JSONAPI::Service.new($pg.connection, ($jsonapi.nil? ? nil : $jsonapi.url))
+  end
 end
