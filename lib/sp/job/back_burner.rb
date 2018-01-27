@@ -308,9 +308,12 @@ $cancel_thread = Thread.new {
         end
       end
     end
+  rescue Redis::CannotConnectError => ccc
+    logger.fatal "Can't connect to redis exiting now".red
+    exit
   rescue Exception => e
     # Forward unexpected exceptions to the main thread for proper handling
-    logger.error e.to_s.red
+    logger.fatal e.to_s.red
     Thread.main.raise(e)
   end
 }
