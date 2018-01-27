@@ -20,6 +20,7 @@
 #
 require 'sp/job/pg_connection'
 require 'roadie'
+require 'thread'
 
 module SP
   module Job
@@ -50,6 +51,7 @@ module SP
 
   end
 end
+
 
 #
 # Initialize global data needed for configuration
@@ -282,3 +284,38 @@ if $config[:postgres] && $config[:postgres][:conn_str]
     $jsonapi = SP::Duh::JSONAPI::Service.new($pg.connection, ($jsonapi.nil? ? nil : $jsonapi.url))
   end
 end
+
+#
+# Open a second thread that will listen to cancelation requests
+#
+$cancel_mutex     = Mutex.new
+$cancel_condition = ConditionVariable.new
+$cancel_thread    = Thread.new { 
+  while true do
+    puts "Cancel thread will sleep".yellow
+    $cancel_mutex.synchronize {
+      $cancel_condition.wait($cancel_mutex)
+    }
+    begin
+      if $subscription_redis.nil?
+        $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+      end
+      key = $publish_key 
+
+      $subscription_redis.subscribe(key) do |on|
+        puts "Cancel thread subscribed to #{key}".yellow
+        on.message do |channel, msg|
+          puts channel.red
+          puts msg.yellow
+          #Thread.main.raise("Halt verbotten!!!")
+        end
+      end
+    
+    rescue Exception => e
+      puts "exception on cancel thread #{e}".red  
+  
+    ensure
+      #$subscription_redis.unsubscribe(key)    
+    end
+  end
+}

@@ -119,12 +119,6 @@ module SP
       end
 
       def prepare_job (job)
-        if $connected == false && $config[:postgres]
-          database_connect
-          $redis.get "#{$config}:jobs:sequential_id" # For what ??
-          $connected = true
-        end
-
         $current_job = job
         $job_status = {
           action:       'response',
@@ -148,6 +142,13 @@ module SP
           logger.warn "Job validity has expired: job ignored"
           return false
         end
+
+
+
+        $cancel_mutex.synchronize {
+          $cancel_condition.signal
+        }
+
         return true
       end
 
@@ -203,6 +204,7 @@ module SP
         args[:response]     ||= {}
         args[:status_code]  ||= 200
         update_progress(args)
+        $cancel_thread.raise('rebootoh')
       end
 
       def report_error (args)
@@ -213,6 +215,8 @@ module SP
         update_progress(args)
         logger.error(args)
         $exception_reported = true
+        $cancel_thread.raise('rebootoh')
+
         true
       end
 
@@ -223,6 +227,8 @@ module SP
         args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
+        $cancel_thread.raise('rebootoh')
+        
         $exception_reported = true
         raise ::SP::Job::JobException.new(args: args, job: $current_job)
       end
