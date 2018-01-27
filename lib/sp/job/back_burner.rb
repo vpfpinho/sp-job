@@ -85,7 +85,7 @@ end
 $option_parser.parse!
 
 #
-# Adjust log file if need, user specified option always take precedence
+# Adjust log file if need, user specified option always takes precedence
 #
 if $args[:log_file].nil?
   if $args[:index].nil?
@@ -210,7 +210,7 @@ if $config[:mail]
 end
 
 #
-# Monkey patches to keep the tube name as plain vannila job name
+# Monkey patches to keep the tube name as plain vanilla job name
 #
 module Backburner
   module Helpers
@@ -290,7 +290,7 @@ if $config[:postgres] && $config[:postgres][:conn_str]
 end
 
 #
-# Open a second thread that will listen to cancelation and other "signals"
+# Open a second thread that will listen to cancellation and other "signals"
 #
 $cancel_thread = Thread.new { 
   begin
@@ -309,6 +309,8 @@ $cancel_thread = Thread.new {
       end
     end
   rescue Exception => e
+    # Forward unexpected exception to the main thread for proper handling
+    logger.error e.to_s.red
     Thread.main.raise(e)
   end
 }
