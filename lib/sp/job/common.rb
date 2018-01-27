@@ -128,6 +128,7 @@ module SP
         $report_time_stamp     = 0
         $job_status[:progress] = 0
         $exception_reported    = false
+        $job_id                = job[:id]
         $publish_key           = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         $job_key               = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         $validity              = job[:validity].nil? ? 300 : job[:validity].to_i
@@ -142,13 +143,7 @@ module SP
           logger.warn "Job validity has expired: job ignored"
           return false
         end
-
-
-
-        $cancel_mutex.synchronize {
-          $cancel_condition.signal
-        }
-
+        logger.debug "Starting job #{$job_id}".red
         return true
       end
 
@@ -204,7 +199,7 @@ module SP
         args[:response]     ||= {}
         args[:status_code]  ||= 200
         update_progress(args)
-        $cancel_thread.raise('rebootoh')
+        $job_id = nil
       end
 
       def report_error (args)
@@ -215,8 +210,7 @@ module SP
         update_progress(args)
         logger.error(args)
         $exception_reported = true
-        $cancel_thread.raise('rebootoh')
-
+        $job_id = nil
         true
       end
 
@@ -227,9 +221,8 @@ module SP
         args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
-        $cancel_thread.raise('rebootoh')
-        
         $exception_reported = true
+        $job_id = nil
         raise ::SP::Job::JobException.new(args: args, job: $current_job)
       end
 

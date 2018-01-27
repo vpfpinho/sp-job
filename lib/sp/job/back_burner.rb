@@ -25,6 +25,10 @@ require 'thread'
 module SP
   module Job
 
+    class JobCancelled < ::StandardError
+
+    end
+
     class JobException < ::StandardError
 
       attr_reader :job
@@ -286,36 +290,25 @@ if $config[:postgres] && $config[:postgres][:conn_str]
 end
 
 #
-# Open a second thread that will listen to cancelation requests
+# Open a second thread that will listen to cancelation and other "signals"
 #
-$cancel_mutex     = Mutex.new
-$cancel_condition = ConditionVariable.new
-$cancel_thread    = Thread.new { 
-  while true do
-    puts "Cancel thread will sleep".yellow
-    $cancel_mutex.synchronize {
-      $cancel_condition.wait($cancel_mutex)
-    }
-    begin
-      if $subscription_redis.nil?
-        $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-      end
-      key = $publish_key 
-
-      $subscription_redis.subscribe(key) do |on|
-        puts "Cancel thread subscribed to #{key}".yellow
-        on.message do |channel, msg|
-          puts channel.red
-          puts msg.yellow
-          #Thread.main.raise("Halt verbotten!!!")
+$cancel_thread = Thread.new { 
+  begin
+    $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+    $subscription_redis.subscribe($config[:service_id] + ':job-signal') do |on|
+      on.message do |channel, msg|
+        begin
+          message = JSON.parse(msg, {symbolize_names: true})
+          if $job_id != nil && message[:id].to_s == $job_id && message[:action] == 'cancel'
+            logger.info "Received cancel signal for job #{$job_id}"
+            Thread.main.raise(::SP::Job::JobCancelled.new)
+          end
+        rescue Exception => e
+          # ignore invalid payloads 
         end
       end
-    
-    rescue Exception => e
-      puts "exception on cancel thread #{e}".red  
-  
-    ensure
-      #$subscription_redis.unsubscribe(key)    
     end
+  rescue Exception => e
+    Thread.main.raise(e)
   end
 }
