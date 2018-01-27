@@ -143,7 +143,6 @@ module SP
           logger.warn "Job validity has expired: job ignored"
           return false
         end
-        logger.debug "Starting job #{$job_id}".red
         return true
       end
 

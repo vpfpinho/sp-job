@@ -309,7 +309,7 @@ $cancel_thread = Thread.new {
       end
     end
   rescue Exception => e
-    # Forward unexpected exception to the main thread for proper handling
+    # Forward unexpected exceptions to the main thread for proper handling
     logger.error e.to_s.red
     Thread.main.raise(e)
   end
