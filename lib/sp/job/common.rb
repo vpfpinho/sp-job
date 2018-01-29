@@ -202,7 +202,7 @@ module SP
       end
 
       def report_error (args)
-        args[:status] = 'error'
+        args[:status]       ||= 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:status_code]  ||= 500
@@ -214,7 +214,7 @@ module SP
       end
 
       def raise_error (args)
-        args[:status] = 'error'
+        args[:status]       ||= 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:status_code]  ||= 500

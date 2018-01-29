@@ -71,7 +71,7 @@ module SP
 
         $redis.hset($job_key, 'cancelled', true) 
         job.delete
-        return report_error(message: 'i18n_job_cancelled')
+        return report_error(message: 'i18n_job_cancelled', status: 'cancelled')
       rescue Backburner::Job::JobFormatInvalid => e
         self.log_error self.exception_message(e)
       rescue => e # Error occurred processing job

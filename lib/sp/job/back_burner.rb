@@ -299,7 +299,7 @@ $cancel_thread = Thread.new {
       on.message do |channel, msg|
         begin
           message = JSON.parse(msg, {symbolize_names: true})
-          if $job_id != nil && message[:id].to_s == $job_id && message[:action] == 'cancel'
+          if $job_id != nil && message[:id].to_s == $job_id && message[:status] == 'cancelled'
             logger.info "Received cancel signal for job #{$job_id}"
             Thread.main.raise(::SP::Job::JobCancelled.new)
           end
