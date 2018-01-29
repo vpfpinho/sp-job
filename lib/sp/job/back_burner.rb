@@ -19,6 +19,7 @@
 # encoding: utf-8
 #
 require 'sp/job/pg_connection'
+require 'sp/job/job_db_adapter'
 require 'roadie'
 require 'thread'
 
@@ -141,7 +142,7 @@ Backburner.configure do |config|
       if e.instance_of? ::SP::Job::JobException
         e.job[:password] = '<redacted>'
         Rollbar.error(e, e.message, { job: e.job, args: e.args})
-      else 
+      else
         Rollbar.error(e)
       end
     end
@@ -285,7 +286,7 @@ $status_dirty       = false
 if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres])
   if $config[:options][:jsonapi] == true
-    $jsonapi = SP::Duh::JSONAPI::Service.new($pg.connection, ($jsonapi.nil? ? nil : $jsonapi.url))
+    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
   end
 end
 

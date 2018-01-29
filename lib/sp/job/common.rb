@@ -74,7 +74,6 @@ module SP
       # jsonapi.delete! (resource)
       #
       def jsonapi 
-        $pg.check_life_span()
         $jsonapi.adapter
       end
 
