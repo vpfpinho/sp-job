@@ -44,7 +44,6 @@ module SP
         @connection = nil
         @treshold   = -1
         @counter    = 0
-        @statements = []
         @id_cache   = {}
         min = @config[:min_queries_per_conn]
         max = @config[:max_queries_per_conn]
@@ -76,13 +75,9 @@ module SP
         if @connection.nil?
           return
         end
-        @id_cache.each do |query, id| 
-          @connection.exec("DEALLOCATE #{id}")
-        end
 
-        while @statements.count > 0 do
-          @connection.exec("DEALLOCATE #{@statements.pop()}")
-        end
+        @connection.exec("DEALLOCATE ALL")
+        @id_cache = {}
 
         @connection.close
         @connection = nil
@@ -90,7 +85,7 @@ module SP
       end
 
       #
-      # Prepare an SQL statement.
+      # Execute a prepared SQL statement.
       #
       # @param query the SQL query with data binding
       # @param args all the args for the query
@@ -100,66 +95,15 @@ module SP
         if nil == @connection
           connect()
         end
+        check_life_span()
         unless @id_cache.has_key? query
-          id = "#{@owner}_#{Digest::MD5.hexdigest(query)}"
+          id = "p#{Digest::MD5.hexdigest(query)}"
           @connection.prepare(id, query)
           @id_cache[query] = id
         else
           id = @id_cache[query]
         end
-        check_life_span()
         @connection.exec_prepared(id, args)
-      end
-
-      #
-      # Prepare an SQL statement.
-      #
-      # @param query
-      #
-      # @return Statement id.
-      #
-      def prepare_statement (query:)
-        if nil == @connection
-          connect()
-        end
-        id = "#{@owner}_#{Digest::MD5.hexdigest(query)}"
-        if @statements.include? id
-          return id
-        else
-          @statements << id
-          @connection.prepare(@statements.last, query)
-          return @statements.last
-        end
-      end
-
-      #
-      # Execute a previously prepared SQL statement.
-      #
-      # @param id
-      # @param args
-      #
-      # @return PG result
-      #
-      def execute_statement (id:, args:)
-        check_life_span()
-        @connection.exec_prepared(id, args)
-      end
-
-      #
-      # Destroy a previously prepared SQL statement.
-      #
-      # @param id
-      # @param args
-      #
-      def dealloc_statement (id:)
-        if nil == id
-          while @statements.count > 0 do
-              @connection.exec("DEALLOCATE #{@statements.pop()}")
-          end
-        else
-          @statements.delete!(id)
-          @connection.exec("DEALLOCATE #{id}")
-        end
       end
 
       #
@@ -177,7 +121,7 @@ module SP
       #
       # Returns the configured connection string
       #
-      def conn_str 
+      def conn_str
         @config[:conn_str]
       end
 
