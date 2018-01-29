@@ -120,12 +120,15 @@ module SP
       def prepare_job (job)
         $current_job = job
         $job_status = {
-          action:       'response',
           content_type: 'application/json',
-          progress:      0
+          progress: [
+            {
+              message: nil,
+              value: 0
+            }
+          ]
         }
         $report_time_stamp     = 0
-        $job_status[:progress] = 0
         $exception_reported    = false
         $job_id                = job[:id]
         $publish_key           = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
@@ -159,7 +162,7 @@ module SP
       def update_progress (args)
         status   = args[:status]
         progress = args[:progress]
-        p_index  = args[:index]
+        p_index  = args[:index] || 0
 
         if args.has_key? :message
           message_args = Hash.new
@@ -171,18 +174,40 @@ module SP
         else
           message = nil
         end
-        $job_status = {}
-        $job_status[:progress]    = progress.to_f.round(2) unless progress.nil?
-        $job_status[:message]     = message unless message.nil?
-        $job_status[:index]       = p_index unless p_index.nil?
+
+        # update job status
+        if p_index >= $job_status[:progress].size 
+          (1 + p_index - $job_status[:progress].size).times do
+            $job_status[:progress] << { message: nil, value: 0 }
+          end
+        end
+        unless message.nil?
+          $job_status[:progress][p_index][:message] = message
+        end
+        unless progress.nil?
+          $job_status[:progress][p_index][:value] = progress.to_f.round(2)
+        end
         $job_status[:status]      = status.nil? ? 'in-progress' : status
         $job_status[:link]        = args[:link] if args[:link]
         $job_status[:status_code] = args[:status_code] if args[:status_code]
-
         if args.has_key? :response
           $job_status[:response]     = args[:response]
           $job_status[:content_type] = args[:content_type]
           $job_status[:action]       = args[:action]
+        end
+        
+        # Create notification that will be published
+        $job_notification = {}
+        $job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
+        $job_notification[:message]     = message unless message.nil?
+        $job_notification[:index]       = p_index unless p_index.nil?
+        $job_notification[:status]      = status.nil? ? 'in-progress' : status
+        $job_notification[:link]        = args[:link] if args[:link]
+        $job_notification[:status_code] = args[:status_code] if args[:status_code]
+        if args.has_key? :response
+          $job_notification[:response]     = args[:response]
+          $job_notification[:content_type] = args[:content_type]
+          $job_notification[:action]       = args[:action]
         end
 
         if ['completed', 'error', 'follow-up'].include?(status) || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
@@ -226,9 +251,8 @@ module SP
 
       def update_progress_on_redis
         $redis.pipelined do
-          redis_str = $job_status.to_json
-          $redis.publish $publish_key, redis_str
-          $redis.hset    $job_key, 'status', redis_str
+          $redis.publish $publish_key, $job_notification.to_json
+          $redis.hset    $job_key, 'status', $job_status.to_json
           $redis.expire  $job_key, $validity
         end
         $report_time_stamp = Time.now.to_f
@@ -264,7 +288,7 @@ module SP
         end
 
         submit_job(
-            tube:    'mail-queue',
+            tube: 'mail-queue',
             job: {
               to:       args[:to],
               subject:  args[:subject],
