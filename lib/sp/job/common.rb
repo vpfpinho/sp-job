@@ -118,6 +118,7 @@ module SP
       end
 
       def prepare_job (job)
+        logger.debug "Preparing job id #{job[:id]}".green
         $current_job = job
         $job_status = {
           content_type: 'application/json',
@@ -133,7 +134,6 @@ module SP
         $job_id                = job[:id]
         $publish_key           = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         $job_key               = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        $validity              = job[:validity].nil? ? 300 : job[:validity].to_i
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
           $jsonapi.set_url(job[:prefix])
@@ -142,7 +142,7 @@ module SP
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         unless $redis.exists($job_key )
-          logger.warn "Job validity has expired: job ignored"
+          logger.warn "Job validity has expired: job ignored".yellow
           return false
         end
         return true
@@ -253,7 +253,6 @@ module SP
         $redis.pipelined do
           $redis.publish $publish_key, $job_notification.to_json
           $redis.hset    $job_key, 'status', $job_status.to_json
-          $redis.expire  $job_key, $validity
         end
         $report_time_stamp = Time.now.to_f
       end

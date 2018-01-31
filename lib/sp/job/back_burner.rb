@@ -130,10 +130,14 @@ Backburner.configure do |config|
   config.on_error      = lambda { |e|
     if $exception_reported == false
       $exception_reported = true
-      begin
-        raise_error(message: e)
-      rescue => e
-        # Do not retrow!!!!
+      if e.instance_of? Beaneater::DeadlineSoonError
+        logger.warn "got a deadline warning".red
+      else
+        begin
+          raise_error(message: e)
+        rescue => e
+          # Do not retrow!!!!
+        end
       end
     end
 
@@ -230,6 +234,7 @@ module Backburner
   end
 
   class Job
+
     # Processes a job and handles any failure, deleting the job once complete
     #
     # @example
@@ -237,8 +242,9 @@ module Backburner
     #
     def process
       # Invoke the job setup function, bailout if the setup returns false
-      unless job_class.prepare_job(*args)
+      unless job_class.respond_to?(:prepare_job) && job_class.prepare_job(*args)
         task.delete
+        logger.warn "Delete stale or preempted task".red
         return false
       end
 
@@ -260,6 +266,21 @@ module Backburner
       task.delete
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
+    rescue ::SP::Job::JobCancelled => jc
+      extend SP::Job::Common # to bring.in report_error into this class
+      #
+      # This exception:
+      #  1. is not sent to the rollbar
+      #  2. does not bury the job, instead the job is deleted
+      #
+      Backburner.configuration.logger.info 'Received job cancellation exception'.yellow
+      unless task.nil?
+        Backburner.configuration.logger.debug "Task deleted".yellow
+        task.delete
+      end
+      report_error(message: 'i18n_job_cancelled', status: 'cancelled')
+      $redis.hset($job_key, 'cancelled', true) 
+      $job_id = nil
     rescue => e
       @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
       raise e
@@ -278,7 +299,6 @@ logger.debug "PID ........ #{Process.pid}"
 #
 $connected          = false
 $job_status         = {}
-$validity           = 2
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 $check_db_life_span = false
