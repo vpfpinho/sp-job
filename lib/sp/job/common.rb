@@ -281,10 +281,11 @@ module SP
       end
 
       def send_email (args)
-        if args.has_key?(:template) && args[:template] != nil
-          email_body = expand_mail_body args[:template]
-        else
+
+        if args.has_key?(:body) && args[:body] != nil
           email_body = args[:body]
+        elsif args.has_key?(:template) && args[:template] != nil
+          email_body = expand_mail_body args[:template]
         end
 
         submit_job(
@@ -299,10 +300,11 @@ module SP
       end
 
       def synchronous_send_email (args)
-        if args.has_key?(:template) && args[:template] != nil
-          email_body = expand_mail_body args[:template]
-        else
+
+        if args.has_key?(:body) && args[:body] != nil
           email_body = args[:body]
+        elsif args.has_key?(:template) && args[:template] != nil
+          email_body = expand_mail_body args[:template]
         end
 
         document = Roadie::Document.new email_body
@@ -320,7 +322,7 @@ module SP
           end
         end
 
-        if args.has_key?(:attachments)
+        if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
             attach_uri = URI.escape("#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}/#{attach[:file]}")
             attach_http_call = Curl::Easy.http_get(attach_uri)
