@@ -85,6 +85,13 @@ module SP
         $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
       end
 
+      # You should not use this method ... unless ... you REALLY need to overide the JSON:API
+      # parameters defined by the JOB object
+      #
+      def get_jsonapi_parameters()
+        $jsonapi.parameters.as_json
+      end
+
       def logger
         Backburner.configuration.logger
       end

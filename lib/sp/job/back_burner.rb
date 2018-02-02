@@ -278,6 +278,7 @@ module Backburner
         Backburner.configuration.logger.debug "Task deleted".yellow
         task.delete
       end
+      @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       report_error(message: 'i18n_job_cancelled', status: 'cancelled')
       $redis.hset($job_key, 'cancelled', true) 
       $job_id = nil
