@@ -88,8 +88,8 @@ module SP
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
       #
-      def get_jsonapi_parameters()
-        $jsonapi.parameters.as_json
+      def get_jsonapi_parameters
+        HashWithIndifferentAccess.new(JSON.parse($jsonapi.parameters.to_json))
       end
 
       def logger
