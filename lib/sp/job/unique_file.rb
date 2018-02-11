@@ -33,6 +33,9 @@ module SP
         attach_function :mkstemps, [:string, :int], :int
         attach_function :fcntl, [:int, :int, :pointer], :int
         attach_function :close, [ :int ], :int
+        unless OS.mac?
+          attach_function :readlink, [ :string, :pointer, :int ], :int
+        end
 
         #
         # Creates a uniquely named file inside the specified folder. The created file is empty
@@ -46,8 +49,14 @@ module SP
           return nil if fd < 0
 
           ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
-          r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH
-
+          if OS.mac?
+            r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
+          else
+            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", prt, 8192)
+            if r > 0 && r < 8192
+              r = 0
+            end
+          end
           ::SP::Job::Unique::File.close(fd)
           return nil if r != 0 
           return nil if ptr.null?
