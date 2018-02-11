@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'oauth2-client' unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'mail'
   spec.add_dependency 'json'
+  spec.add_dependency 'jwt'
   spec.add_dependency 'awesome_print'
   spec.add_dependency 'rollbar'
   spec.add_dependency 'roadie'
