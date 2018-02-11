@@ -52,7 +52,7 @@ module SP
           if OS.mac?
             r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
           else
-            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", prt, 8192)
+            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
             if r > 0 && r < 8192
               r = 0
             end

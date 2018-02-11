@@ -29,6 +29,7 @@ Gem::Specification.new do |spec|
   spec.executables   = 'queue-job'
   spec.require_paths = ['lib']
   spec.add_dependency 'os'
+  spec.add_dependency 'ffi'
   spec.add_dependency 'redis'
   spec.add_dependency 'backburner'
   spec.add_dependency 'pg'            unless RUBY_ENGINE == 'jruby'
