@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+#
+# Copyright (c) 2011-2018 Cloudware S.A. All rights reserved.
+#
+# This file is part of sp-job.
+#
+# sp-job is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# sp-job is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
+#
+# encoding: utf-8
+#
+
+
+require 'ap'
+require 'bundler/setup'
+require 'optparse'
+require 'sp/job/unique_file'
+require 'syslog/logger'
+
+begin
+
+  $args = {}
+  $config = {}
+
+  #
+  # Parse command line arguments
+  #
+  $option_parser = OptionParser.new do |opts|
+    opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
+    opts.on('-p', '--path=PATH', 'Path to where file will be created') { |v| $args[:path] = v }
+    opts.on('-e', '--extension=EXTENSION', 'File extension')           { |v| $args[:ext]  = v } 
+  end
+  $option_parser.parse!
+
+  raise 'Must specify path' 	 if $args[:path].nil?
+  raise 'Must specify extension' if $args[:ext].nil?
+
+  raise 'Path not writable' unless File.writable?($args[:path])
+
+  file = SP::Job::Unique::File.create($args[:path], ".#{$args[:ext]}")
+
+  raise 'Could not create file'.red if file.nil?
+
+  puts file
+end
