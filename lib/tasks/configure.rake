@@ -5,6 +5,7 @@ require 'ostruct'
 require 'awesome_print'
 require 'os'
 require 'fileutils'
+require 'tempfile'
 require 'etc'
 
 class SpDataStruct < OpenStruct
@@ -44,7 +45,7 @@ end
 
 def create_directory (path)
 
-  if ! Dir.exists?(path)
+  if ! Dir.exist?(path)
     if OS.mac?
       if path.match("^/usr/local/")
         info = Etc.getpwnam(Etc.getlogin)
