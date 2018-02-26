@@ -44,8 +44,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rollbar'
   spec.add_dependency 'roadie'
 
-  spec.add_development_dependency 'pry'    if     RUBY_ENGINE == 'jruby'
-  spec.add_development_dependency 'byebug' unless RUBY_ENGINE == 'jruby'
+  spec.add_development_dependency 'ruby-debug' if     RUBY_ENGINE == 'jruby'
+  spec.add_development_dependency 'byebug'     unless RUBY_ENGINE == 'jruby'
   spec.add_development_dependency 'bundler', '~> 1.14'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'

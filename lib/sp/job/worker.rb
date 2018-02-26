@@ -18,15 +18,10 @@
 #
 # encoding: utf-8
 #
-
 module SP
   module Job
 
     class Worker < Backburner::Workers::Simple
-
-      def initialize (tube_names=nil)
-        super(tube_names)
-      end
 
       def start
         prepare

@@ -85,6 +85,10 @@ $option_parser = OptionParser.new do |opts|
 end
 $option_parser.parse!
 
+if $args[:debug]
+  require 'ruby-debug' if RUBY_ENGINE == 'jruby'
+end 
+
 #
 # Adjust log file if need, user specified option always takes precedence
 #
@@ -165,7 +169,7 @@ Backburner.configure do |config|
   config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
   config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
   config.respond_timeout  = 120
-  config.default_worker   = SP::Job::Worker
+  config.default_worker   = $config[:options] && $config[:options][:threaded] ? SP::Job::WorkerThread : SP::Job::Worker
   config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
   config.logger.formatter = proc do |severity, datetime, progname, msg|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")

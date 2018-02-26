@@ -18,7 +18,6 @@
 #
 
 #require 'byebug'
-require 'pry' if RUBY_ENGINE == 'jruby'
 require 'awesome_print'
 require 'rollbar'
 require 'redis'
@@ -40,6 +39,7 @@ require 'uri'
 require 'sp/job'
 require 'sp/job/version'
 require 'sp/job/worker'
+require 'sp/job/worker_thread'
 require 'sp/job/common'
 require 'sp/job/unique_file'
 require 'sp/job/broker_http_client'      unless RUBY_ENGINE == 'jruby'
