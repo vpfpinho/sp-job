@@ -78,7 +78,7 @@ module SP
       # jsonapi.delete! (resource)
       #
       def jsonapi 
-        $jsonapi.adapter
+        thread_data.jsonapi.adapter
       end
 
       # 
@@ -86,14 +86,14 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
+        thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
       end
 
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
       #
       def get_jsonapi_parameters
-        HashWithIndifferentAccess.new(JSON.parse($jsonapi.parameters.to_json))
+        HashWithIndifferentAccess.new(JSON.parse(thread_data.jsonapi.parameters.to_json))
       end
 
       def logger
@@ -110,6 +110,17 @@ module SP
       end
 
       def submit_job (args)
+        if $redis_mutex.nil?
+          rv = _submit_job(args)
+        else
+          $redis_mutex.synchronize {
+            rv = _submit_job(args)
+          }
+        end
+        rv
+      end
+
+      def _submit_job (args)
         job      = args[:job]
         tube     = args[:tube] || $args[:program_name]
         raise 'missing job argument' unless args[:job]
@@ -149,8 +160,8 @@ module SP
         td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
-          $jsonapi.set_url(job[:prefix])
-          $jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(job))
+          td.jsonapi.set_url(job[:prefix])
+          td.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(job))
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
@@ -159,18 +170,6 @@ module SP
           return false
         end
         return true
-      end
-
-      #
-      # Optionally after the jobs runs sucessfully clean the "job" key in redis
-      #
-      def after_perform_cleanup (job)
-        td = thread_data
-        if false # TODO check key namings with americo $job key and redis key
-          return if $redis.nil?
-          return if td.job_key.nil?
-          $redis.del td.job_key
-        end
       end
 
       def update_progress (args)
@@ -269,9 +268,18 @@ module SP
 
       def update_progress_on_redis
         td = thread_data
-        $redis.pipelined do
-          $redis.publish td.publish_key, td.job_notification.to_json
-          $redis.hset    td.job_key, 'status', td.job_status.to_json
+        if $redis_mutex.nil?
+          $redis.pipelined do
+            $redis.publish td.publish_key, td.job_notification.to_json
+            $redis.hset    td.job_key, 'status', td.job_status.to_json
+          end
+        else
+          $redis_mutex.synchronize {
+            $redis.pipelined do
+              $redis.publish td.publish_key, td.job_notification.to_json
+              $redis.hset    td.job_key, 'status', td.job_status.to_json
+            end            
+          }
         end
         td.report_time_stamp = Time.now.to_f
       end

@@ -54,9 +54,18 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job,:job_notification) 
+    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi) 
       def initialize
         @job_status = {} 
+        if $config[:options] && $config[:options][:jsonapi] == true
+          @jsonapi = SP::Duh::JSONAPI::Service.new($pg, nil, SP::Job::JobDbAdapter)
+        end
+      end
+    end
+
+    class FauxMutex
+      def synchronize (&block)
+        yield
       end
     end
 
@@ -77,9 +86,6 @@ $args = {
   config_file:      File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
-$threads = []
-$thread_data = {}
-$thread_data[Thread.current] = ::SP::Job::ThreadData.new
 
 #
 # Parse command line arguments
@@ -123,10 +129,24 @@ $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize
 $min_progress = $config[:options][:min_progress]
 
 #
+# Global data for mutex and sync
+#
+$threads = []
+$thread_data = {}
+$thread_data[Thread.current] = ::SP::Job::ThreadData.new
+
+#
 # Sanity check we only support multithreading on JRUBY
 #
 if $config[:options] && $config[:options][:threads].to_i > 1
   raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
+  $redis_mutex = Mutex.new
+  $roolbar_mutex = Mutex.new 
+  $multithreading = true
+else
+  $redis_mutex = nil
+  $roolbar_mutex = ::SP::Job::FauxMutex.new 
+  $multithreading = false
 end
 
 #
@@ -162,14 +182,16 @@ Backburner.configure do |config|
     end
 
     # Report exception to rollbar
-    if $rollbar
-      if e.instance_of? ::SP::Job::JobException
-        e.job[:password] = '<redacted>'
-        Rollbar.error(e, e.message, { job: e.job, args: e.args})
-      else
-        Rollbar.error(e)
+    $roolbar_mutex.synchronize {
+      if $rollbar
+        if e.instance_of? ::SP::Job::JobException
+          e.job[:password] = '<redacted>'
+          Rollbar.error(e, e.message, { job: e.job, args: e.args})
+        else
+          Rollbar.error(e)
+        end
       end
-    end
+    }
 
     # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
     case e
@@ -288,20 +310,29 @@ module Backburner
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
     rescue ::SP::Job::JobCancelled => jc
       extend SP::Job::Common # to bring.in report_error into this class
+
       #
       # This exception:
       #  1. is not sent to the rollbar
       #  2. does not bury the job, instead the job is deleted
       #
-      Backburner.configuration.logger.info 'Received job cancellation exception'.yellow
+      #Backburner.configuration.logger.info 'Received job cancellation exception'.yellow
+      puts 'Received job cancellation exception'.yellow
       unless task.nil?
-        Backburner.configuration.logger.debug "Task deleted".yellow
+        #Backburner.configuration.logger.debug "Task deleted".yellow
+        puts "Task deleted".yellow
         task.delete
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       report_error(message: 'i18n_job_cancelled', status: 'cancelled')
-      $redis.hset(td.job_key, 'cancelled', true) 
-      td.job_id = nil
+      if $redis_mutex.nil?
+        $redis.hset(thread_data.job_key, 'cancelled', true) 
+      else
+        $redis_mutex.synchronize {
+          $redis.hset(thread_data.job_key, 'cancelled', true)
+        }
+      end
+      thread_data.job_id = nil
     rescue => e
       @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
       raise e
@@ -322,10 +353,10 @@ $connected          = false
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
-  $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres])
-  if $config[:options][:jsonapi] == true
-    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
-  end
+  $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
+#  if $config[:options][:jsonapi] == true
+#    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
+#  end
 end
 
 #
@@ -338,9 +369,11 @@ $cancel_thread = Thread.new {
       on.message do |channel, msg|
         begin
           message = JSON.parse(msg, {symbolize_names: true})
-          if $job_id != nil && message[:id].to_s == $job_id && message[:status] == 'cancelled'
-            logger.info "Received cancel signal for job #{$job_id}"
-            Thread.main.raise(::SP::Job::JobCancelled.new)
+          $threads.each do |thread|
+            if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id && message[:status] == 'cancelled'
+              puts "Received cancel signal for job #{$thread_data[thread].job_id}"
+              thread.raise(::SP::Job::JobCancelled.new)
+            end  
           end
         rescue Exception => e
           # ignore invalid payloads 

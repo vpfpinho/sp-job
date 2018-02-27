@@ -38,7 +38,9 @@ module SP
       # @param owner
       # @param config
       #
-      def initialize (owner:, config:)
+      def initialize (owner:, config:, multithreaded: false)
+        @mutex      = multithreaded ? Mutex.new : ::SP::Job::FauxMutex.new
+        puts @mutex.to_s.yellow
         @owner      = owner
         @config     = config
         @connection = nil
@@ -64,24 +66,19 @@ module SP
       #        Previous one ( if any ) will be closed first.
       #
       def connect ()
-        disconnect()
-        @connection = PG.connect(@config[:conn_str])
+        @mutex.synchronize {
+          _disconnect()
+          @connection = PG.connect(@config[:conn_str])
+        }
       end
 
       #
       # Close currenly open database connection.
       #
       def disconnect ()
-        if @connection.nil?
-          return
-        end
-
-        @connection.exec("DEALLOCATE ALL")
-        @id_cache = {}
-
-        @connection.close
-        @connection = nil
-        @counter = 0
+        @mutex.synchronize {
+          _disconnect()
+        }
       end
 
       #
@@ -96,14 +93,16 @@ module SP
           connect()
         end
         check_life_span()
-        unless @id_cache.has_key? query
-          id = "p#{Digest::MD5.hexdigest(query)}"
-          @connection.prepare(id, query)
-          @id_cache[query] = id
-        else
-          id = @id_cache[query]
-        end
-        @connection.exec_prepared(id, args)
+        @mutex.synchronize {
+          unless @id_cache.has_key? query
+            id = "p#{Digest::MD5.hexdigest(query)}"
+            @connection.prepare(id, query)
+            @id_cache[query] = id
+          else
+            id = @id_cache[query]
+          end
+          @connection.exec_prepared(id, args)
+        }
       end
 
       #
@@ -114,8 +113,19 @@ module SP
       def query (query:)
         unless query.nil?
           check_life_span()
-          @connection.exec(query)
+          @mutex.synchronize {
+            @connection.exec(query)
+          }
         end
+      end
+
+      #
+      # Call this to check if the database is not a production database where it's
+      # dangerous to make development stuff. It checks the presence of a magic parameter
+      # on the PG configuration that marks the database as a development arena
+      #
+      def safety_check ()
+        SP::Duh::Db::safety_check(@connection)
       end
 
       #
@@ -127,6 +137,19 @@ module SP
 
       private
 
+      def _disconnect ()
+        if @connection.nil?
+          return
+        end
+
+        @connection.exec("DEALLOCATE ALL")
+        @id_cache = {}
+
+        @connection.close
+        @connection = nil
+        @counter = 0
+      end
+
       #
       # Check connection life span
       #
@@ -136,15 +159,6 @@ module SP
         if @counter > @treshold
           connect()
         end
-      end
-
-      #
-      # Call this to check if the database is not a production database where it's
-      # dangerous to make development stuff. It checks the presence of a magic parameter
-      # on the PG configuration that marks the database as a development arena
-      #
-      def safety_check ()
-        SP::Duh::Db::safety_check(@connection)
       end
 
     end # end class 'PGConnection'
