@@ -32,25 +32,23 @@ module SP
       #   @worker.prepare
       #
       def prepare
-        #self.tube_names.map! { |name| expand_tube_name(name)  }.uniq!
         log_info "Working #{tube_names.size} queues: [ #{tube_names.join(', ')} ]"
-        #tube_names.each do |tube_name|
-          # Create a new connection and set it up to listen on this tube name
-          #max_threads = (config[:threads] || self.class.threads_number || ::Concurrent.processor_count).to_i
-          2.times do 
-            connection = new_connection.tap{ |conn| conn.tubes.watch!(*tube_names) }
-            connection.on_reconnect = lambda { |conn| conn.tubes.watch!(*tube_names) }
-            lixo = Thread.new {
-              loop do 
-                logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
-                work_one_job(connection)
-                unless connection.connected?
-                  log_error "Connection to beanstalk closed, exiting now"
-                  Kernel.exit
-                end
-              end          
-            }
-          end
+        $config[:options][:threads].times do 
+          connection = new_connection.tap{ |conn| conn.tubes.watch!(*tube_names) }
+          connection.on_reconnect = lambda { |conn| conn.tubes.watch!(*tube_names) }
+
+          $threads << Thread.new {
+            $thread_data[Thread.current] = ::SP::Job::ThreadData.new
+            loop do 
+              logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
+              work_one_job(connection)
+              unless connection.connected?
+                log_error "Connection to beanstalk closed, exiting now"
+                Kernel.exit
+              end
+            end          
+          }
+        end
         #end
       end
 

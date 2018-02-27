@@ -54,6 +54,12 @@ module SP
       end
     end
 
+    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job,:job_notification) 
+      def initialize
+        @job_status = {} 
+      end
+    end
+
   end
 end
 
@@ -71,6 +77,9 @@ $args = {
   config_file:      File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
+$threads = []
+$thread_data = {}
+$thread_data[Thread.current] = ::SP::Job::ThreadData.new
 
 #
 # Parse command line arguments
@@ -89,7 +98,6 @@ if $args[:debug]
   require 'ruby-debug' if RUBY_ENGINE == 'jruby'
 end 
 
-#
 # Adjust log file if need, user specified option always takes precedence
 #
 if $args[:log_file].nil?
@@ -115,6 +123,13 @@ $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize
 $min_progress = $config[:options][:min_progress]
 
 #
+# Sanity check we only support multithreading on JRUBY
+#
+if $config[:options] && $config[:options][:threads].to_i > 1
+  raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
+end
+
+#
 # Configure rollbar
 #
 unless $config[:rollbar].nil?
@@ -132,8 +147,9 @@ Backburner.configure do |config|
 
   config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
   config.on_error      = lambda { |e|
-    if $exception_reported == false
-      $exception_reported = true
+    td = thread_data
+    if td.exception_reported == false
+      td.exception_reported = true
       if e.instance_of? Beaneater::DeadlineSoonError
         logger.warn "got a deadline warning".red
       else
@@ -169,7 +185,7 @@ Backburner.configure do |config|
   config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
   config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
   config.respond_timeout  = 120
-  config.default_worker   = $config[:options] && $config[:options][:threaded] ? SP::Job::WorkerThread : SP::Job::Worker
+  config.default_worker   = $config[:options] && $config[:options][:threads].to_i > 1 ? SP::Job::WorkerThread : SP::Job::Worker
   config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
   config.logger.formatter = proc do |severity, datetime, progname, msg|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -284,8 +300,8 @@ module Backburner
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       report_error(message: 'i18n_job_cancelled', status: 'cancelled')
-      $redis.hset($job_key, 'cancelled', true) 
-      $job_id = nil
+      $redis.hset(td.job_key, 'cancelled', true) 
+      td.job_id = nil
     rescue => e
       @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
       raise e
@@ -303,11 +319,8 @@ logger.debug "PID ........ #{Process.pid}"
 # Now create the global data needed by the mix-in methods
 #
 $connected          = false
-$job_status         = {}
 $redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-$check_db_life_span = false
-$status_dirty       = false
 if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres])
   if $config[:options][:jsonapi] == true

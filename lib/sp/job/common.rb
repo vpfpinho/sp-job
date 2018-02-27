@@ -24,6 +24,10 @@ module SP
   module Job
     module Common
 
+      def thread_data
+        $thread_data[Thread.current]
+      end
+
       def http (oauth_client_id:, oauth_client_secret:)
 
         $http_oauth_clients ||= {}
@@ -126,8 +130,10 @@ module SP
 
       def prepare_job (job)
         logger.debug "Preparing job id #{job[:id]}".green
-        $current_job = job
-        $job_status = {
+
+        td = thread_data
+        td.current_job = job
+        td.job_status = {
           content_type: 'application/json',
           progress: [
             {
@@ -136,11 +142,11 @@ module SP
             }
           ]
         }
-        $report_time_stamp     = 0
-        $exception_reported    = false
-        $job_id                = job[:id]
-        $publish_key           = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        $job_key               = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        td.report_time_stamp    = 0
+        td.exception_reported   = false
+        td.job_id               = job[:id]
+        td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
           $jsonapi.set_url(job[:prefix])
@@ -148,7 +154,7 @@ module SP
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
-        unless $redis.exists($job_key )
+        unless $redis.exists(td.job_key )
           logger.warn "Job validity has expired: job ignored".yellow
           return false
         end
@@ -159,14 +165,16 @@ module SP
       # Optionally after the jobs runs sucessfully clean the "job" key in redis
       #
       def after_perform_cleanup (job)
+        td = thread_data
         if false # TODO check key namings with americo $job key and redis key
           return if $redis.nil?
-          return if $job_key.nil?
-          $redis.del $job_key
+          return if td.job_key.nil?
+          $redis.del td.job_key
         end
       end
 
       def update_progress (args)
+        td = thread_data
         status   = args[:status]
         progress = args[:progress]
         p_index  = args[:index] || 0
@@ -183,85 +191,89 @@ module SP
         end
 
         # update job status
-        if p_index >= $job_status[:progress].size 
-          (1 + p_index - $job_status[:progress].size).times do
-            $job_status[:progress] << { message: nil, value: 0 }
+        if p_index >= td.job_status[:progress].size 
+          (1 + p_index - td.job_status[:progress].size).times do
+            td.job_status[:progress] << { message: nil, value: 0 }
           end
         end
         unless message.nil?
-          $job_status[:progress][p_index][:message] = message
+          td.job_status[:progress][p_index][:message] = message
         end
         unless progress.nil?
-          $job_status[:progress][p_index][:value] = progress.to_f.round(2)
+          td.job_status[:progress][p_index][:value] = progress.to_f.round(2)
         end
-        $job_status[:status]      = status.nil? ? 'in-progress' : status
-        $job_status[:link]        = args[:link] if args[:link]
-        $job_status[:status_code] = args[:status_code] if args[:status_code]
+        td.job_status[:status]      = status.nil? ? 'in-progress' : status
+        td.job_status[:link]        = args[:link] if args[:link]
+        td.job_status[:status_code] = args[:status_code] if args[:status_code]
         if args.has_key? :response
-          $job_status[:response]     = args[:response]
-          $job_status[:content_type] = args[:content_type]
-          $job_status[:action]       = args[:action]
+          td.job_status[:response]     = args[:response]
+          td.job_status[:content_type] = args[:content_type]
+          td.job_status[:action]       = args[:action]
         end
         
         # Create notification that will be published
-        $job_notification = {}
-        $job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
-        $job_notification[:message]     = message unless message.nil?
-        $job_notification[:index]       = p_index unless p_index.nil?
-        $job_notification[:status]      = status.nil? ? 'in-progress' : status
-        $job_notification[:link]        = args[:link] if args[:link]
-        $job_notification[:status_code] = args[:status_code] if args[:status_code]
+        td.job_notification = {}
+        td.job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
+        td.job_notification[:message]     = message unless message.nil?
+        td.job_notification[:index]       = p_index unless p_index.nil?
+        td.job_notification[:status]      = status.nil? ? 'in-progress' : status
+        td.job_notification[:link]        = args[:link] if args[:link]
+        td.job_notification[:status_code] = args[:status_code] if args[:status_code]
         if args.has_key? :response
-          $job_notification[:response]     = args[:response]
-          $job_notification[:content_type] = args[:content_type]
-          $job_notification[:action]       = args[:action]
+          td.job_notification[:response]     = args[:response]
+          td.job_notification[:content_type] = args[:content_type]
+          td.job_notification[:action]       = args[:action]
         end
 
-        if ['completed', 'error', 'follow-up', 'cancelled'].include?(status) || (Time.now.to_f - $report_time_stamp) > $min_progress || args[:barrier]
+        if ['completed', 'error', 'follow-up', 'cancelled'].include?(status) || (Time.now.to_f - td.report_time_stamp) > $min_progress || args[:barrier]
           update_progress_on_redis
         end
       end
 
       def send_response (args)
+        td = thread_data
         args[:status]       ||= 'completed'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:response]     ||= {}
         args[:status_code]  ||= 200
         update_progress(args)
-        $job_id = nil
+        td.job_id = nil
       end
 
       def report_error (args)
+        td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
-        $exception_reported = true
-        $job_id = nil
+        td.exception_reported = true
+        td.job_id = nil
         true
       end
 
       def raise_error (args)
+        td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:status_code]  ||= 500
         update_progress(args)
         logger.error(args)
-        $exception_reported = true
-        $job_id = nil
-        raise ::SP::Job::JobException.new(args: args, job: $current_job)
+        td.exception_reported = true
+        td.job_id = nil
+        raise ::SP::Job::JobException.new(args: args, job: td.current_job)
       end
 
       def update_progress_on_redis
+        td = thread_data
         $redis.pipelined do
-          $redis.publish $publish_key, $job_notification.to_json
-          $redis.hset    $job_key, 'status', $job_status.to_json
+          $redis.publish td.publish_key, td.job_notification.to_json
+          $redis.hset    td.job_key, 'status', td.job_status.to_json
         end
-        $report_time_stamp = Time.now.to_f
+        td.report_time_stamp = Time.now.to_f
       end
 
       def expand_mail_body (template)
