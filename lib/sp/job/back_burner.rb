@@ -261,6 +261,20 @@ end
 #
 if RUBY_ENGINE == 'jruby'
 
+  module Backburner
+    module Logger
+
+      # Print out when a job is about to begin
+      def log_job_begin(name, args)
+        log_info "Work job #{name} with #{args.inspect}"
+        Thread.current[:job_started_at] = Time.now
+        puts Thread.current[:job_started_at]
+
+      end
+      
+    end
+  end
+
   class Logger
     class LogDevice
   
@@ -279,13 +293,13 @@ if RUBY_ENGINE == 'jruby'
             rescue ::SP::Job::JobCancelled => jc
               raise jc
             rescue
-              warn("111 log writing failed. #{$!}")
+              warn("log writing failed. #{$!}")
             end
           end
         rescue ::SP::Job::JobCancelled => jc
           raise jc
         rescue Exception => ignored
-          warn("222 log writing failed. #{ignored}")
+          warn("log writing failed. #{ignored}")
         end
       end
   
@@ -303,9 +317,30 @@ module Backburner
   end
 
   module Logger
-    def log_job_begin(name, args)
-      log_info "Work job #{name}"
-      @job_started_at = Time.now
+
+    if RUBY_ENGINE != 'jruby'
+
+      def log_job_begin(name, args)
+        log_info "Work job #{name}"
+        @job_started_at = Time.now
+      end
+
+    else
+
+      def log_job_begin(name, args)
+        log_info "Work job #{name}"
+        Thread.current[:job_started_at] = Time.now
+      end
+
+      # Print out when a job completed
+      # If message is nil, job is considered complete
+      def log_job_end(name, message = nil)
+        ellapsed = Time.now - Thread.current[:job_started_at]
+        ms = (ellapsed.to_f * 1000).to_i
+        action_word = message ? 'Finished' : 'Completed'
+        log_info("#{action_word} #{name} in #{ms}ms #{message}")
+      end
+
     end
   end
 
