@@ -39,8 +39,8 @@ module SP
 
           $threads << Thread.new {
             $thread_data[Thread.current] = ::SP::Job::ThreadData.new
+            logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
             loop do 
-              logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
               work_one_job(connection)
               unless connection.connected?
                 log_error "Connection to beanstalk closed, exiting now"

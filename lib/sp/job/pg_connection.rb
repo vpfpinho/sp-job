@@ -40,7 +40,6 @@ module SP
       #
       def initialize (owner:, config:, multithreaded: false)
         @mutex      = multithreaded ? Mutex.new : ::SP::Job::FauxMutex.new
-        puts @mutex.to_s.yellow
         @owner      = owner
         @config     = config
         @connection = nil

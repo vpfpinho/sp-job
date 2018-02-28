@@ -257,8 +257,42 @@ if $config[:mail]
 end
 
 #
-# Monkey patches to keep the tube name as plain vanilla job name
+# Monkey patches the sad reality of ruby development
 #
+if RUBY_ENGINE == 'jruby'
+
+  class Logger
+    class LogDevice
+  
+      def write(message)
+        begin
+          synchronize do
+            if @shift_age and @dev.respond_to?(:stat)
+              begin
+                check_shift_log
+              rescue
+                warn("log shifting failed. #{$!}")
+              end
+            end
+            begin
+              @dev.write(message)
+            rescue ::SP::Job::JobCancelled => jc
+              raise jc
+            rescue
+              warn("111 log writing failed. #{$!}")
+            end
+          end
+        rescue ::SP::Job::JobCancelled => jc
+          raise jc
+        rescue Exception => ignored
+          warn("222 log writing failed. #{ignored}")
+        end
+      end
+  
+    end
+  end
+end
+
 module Backburner
   module Helpers
 
@@ -317,10 +351,10 @@ module Backburner
       #  2. does not bury the job, instead the job is deleted
       #
       #Backburner.configuration.logger.info 'Received job cancellation exception'.yellow
-      puts 'Received job cancellation exception'.yellow
+      logger.debug "Received job cancellation exception #{Thread.current}".yellow
       unless task.nil?
         #Backburner.configuration.logger.debug "Task deleted".yellow
-        puts "Task deleted".yellow
+        logger.debug 'Task deleted'.yellow
         task.delete
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
@@ -371,7 +405,7 @@ $cancel_thread = Thread.new {
           message = JSON.parse(msg, {symbolize_names: true})
           $threads.each do |thread|
             if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id && message[:status] == 'cancelled'
-              puts "Received cancel signal for job #{$thread_data[thread].job_id}"
+              logger.info "Received cancel signal for job #{$thread_data[thread].job_id}"
               thread.raise(::SP::Job::JobCancelled.new)
             end  
           end
