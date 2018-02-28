@@ -269,15 +269,23 @@ module SP
       def update_progress_on_redis
         td = thread_data
         if $redis_mutex.nil?
-          $redis.pipelined do
+          if $transient_job
             $redis.publish td.publish_key, td.job_notification.to_json
-            $redis.hset    td.job_key, 'status', td.job_status.to_json
-          end
-        else
-          $redis_mutex.synchronize {
+          else
             $redis.pipelined do
               $redis.publish td.publish_key, td.job_notification.to_json
               $redis.hset    td.job_key, 'status', td.job_status.to_json
+            end
+          end
+        else
+          $redis_mutex.synchronize {
+            if $transient_job
+              $redis.publish td.publish_key, td.job_notification.to_json
+            else
+              $redis.pipelined do
+                $redis.publish td.publish_key, td.job_notification.to_json
+                $redis.hset    td.job_key, 'status', td.job_status.to_json
+              end
             end            
           }
         end

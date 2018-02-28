@@ -271,7 +271,7 @@ if RUBY_ENGINE == 'jruby'
         puts Thread.current[:job_started_at]
 
       end
-      
+
     end
   end
 
@@ -418,9 +418,10 @@ logger.debug "PID ........ #{Process.pid}"
 #
 # Now create the global data needed by the mix-in methods
 #
-$connected          = false
-$redis              = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$beaneater          = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+$connected     = false
+$redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+$transient_job = $config[:options] && $config[:options][:transient] == true
+$beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
 #  if $config[:options][:jsonapi] == true
