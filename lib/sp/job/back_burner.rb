@@ -54,9 +54,9 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi) 
+    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
       def initialize
-        @job_status = {} 
+        @job_status = {}
         if $config[:options] && $config[:options][:jsonapi] == true
           @jsonapi = SP::Duh::JSONAPI::Service.new($pg, nil, SP::Job::JobDbAdapter)
         end
@@ -102,7 +102,7 @@ $option_parser.parse!
 
 if $args[:debug]
   require 'ruby-debug' if RUBY_ENGINE == 'jruby'
-end 
+end
 
 # Adjust log file if need, user specified option always takes precedence
 #
@@ -141,11 +141,11 @@ $thread_data[Thread.current] = ::SP::Job::ThreadData.new
 if $config[:options] && $config[:options][:threads].to_i > 1
   raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
   $redis_mutex = Mutex.new
-  $roolbar_mutex = Mutex.new 
+  $roolbar_mutex = Mutex.new
   $multithreading = true
 else
   $redis_mutex = nil
-  $roolbar_mutex = ::SP::Job::FauxMutex.new 
+  $roolbar_mutex = ::SP::Job::FauxMutex.new
   $multithreading = false
 end
 
@@ -261,23 +261,9 @@ end
 #
 if RUBY_ENGINE == 'jruby'
 
-  module Backburner
-    module Logger
-
-      # Print out when a job is about to begin
-      def log_job_begin(name, args)
-        log_info "Work job #{name} with #{args.inspect}"
-        Thread.current[:job_started_at] = Time.now
-        puts Thread.current[:job_started_at]
-
-      end
-
-    end
-  end
-
   class Logger
     class LogDevice
-  
+
       def write(message)
         begin
           synchronize do
@@ -302,7 +288,7 @@ if RUBY_ENGINE == 'jruby'
           warn("log writing failed. #{ignored}")
         end
       end
-  
+
     end
   end
 end
@@ -395,7 +381,7 @@ module Backburner
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       report_error(message: 'i18n_job_cancelled', status: 'cancelled')
       if $redis_mutex.nil?
-        $redis.hset(thread_data.job_key, 'cancelled', true) 
+        $redis.hset(thread_data.job_key, 'cancelled', true)
       else
         $redis_mutex.synchronize {
           $redis.hset(thread_data.job_key, 'cancelled', true)
@@ -432,7 +418,7 @@ end
 #
 # Open a second thread that will listen to cancellation and other "signals"
 #
-$cancel_thread = Thread.new { 
+$cancel_thread = Thread.new {
   begin
     $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
     $subscription_redis.subscribe($config[:service_id] + ':job-signal') do |on|
@@ -443,10 +429,10 @@ $cancel_thread = Thread.new {
             if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id && message[:status] == 'cancelled'
               logger.info "Received cancel signal for job #{$thread_data[thread].job_id}"
               thread.raise(::SP::Job::JobCancelled.new)
-            end  
+            end
           end
         rescue Exception => e
-          # ignore invalid payloads 
+          # ignore invalid payloads
         end
       end
     end

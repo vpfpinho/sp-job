@@ -77,11 +77,11 @@ module SP
       # jsonapi.patch! (resource, params)
       # jsonapi.delete! (resource)
       #
-      def jsonapi 
+      def jsonapi
         thread_data.jsonapi.adapter
       end
 
-      # 
+      #
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
       #
@@ -190,7 +190,7 @@ module SP
         end
 
         # update job status
-        if p_index >= td.job_status[:progress].size 
+        if p_index >= td.job_status[:progress].size
           (1 + p_index - td.job_status[:progress].size).times do
             td.job_status[:progress] << { message: nil, value: 0 }
           end
@@ -209,7 +209,7 @@ module SP
           td.job_status[:content_type] = args[:content_type]
           td.job_status[:action]       = args[:action]
         end
-        
+
         # Create notification that will be published
         td.job_notification = {}
         td.job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
@@ -254,15 +254,7 @@ module SP
       end
 
       def raise_error (args)
-        td = thread_data
-        args[:status]       ||= 'error'
-        args[:action]       ||= 'response'
-        args[:content_type] ||= 'application/json'
-        args[:status_code]  ||= 500
-        update_progress(args)
-        logger.error(args)
-        td.exception_reported = true
-        td.job_id = nil
+        report_error(args)
         raise ::SP::Job::JobException.new(args: args, job: td.current_job)
       end
 
@@ -286,7 +278,7 @@ module SP
                 $redis.publish td.publish_key, td.job_notification.to_json
                 $redis.hset    td.job_key, 'status', td.job_status.to_json
               end
-            end            
+            end
           }
         end
         td.report_time_stamp = Time.now.to_f
