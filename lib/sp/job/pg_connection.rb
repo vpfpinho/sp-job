@@ -88,11 +88,11 @@ module SP
       # @return query result.
       #
       def exec (query, *args)
-        if nil == @connection
-          connect()
-        end
-        check_life_span()
         @mutex.synchronize {
+          if nil == @connection
+            _connect()
+          end
+          _check_life_span()
           unless @id_cache.has_key? query
             id = "p#{Digest::MD5.hexdigest(query)}"
             @connection.prepare(id, query)
@@ -110,12 +110,12 @@ module SP
       # @param query
       #
       def query (query:)
-        unless query.nil?
-          check_life_span()
-          @mutex.synchronize {
+        @mutex.synchronize {
+          unless query.nil?
+            _check_life_span()
             @connection.exec(query)
-          }
-        end
+          end
+        }
       end
 
       #
@@ -136,6 +136,11 @@ module SP
 
       private
 
+      def _connect () 
+        _disconnect()
+        @connection = PG.connect(@config[:conn_str])
+      end
+
       def _disconnect ()
         if @connection.nil?
           return
@@ -152,11 +157,11 @@ module SP
       #
       # Check connection life span
       #
-      def check_life_span ()
+      def _check_life_span ()
         return unless @treshold > 0
         @counter += 1
         if @counter > @treshold
-          connect()
+          _connect()
         end
       end
 

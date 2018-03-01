@@ -131,7 +131,7 @@ $min_progress = $config[:options][:min_progress]
 #
 # Global data for mutex and sync
 #
-$threads = []
+$threads = [ Thread.current ]
 $thread_data = {}
 $thread_data[Thread.current] = ::SP::Job::ThreadData.new
 
