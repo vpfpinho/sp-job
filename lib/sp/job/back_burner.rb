@@ -371,10 +371,8 @@ module Backburner
       #  1. is not sent to the rollbar
       #  2. does not bury the job, instead the job is deleted
       #
-      #Backburner.configuration.logger.info 'Received job cancellation exception'.yellow
       logger.debug "Received job cancellation exception #{Thread.current}".yellow
       unless task.nil?
-        #Backburner.configuration.logger.debug "Task deleted".yellow
         logger.debug 'Task deleted'.yellow
         task.delete
       end
