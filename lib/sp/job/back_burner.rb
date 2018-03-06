@@ -341,6 +341,7 @@ module Backburner
     #   @task.process
     #
     def process
+      extend SP::Job::Common # to bring in logger and report_error into this class
       # Invoke the job setup function, bailout if the setup returns false
       unless job_class.respond_to?(:prepare_job) && job_class.prepare_job(*args)
         task.delete
@@ -367,8 +368,6 @@ module Backburner
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
     rescue ::SP::Job::JobAborted => ja
-      extend SP::Job::Common # to bring in logger into this class
-
       #
       # This exception:
       #  1. is sent to the rollbar
@@ -383,8 +382,6 @@ module Backburner
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
       thread_data.job_id = nil
     rescue ::SP::Job::JobCancelled => jc
-      extend SP::Job::Common # to bring.in report_error into this class
-
       #
       # This exception:
       #  1. is not sent to the rollbar
