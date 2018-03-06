@@ -30,6 +30,9 @@ module SP
 
     end
 
+    class JobAborted < ::StandardError
+    end
+
     class JobException < ::StandardError
 
       attr_reader :job
@@ -363,6 +366,22 @@ module Backburner
       task.delete
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
+    rescue ::SP::Job::JobAborted => ja
+      extend SP::Job::Common # to bring in logger into this class
+
+      #
+      # This exception:
+      #  1. is sent to the rollbar
+      #  2. does not bury the job, instead the job is deleted
+      #
+      logger.debug "Received job aborted exception #{Thread.current}".yellow
+      unless task.nil?
+        logger.debug 'Task deleted'.yellow
+        task.delete
+      end
+      # Invoke after perform hook
+      @hooks.invoke_hook_events(job_class, :after_perform, *args)
+      thread_data.job_id = nil
     rescue ::SP::Job::JobCancelled => jc
       extend SP::Job::Common # to bring.in report_error into this class
 

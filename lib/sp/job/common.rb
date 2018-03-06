@@ -240,7 +240,7 @@ module SP
         td.job_id = nil
       end
 
-      def report_error (args)
+      def error_handler(args)
         td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
@@ -250,11 +250,17 @@ module SP
         logger.error(args)
         td.exception_reported = true
         td.job_id = nil
-        true
+      end
+
+      def report_error (args)
+        td = thread_data
+        error_handler(args)
+        raise ::SP::Job::JobAborted.new(args: args, job: td.current_job)
       end
 
       def raise_error (args)
-        report_error(args)
+        td = thread_data
+        error_handler(args)
         raise ::SP::Job::JobException.new(args: args, job: td.current_job)
       end
 
