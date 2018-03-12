@@ -424,9 +424,12 @@ $transient_job = $config[:options] && $config[:options][:transient] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
-#  if $config[:options][:jsonapi] == true
-#    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
-#  end
+  if $PROGRAM_NAME.split('/').last == 'saft-importer' || $PROGRAM_NAME.split('/').last == 'saft-destroyer'
+    $pg.exec("SET log_min_duration_statement TO 0;")
+  end
+  if $config[:options][:jsonapi] == true
+    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
+  end
 end
 
 #
