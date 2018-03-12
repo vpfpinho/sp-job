@@ -65,6 +65,10 @@ module SP
         $pg
       end
 
+      def redis
+        $redis
+      end
+
       def config
         $config
       end
