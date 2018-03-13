@@ -57,7 +57,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:current_job, :job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
       def initialize
         @job_status = {}
         if $config[:options] && $config[:options][:jsonapi] == true
