@@ -269,9 +269,10 @@ module SP
       end
 
       def send_text_response (response)
+        td = thread_data
         $redis.pipelined do
-          $redis.publish $publish_key, response
-          $redis.hset    $job_key, 'status', response
+          $redis.publish td.publish_key, response
+          $redis.hset    td.job_key, 'status', response
         end
       end
 
