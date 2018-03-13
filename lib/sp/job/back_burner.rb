@@ -334,6 +334,7 @@ module Backburner
   end
 
   class Job
+    extend SP::Job::Common # to bring in logger and report_error into this class
 
     # Processes a job and handles any failure, deleting the job once complete
     #
@@ -341,7 +342,6 @@ module Backburner
     #   @task.process
     #
     def process
-      extend SP::Job::Common # to bring in logger and report_error into this class
       # Invoke the job setup function, bailout if the setup returns false
       unless job_class.respond_to?(:prepare_job) && job_class.prepare_job(*args)
         task.delete
