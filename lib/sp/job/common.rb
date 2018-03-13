@@ -268,6 +268,13 @@ module SP
         raise ::SP::Job::JobException.new(args: args, job: td.current_job)
       end
 
+      def send_text_response (response)
+        $redis.pipelined do
+          $redis.publish $publish_key, response
+          $redis.hset    $job_key, 'status', response
+        end
+      end
+
       def update_progress_on_redis
         td = thread_data
         if $redis_mutex.nil?
