@@ -128,9 +128,9 @@ module SP
         else
           uploads_server = config[:uploads][:server]
           destination_file = %x[ssh #{uploads_server} unique-file -p #{File.join(config[:uploads][:path], remote_path)} -e #{extension}].strip
-          if $?.exit_status == 0
+          if $?.exitstatus == 0
             %x[scp #{src_file} #{uploads_server}:#{remote_file}]
-            raise_error(message: 'i18n_upload_to_server_failed') if $?.exit_status != 0
+            raise_error(message: 'i18n_upload_to_server_failed') if $?.exitstatus != 0
           else
             raise_error(message: 'i18n_upload_to_server_failed')
           end

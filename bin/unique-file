@@ -45,8 +45,6 @@ begin
   raise 'Must specify path' 	 if $args[:path].nil?
   raise 'Must specify extension' if $args[:ext].nil?
 
-  raise 'Path not writable' unless File.writable?($args[:path])
-
   file = SP::Job::Unique::File.create($args[:path], ".#{$args[:ext]}")
 
   raise 'Could not create file'.red if file.nil?
