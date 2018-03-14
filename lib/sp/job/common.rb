@@ -24,6 +24,8 @@ module SP
   module Job
     module Common
 
+      ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
       def thread_data
         $thread_data[Thread.current]
       end
@@ -111,6 +113,30 @@ module SP
           (id % 1000000)       / 1000      ,
           (id % 1000)
         ]
+      end
+
+      def get_random_folder
+        ALPHABET[rand(26)] + ALPHABET[rand(26)]
+      end
+
+      def send_to_upload_server (src_file:, id:, extension:, entity: 'company')
+        folder = get_random_folder
+        remote_path = File.join(entity, id_to_path(id.to_i), folder)
+        if config[:uploads][:local] == true
+          destination_file = ::SP::Job::Unique::File.create(File.join(config[:uploads][:path], remote_path), extension)
+          FileUtils.cp(src_file, destination_file)
+        else
+          uploads_server = config[:uploads][:server]
+          destination_file = %x[ssh #{uploads_server} unique-file -p #{File.join(config[:uploads][:path], remote_path)} -e #{extension}].strip
+          if $?.exit_status == 0
+            %x[scp #{src_file} #{uploads_server}:#{remote_file}]
+            raise_error(message: 'i18n_upload_to_server_failed') if $?.exit_status != 0
+          else
+            raise_error(message: 'i18n_upload_to_server_failed')
+          end
+        end
+
+        return entity[0] + folder + destination_file[-(6+extension.length)..-1]
       end
 
       def submit_job (args)

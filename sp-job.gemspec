@@ -26,7 +26,7 @@ Gem::Specification.new do |spec|
     f.match(%r{^(test|spec|features)/})
   end
   spec.bindir        = 'bin'
-  spec.executables   = 'queue-job'
+  spec.executables   = ['queue-job', 'unique-file']
   spec.require_paths = ['lib']
   spec.add_dependency 'os'
   spec.add_dependency 'ffi'
