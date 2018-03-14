@@ -22,6 +22,7 @@
 #
 require 'ffi'
 require 'os'
+require 'fileutils'
 
 module SP
   module Job
@@ -42,9 +43,10 @@ module SP
         #
         # @param a_folder Folder where the file will be created
         # @param a_suffix file suffix, warning must include the .
-        # @return Absolute file path   
+        # @return Absolute file path
         #
         def self.create (a_folder, a_extension)
+          FileUtils.mkdir_p(a_folder) if !Dir.exist?(a_folder)
           fd = ::SP::Job::Unique::File.mkstemps("#{a_folder}/XXXXXX#{a_extension}", a_extension.length)
           return nil if fd < 0
 
@@ -58,7 +60,7 @@ module SP
             end
           end
           ::SP::Job::Unique::File.close(fd)
-          return nil if r != 0 
+          return nil if r != 0
           return nil if ptr.null?
 
           rv = ptr.read_string
