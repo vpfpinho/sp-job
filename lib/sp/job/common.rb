@@ -124,7 +124,7 @@ module SP
       #
       # @param src_file name of local file to upload
       # @param id entity id user_id or company_id
-      # @param extension filename extension without the . use 'pdf' not '.pdf'
+      # @param extension filename extension with the . use '.pdf' not 'pdf'
       # @param entity can be either user or company
       # @param folder two letter subfolder inside entity folder use 00 for temp files
       #
@@ -145,7 +145,7 @@ module SP
           end
         end
 
-        return entity[0] + folder + destination_file[-(7+extension.length)..-1]
+        return entity[0] + folder + destination_file[-(6+extension.length)..-1]
       end
 
       #
