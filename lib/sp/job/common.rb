@@ -117,16 +117,16 @@ module SP
       # server is a remote machine it must grant ssh access to this machine and have the program unique-file 
       # in the path of ssh user
       #
-      # Also make sure the job using this methods has the following configuration parameers
-      #   1. config[:uploads][:local] true if this machine is also the server
-      #   2. config[:uploads][:local] name of host with ssh access
-      #   3. config[:uploads][:path] base path of the uploads server on the local or remote machine
+      # Also make sure the job using this method has the following configuration parameers
+      #   1. config[:uploads][:local] true if this machine is also the upload server
+      #   2. config[:uploads][:local] name of upload host with ssh access
+      #   3. config[:uploads][:path] base path of for file uploads server on the local or remote machine
       #
       # @param src_file name of local file to upload
       # @param id entity id user_id or company_id
       # @param extension filename extension with the . use '.pdf' not 'pdf'
-      # @param entity can be either user or company
-      # @param folder two letter subfolder inside entity folder use 00 for temp files
+      # @param entity can be either 'user' or 'company'
+      # @param folder two letter subfolder inside entity folder use '00' for temp files
       #
       def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder: nil)
         folder ||= get_random_folder

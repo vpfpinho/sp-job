@@ -334,7 +334,7 @@ module Backburner
   end
 
   class Job
-    extend SP::Job::Common # to bring in logger and report_error into this class
+    include SP::Job::Common # to bring in logger and report_error into this class
 
     # Processes a job and handles any failure, deleting the job once complete
     #
