@@ -128,7 +128,7 @@ module SP
       # @param entity can be either user or company
       # @param folder two letter subfolder inside entity folder use 00 for temp files
       #
-      def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder:)
+      def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder: nil)
         folder ||= get_random_folder
         remote_path = File.join(entity, id_to_path(id.to_i), folder)
         if config[:uploads][:local] == true
