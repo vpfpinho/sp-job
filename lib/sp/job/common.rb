@@ -95,6 +95,7 @@ module SP
         thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
       end
 
+      #
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
       #
@@ -102,25 +103,33 @@ module SP
         HashWithIndifferentAccess.new(JSON.parse(thread_data.jsonapi.parameters.to_json))
       end
 
+      #
+      # returns the logger object that job code must use for logging 
+      #
       def logger
         Backburner.configuration.logger
       end
 
-      def id_to_path (id)
-        "%03d/%03d/%03d/%03d" % [
-          (id % 1000000000000) / 1000000000,
-          (id % 1000000000)    / 1000000   ,
-          (id % 1000000)       / 1000      ,
-          (id % 1000)
-        ]
-      end
-
-      def get_random_folder
-        ALPHABET[rand(26)] + ALPHABET[rand(26)]
-      end
-
-      def send_to_upload_server (src_file:, id:, extension:, entity: 'company')
-        folder = get_random_folder
+      #
+      # Uploads a local file to the resting location on the upload server via the internal network
+      #
+      # Note the upload server could be the same machine, in that case we just copy the file. When the
+      # server is a remote machine it must grant ssh access to this machine and have the program unique-file 
+      # in the path of ssh user
+      #
+      # Also make sure the job using this methods has the following configuration parameers
+      #   1. config[:uploads][:local] true if this machine is also the server
+      #   2. config[:uploads][:local] name of host with ssh access
+      #   3. config[:uploads][:path] base path of the uploads server on the local or remote machine
+      #
+      # @param src_file name of local file to upload
+      # @param id entity id user_id or company_id
+      # @param extension filename extension without the . use 'pdf' not '.pdf'
+      # @param entity can be either user or company
+      # @param folder two letter subfolder inside entity folder use 00 for temp files
+      #
+      def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder:)
+        folder ||= get_random_folder
         remote_path = File.join(entity, id_to_path(id.to_i), folder)
         if config[:uploads][:local] == true
           destination_file = ::SP::Job::Unique::File.create(File.join(config[:uploads][:path], remote_path), extension)
@@ -136,9 +145,18 @@ module SP
           end
         end
 
-        return entity[0] + folder + destination_file[-(6+extension.length)..-1]
+        return entity[0] + folder + destination_file[-(7+extension.length)..-1]
       end
 
+      #
+      # Submit job to beanstalk queue
+      #
+      # Mandatory (symbolized) keys in args:
+      #
+      # 1. :job arbritary job data, must be a hash but can contatined nested data
+      #
+      # Optional keys in args:
+      # 
       def submit_job (args)
         if $redis_mutex.nil?
           rv = _submit_job(args)
@@ -420,8 +438,28 @@ module SP
         return base_exception.is_a?(PG::ServerError) ? e.cause.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
       end
 
+      #
+      # Converts and id to a four level folder hierarchy
+      #
+      # @param id entity id must be an integer
+      # @return the path
+      #
+      def id_to_path (id)
+        "%03d/%03d/%03d/%03d" % [
+          (id % 1000000000000) / 1000000000,
+          (id % 1000000000)    / 1000000   ,
+          (id % 1000000)       / 1000      ,
+          (id % 1000)
+        ]
+      end
+
       def get_percentage(total: 1, count: 0) ; (count * 100 / total).to_i ; end
 
+      private
+
+      def get_random_folder
+        ALPHABET[rand(26)] + ALPHABET[rand(26)]
+      end
     end # Module Common
   end # Module Job
 end # Module SP
