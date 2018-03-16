@@ -356,7 +356,7 @@ module SP
         return base_exception.is_a?(PG::ServerError) ? e.cause.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
       end
 
-      def get_percentage(total: 1, count: 0) ; (count * 100 / total).to_i ; end
+      def get_percentage(total: 1, count: 0) ; (total > 0 ? (count * 100 / total) : count).to_i ; end
 
     end # Module Common
   end # Module Job
