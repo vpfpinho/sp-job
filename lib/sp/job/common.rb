@@ -284,11 +284,43 @@ module SP
         args[:content_type] ||= 'application/json'
         args[:response]     ||= {}
         args[:status_code]  ||= 200
-        update_progress(args)
+        if $raw_response && $transient_job
+          response = '*'
+          response << args[:status_code].to_s
+          response << ','
+          response << args[:content_type].bytesize.to_s
+          response << ','
+          response << args[:content_type]
+          response << ','
+          if args[:response].instance_of? String
+            response << args[:response].bytesize.to_s
+            response << ','
+            response << args[:response]
+          elsif args[:response].instance_of? StringIO
+            raw = args[:response].string
+            response << raw.bytesize.to_s
+            response << ','
+            response << raw
+          else
+            json = args[:response].to_json
+            response << json.bytesize.to_s
+            response << ','
+            response << json
+          end
+          if $redis_mutex.nil?
+            $redis.publish td.publish_key, response
+          else
+            $redis_mutex.synchronize {
+              $redis.publish td.publish_key, response
+            }
+          end
+        else
+          update_progress(args)
+        end
         td.job_id = nil
       end
 
-      def error_handler(args)
+      def error_handler (args)
         td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
@@ -310,14 +342,6 @@ module SP
         td = thread_data
         error_handler(args)
         raise ::SP::Job::JobException.new(args: args, job: td.current_job)
-      end
-
-      def send_text_response (response)
-        td = thread_data
-        $redis.pipelined do
-          $redis.publish td.publish_key, response
-          $redis.hset    td.job_key, 'status', response
-        end
       end
 
       def update_progress_on_redis
