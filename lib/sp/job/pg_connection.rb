@@ -87,7 +87,7 @@ module SP
       # @param args all the args for the query
       # @return query result.
       #
-      def exec (query, *args)
+      def execp (query, *args)
         @mutex.synchronize {
           if nil == @connection
             _connect()
@@ -105,16 +105,19 @@ module SP
       end
 
       #
-      # Execute a query,
+      # Execute a normal SQL statement.
       #
-      # @param query
+      # @param query the SQL query with data binding
+      # @param args all the args for the query
+      # @return query result.
       #
-      def query (query:)
+      def exec (query, *args)
         @mutex.synchronize {
-          unless query.nil?
-            _check_life_span()
-            @connection.exec(query)
+          if nil == @connection
+            _connect()
           end
+          _check_life_span()
+          @connection.exec(sprintf(query, *args))
         }
       end
 
@@ -146,8 +149,10 @@ module SP
           return
         end
 
-        @connection.exec("DEALLOCATE ALL")
-        @id_cache = {}
+        if @id_cache.size
+          @connection.exec("DEALLOCATE ALL")
+          @id_cache = {}
+        end
 
         @connection.close
         @connection = nil
