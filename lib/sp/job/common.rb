@@ -479,6 +479,13 @@ module SP
 
       def get_percentage(total: 1, count: 0) ; (count * 100 / total).to_i ; end
 
+      def on_retry_job (count, delay, jobs)
+       td = thread_data
+       new_delay = jobs[:validity].to_i + (delay.to_i * count)
+       $redis.expire(td.job_key, new_delay)
+       # puts "INITIAL #{jobs[:validity]} / DELAY #{delay} ==> NEW validity #{new_delay} | #{count}".red
+     end
+
       private
 
       def get_random_folder
