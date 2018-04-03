@@ -390,7 +390,11 @@ module Backburner
       logger.debug "Received job cancellation exception #{Thread.current}".yellow
       unless task.nil?
         logger.debug 'Task deleted'.yellow
-        task.delete
+        begin
+          task.delete
+        rescue Beaneater::NotFoundError => bnfe
+          @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+        end
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       report_error(message: 'i18n_job_cancelled', status: 'cancelled')
