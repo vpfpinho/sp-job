@@ -310,14 +310,14 @@ module Backburner
     if RUBY_ENGINE != 'jruby'
 
       def log_job_begin(name, args)
-        log_info "Work job #{name}"
+        log_info "Job ##{args[0][:id]} started (#{name})"
         @job_started_at = Time.now
       end
 
     else
 
       def log_job_begin(name, args)
-        log_info "Work job #{name}"
+        log_info "Job ##{args[0][:id]} started (#{name})"
         Thread.current[:job_started_at] = Time.now
       end
 
@@ -326,8 +326,8 @@ module Backburner
       def log_job_end(name, message = nil)
         ellapsed = Time.now - Thread.current[:job_started_at]
         ms = (ellapsed.to_f * 1000).to_i
-        action_word = message ? 'Finished' : 'Completed'
-        log_info("#{action_word} #{name} in #{ms}ms #{message}")
+        action_word = message ? 'finished' : 'completed'
+        log_info("Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}")
       end
 
     end
@@ -385,13 +385,13 @@ module Backburner
       #  1. is not sent to the rollbar
       #  2. does not bury the job, instead the job is deleted
       #
-      logger.debug "Received job cancellation exception #{Thread.current}".yellow
+      logger.info "Received job cancellation exception #{Thread.current}".yellow
       unless task.nil?
-        logger.debug 'Task deleted'.yellow
+        logger.info 'Task deleted'.yellow
         begin
           task.delete
         rescue Beaneater::NotFoundError => bnfe
-          @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+          @hooks.invoke_hook_events(job_class, :on_failure, bnfe, *args)
         end
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)

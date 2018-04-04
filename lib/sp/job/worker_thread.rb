@@ -39,7 +39,7 @@ module SP
 
           $threads << Thread.new {
             $thread_data[Thread.current] = ::SP::Job::ThreadData.new
-            logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
+            logger.info "Thread for #{tube_names.join(',')} #{Thread.current}"
             loop do
               begin
                 work_one_job(connection)
