@@ -33,20 +33,25 @@ module SP
       #
       def prepare
         log_info "Working #{tube_names.size} queues: [ #{tube_names.join(', ')} ]"
-        $config[:options][:threads].times do 
+        $config[:options][:threads].times do
           connection = new_connection.tap{ |conn| conn.tubes.watch!(*tube_names) }
           connection.on_reconnect = lambda { |conn| conn.tubes.watch!(*tube_names) }
 
           $threads << Thread.new {
             $thread_data[Thread.current] = ::SP::Job::ThreadData.new
             logger.debug "Thread for #{tube_names.join(',')} #{Thread.current}"
-            loop do 
-              work_one_job(connection)
+            loop do
+              begin
+                work_one_job(connection)
+              rescue Beaneater::NotFoundError => bnfe
+                # Do nothing if try to delete the task and it´s not found
+              end
+
               unless connection.connected?
                 log_error "Connection to beanstalk closed, exiting now"
                 Kernel.exit
               end
-            end          
+            end
           }
         end
         #end
