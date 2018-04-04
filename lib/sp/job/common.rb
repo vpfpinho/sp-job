@@ -213,7 +213,7 @@ module SP
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
-        unless $redis.exists(td.job_key )
+        unless $redis.exists(td.job_key)
           logger.warn "Job validity has expired: job ignored".yellow
           return false
         end

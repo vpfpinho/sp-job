@@ -373,9 +373,7 @@ module Backburner
       #  1. is sent to the rollbar
       #  2. does not bury the job, instead the job is deleted
       #
-      logger.debug "Received job aborted exception #{Thread.current}".yellow
       unless task.nil?
-        logger.debug 'Task deleted'.yellow
         task.delete
       end
       # Invoke after perform hook
