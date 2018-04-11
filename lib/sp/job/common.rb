@@ -73,11 +73,11 @@ module SP
       # jsonapi.patch! (resource, params)
       # jsonapi.delete! (resource)
       #
-      def jsonapi 
+      def jsonapi
         $jsonapi.adapter
       end
 
-      # 
+      #
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
       #
@@ -183,7 +183,7 @@ module SP
         end
 
         # update job status
-        if p_index >= $job_status[:progress].size 
+        if p_index >= $job_status[:progress].size
           (1 + p_index - $job_status[:progress].size).times do
             $job_status[:progress] << { message: nil, value: 0 }
           end
@@ -202,7 +202,7 @@ module SP
           $job_status[:content_type] = args[:content_type]
           $job_status[:action]       = args[:action]
         end
-        
+
         # Create notification that will be published
         $job_notification = {}
         $job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
@@ -338,7 +338,7 @@ module SP
                 attributes[group[0].to_sym] = group[1]
               end
 
-              m.attachments[attributes[:filename].force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
+              m.attachments[attributes[:filename].gsub('±', ' ').force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
             end
           end
         end
