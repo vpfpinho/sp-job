@@ -104,7 +104,7 @@ module SP
       end
 
       #
-      # returns the logger object that job code must use for logging 
+      # returns the logger object that job code must use for logging
       #
       def logger
         Backburner.configuration.logger
@@ -114,7 +114,7 @@ module SP
       # Uploads a local file to the resting location on the upload server via the internal network
       #
       # Note the upload server could be the same machine, in that case we just copy the file. When the
-      # server is a remote machine it must grant ssh access to this machine and have the program unique-file 
+      # server is a remote machine it must grant ssh access to this machine and have the program unique-file
       # in the path of ssh user
       #
       # Also make sure the job using this method has the following configuration parameers
@@ -156,7 +156,7 @@ module SP
       # 1. :job arbritary job data, must be a hash but can contatined nested data
       #
       # Optional keys in args:
-      # 
+      #
       def submit_job (args)
         if $redis_mutex.nil?
           rv = _submit_job(args)
@@ -444,7 +444,7 @@ module SP
                 attributes[group[0].to_sym] = group[1]
               end
 
-              m.attachments[attributes[:filename].force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
+              m.attachments[attributes[:filename].gsub('±', ' ').force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
             end
           end
         end
@@ -477,7 +477,7 @@ module SP
         ]
       end
 
-      def get_percentage(total: 1, count: 0) ; (count * 100 / total).to_i ; end
+      def get_percentage(total: 1, count: 0) ; (total > 0 ? (count * 100 / total) : count).to_i ; end
 
       def on_retry_job (count, delay, jobs)
        td = thread_data
