@@ -156,7 +156,13 @@ end
 # Configure rollbar
 #
 unless $config[:rollbar].nil?
-  $rollbar = true
+
+  if $config[:rollbar][:enabled] == 'false'
+    $rollbar = false
+  else
+    $rollbar = true
+  end
+
   Rollbar.configure do |config|
     config.access_token = $config[:rollbar][:token] if $config[:rollbar][:token]
     config.environment  = $config[:rollbar][:environment] if $config[:rollbar] && $config[:rollbar][:environment]
