@@ -28,12 +28,19 @@ require 'thread'
 #
 class ClusterMember
 
-  attr_reader :redis
-  attr_reader :db
-  attr_reader :number
-  attr_reader :config
-  attr_reader :broker
+  attr_reader :redis     # connection to cluster redis
+  attr_reader :db        # database connection 
+  attr_reader :number    # cluster number, 1, 2 ...
+  attr_reader :config    # cluster configuration read from the conf.json
+  attr_reader :broker    # Driver for casper broker OAUTH 2.0 authentication
 
+  #
+  # Create the cluster member wrapper
+  #
+  # @param configuration the cluster member configuration structure
+  # @param serviceId the service prefix used by casper redis keys
+  # @param db a fb connection to reuse or nil if a new one should be created
+  #
   def initialize (configuration:, serviceId:, db: nil)
     @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
     if db.nil?
@@ -50,10 +57,16 @@ class ClusterMember
                                         })
   end
 
+  #
+  # Returns the global logger object, borrowed from common.rb
+  #
   def self.logger
     Backburner.configuration.logger
   end
 
+  #
+  # Creates the global structure that contatins the cluster configuration
+  #
   def self.configure_cluster 
     $cluster_members = {}
     $config[:cluster][:members].each do |cfg|
