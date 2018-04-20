@@ -23,6 +23,56 @@ require 'sp/job/job_db_adapter'
 require 'roadie'
 require 'thread'
 
+#
+# Helper class that encapsulates the objects needed to access each cluster
+#
+class ClusterMember
+
+  attr_reader :redis
+  attr_reader :db
+  attr_reader :number
+  attr_reader :config
+  attr_reader :broker
+
+  def initialize (configuration:, serviceId:, db: nil)
+    @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
+    if db.nil?
+      @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db]) 
+    else
+      @db = db
+    end
+    @number = configuration[:number]
+    @config = configuration
+    @broker = ::SP::Job::Broker::Job.new(config: {
+                                           :service_id => serviceId,
+                                           :oauth2 => configuration[:oauth2],
+                                           :redis => @redis
+                                        })
+  end
+
+  def self.logger
+    Backburner.configuration.logger
+  end
+
+  def self.configure_cluster 
+    $cluster_members = {}
+    $config[:cluster][:members].each do |cfg|
+      cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } application_name=toconline-login"
+      if cfg[:db][:conn_str] == $pg.conn_str
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
+        flags = ' *'
+      else
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id])
+        flags = ' '
+      end
+      flags += '<=' if cfg[:number] == $config[:runs_on_cluster] 
+      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{flags}"
+    end
+  end
+
+end
+
+
 module SP
   module Job
 
