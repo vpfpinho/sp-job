@@ -30,7 +30,7 @@ class SpDataStruct < OpenStruct
     end
     hash
   end
-  
+
   def to_json
     SpDataStruct::to_hash_sp(self).to_json
   end
@@ -144,7 +144,7 @@ def diff_and_write (contents:, path:, diff: true, dry_run: false)
 end
 
 def pg_conn_string (db)
-  "host=#{db.host} port=#{db.port} dbname=#{db.dbname} user=#{db.user}#{db.password.size != 0 ? ' password='+ db.password : '' }"
+  "host=#{db.host} port=#{db.port} dbname=#{db.dbname} user=#{db.user}#{db.password != nil && db.password.size != 0 ? ' password='+ db.password : '' }"
 end
 
 def expand_template (template, pretty_json: false)
