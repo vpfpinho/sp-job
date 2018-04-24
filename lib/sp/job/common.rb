@@ -209,7 +209,7 @@ module SP
         if $config[:options] && $config[:options][:jsonapi] == true
           raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
           td.jsonapi.set_url(job[:prefix])
-          td.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(job))
+          set_jsonapi_parameters(job)
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
