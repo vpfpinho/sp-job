@@ -195,13 +195,6 @@ $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize
 $min_progress = $config[:options][:min_progress]
 
 #
-# Global data for mutex and sync
-#
-$threads = [ Thread.current ]
-$thread_data = {}
-$thread_data[Thread.current] = ::SP::Job::ThreadData.new
-
-#
 # Sanity check we only support multithreading on JRUBY
 #
 if $config[:options] && $config[:options][:threads].to_i > 1
@@ -493,16 +486,24 @@ $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $transient_job = $config[:options] && $config[:options][:transient] == true
 $raw_response  = $config[:options] && $config[:options][:raw_response] == true
+$verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
-  if $PROGRAM_NAME.split('/').last == 'saft-importer' || $PROGRAM_NAME.split('/').last == 'saft-destroyer'
+  if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
   end
   if $config[:options][:jsonapi] == true
     $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
   end
 end
+
+#
+# Global data for mutex and sync
+#
+$threads = [ Thread.current ]
+$thread_data = {}
+$thread_data[Thread.current] = ::SP::Job::ThreadData.new
 
 #
 # Open a second thread that will listen to cancellation and other "signals"

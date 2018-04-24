@@ -9,14 +9,14 @@ module SP
 
           # Implement the JSONAPI request by direct querying of the JSONAPI function in the database
           def do_request_on_the_db(method, path, params)
-            jsonapi_query = %Q[ SELECT * FROM public.jsonapi($1, $2, $3, $4, $5, $6, $7, $8, $9) ]
+            jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
             response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, company_id, company_schema, sharded_schema, accounting_schema, accounting_prefix
             response.first if response.first
           end
 
           def explicit_do_request_on_the_db(exp_accounting_schema, exp_accounting_prefix, method, path, params)
-            jsonapi_query = %Q[ SELECT * FROM public.jsonapi($1, $2, $3, $4, $5, $6, $7, $8, $9) ]
+            jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
             response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, company_id, company_schema, sharded_schema, exp_accounting_schema, exp_accounting_prefix
             response.first if response.first
