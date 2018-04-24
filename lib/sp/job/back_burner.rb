@@ -122,9 +122,9 @@ module SP
 
     class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
       def initialize
-        @job_status = {}
+        self.job_status = {}
         if $config[:options] && $config[:options][:jsonapi] == true
-          @jsonapi = SP::Duh::JSONAPI::Service.new($pg, nil, SP::Job::JobDbAdapter)
+          self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, nil, SP::Job::JobDbAdapter)
         end
       end
     end
