@@ -65,7 +65,7 @@ class ClusterMember
   end
 
   #
-  # Creates the global structure that contatins the cluster configuration
+  # Creates the global structure that contains the cluster configuration
   #
   def self.configure_cluster 
     $cluster_members = {}
