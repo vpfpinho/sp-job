@@ -61,6 +61,8 @@ module SP
               end
             end
             logger.info "Thread #{Thread.current} exiting".yellow
+            $threads.delete(Thread.current)
+            $thread_data.delete Thread.current
           }
         end
       end
