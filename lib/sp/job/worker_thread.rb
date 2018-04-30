@@ -49,6 +49,10 @@ module SP
                 # By default there is nothing we can do to speed up
               rescue Backburner::Job::JobTimeout => jte
                 # What to do?
+                logger.info "Thread #{Thread.current} job timeout".yellow
+                Rollbar.warning(jte)
+              rescue => e
+                Rollbar.error(e)
               end
 
               unless connection.connected?
@@ -56,9 +60,9 @@ module SP
                 Kernel.exit
               end
             end
+            logger.info "Thread #{Thread.current} exiting".yellow
           }
         end
-        #end
       end
 
     end # Worker
