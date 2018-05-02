@@ -436,15 +436,25 @@ module SP
 
         if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
-            attach_uri = URI.escape("#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}/#{attach[:file]}")
+            uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
+            uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
+
+            attach_uri = URI.escape(uri)
             attach_http_call = Curl::Easy.http_get(attach_uri)
             if attach_http_call.response_code == 200
               attributes = {}
-              attach_http_call.header_str.scan(/(\w+)="([^"]*)"/).each do |group|
-                attributes[group[0].to_sym] = group[1]
+
+              if attach.has_key?(:filename)
+                attributes[:filename] = attach[:filename]
+                attributes[:mime_type] = attach[:mime_type]
+              else
+                attach_http_call.header_str.scan(/(\w+)="([^"]*)"/).each do |group|
+                  attributes[group[0].to_sym] = group[1]
+                end
+                attributes[:mime_type] = attach_http_call.content_type
               end
 
-              m.attachments[attributes[:filename].gsub('±', ' ').force_encoding('UTF-8')] = { mime_type: attach_http_call.content_type, content: attach_http_call.body_str }
+              m.attachments[attributes[:filename].force_encoding('UTF-8').gsub('±', ' ')] = { mime_type: attributes[:mime_type], content: attach_http_call.body_str }
             end
           end
         end
@@ -460,6 +470,25 @@ module SP
         end while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
 
         return base_exception.is_a?(PG::ServerError) ? e.cause.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
+      end
+
+      def file_identifier_to_url(id, filename)
+        url = ''
+        if filename[0] == 'c'
+          url += "company"
+        elsif filename[0] == 'u'
+          url += "user"
+        else
+          raise 'Unrecognizible file type'
+        end
+
+        url += '/'
+        url += id_to_path(id)
+        url += '/'
+        url += filename[1..2]
+        url += '/'
+        url += filename[3..-1]
+        url
       end
 
       #
