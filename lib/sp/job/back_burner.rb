@@ -29,7 +29,7 @@ require 'thread'
 class ClusterMember
 
   attr_reader :redis     # connection to cluster redis
-  attr_reader :db        # database connection 
+  attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
   attr_reader :config    # cluster configuration read from the conf.json
   attr_reader :broker    # Driver for casper broker OAUTH 2.0 authentication
@@ -44,7 +44,7 @@ class ClusterMember
   def initialize (configuration:, serviceId:, db: nil)
     @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
     if db.nil?
-      @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db]) 
+      @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db])
     else
       @db = db
     end
@@ -67,7 +67,7 @@ class ClusterMember
   #
   # Creates the global structure that contains the cluster configuration
   #
-  def self.configure_cluster 
+  def self.configure_cluster
     $cluster_members = {}
     $config[:cluster][:members].each do |cfg|
       cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } application_name=toconline-login"
@@ -78,7 +78,7 @@ class ClusterMember
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id])
         flags = ' '
       end
-      flags += '<=' if cfg[:number] == $config[:runs_on_cluster] 
+      flags += '<=' if cfg[:number] == $config[:runs_on_cluster]
       logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{flags}"
     end
   end
@@ -240,7 +240,7 @@ Backburner.configure do |config|
       else
         begin
           raise_error(message: e)
-        rescue => e
+        rescue
           # Do not retrow!!!!
         end
       end
@@ -424,12 +424,20 @@ module Backburner
         #  b) ttr == 1, so that we don't accidentally set it to never time out
         #  NB: A ttr of 1 will likely result in race conditions between
         #  Backburner and beanstalkd and should probably be avoided
-        timeout_job_after(task.ttr > 1 ? task.ttr - 1 : task.ttr) { job_class.perform(*args) }
+        if task.stats.nil?
+          ttr = 60 # Experimental
+        elsif task.ttr > 1
+          ttr = task.ttr - 1
+        else
+          ttr = task.ttr
+        end
+
+        timeout_job_after(ttr) { job_class.perform(*args) }
       end
       task.delete
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
-    rescue ::SP::Job::JobAborted => ja
+    rescue ::SP::Job::JobAborted
       #
       # This exception:
       #  1. is sent to the rollbar
@@ -521,12 +529,12 @@ $cancel_thread = Thread.new {
               thread.raise(::SP::Job::JobCancelled.new)
             end
           end
-        rescue Exception => e
+        rescue Exception
           # ignore invalid payloads
         end
       end
     end
-  rescue Redis::CannotConnectError => ccc
+  rescue Redis::CannotConnectError
     logger.fatal "Can't connect to redis exiting now".red
     exit
   rescue Exception => e
