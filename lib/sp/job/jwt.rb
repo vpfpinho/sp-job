@@ -25,11 +25,43 @@ module SP
   module Job
   	class JWTHelper
 
-		# encode & sign jwt
-		def self.encode(key:, payload:)
-			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
-			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
-		end #self.encodeJWT
+  		# encode & sign jwt
+  		def self.encode(key:, payload:)
+  			rsa_private = OpenSSL::PKey::RSA.new( File.read( key ) )
+  			return JWT.encode payload, rsa_private, 'RS256', { :typ => "JWT" }
+  		end #self.encodeJWT
+
+      # key: Path of the private key to be used on encoding
+      # jwt_validity: Must be set in hours
+      # tube: Name of the tube
+      # ttr: Job max execution time in seconds
+      # pyaload: Data to be used on the job
+      def self.jobify(key:, jwt_validity: 24, tube:, ttr: 8600, payload:)
+        # UTC timestamp
+        now        = Time.now.getutc.to_i
+        # Expire
+        exp_offset = jwt_validity * 60 * 60
+        exp        = now + exp_offset
+        # Issued At
+        iat        = now
+        # Not before
+        nbf        = now
+
+        job_payload = { tube: tube }
+        job_payload.merge!(payload)
+
+        self.encode(key: key, payload: {
+          action: 'job',
+          exp: exp, # Data de expiração
+          iat: iat, # Issued at
+          nbf: nbf, # Not before
+          job: {
+            tube: tube,
+            ttr: ttr,
+            payload: job_payload
+          }
+        })
+      end
 
     end # end class 'JWT'
   end # module Job
