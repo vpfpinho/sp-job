@@ -29,32 +29,6 @@ module SP
           def accounting_schema ; service.parameters.accounting_schema.nil? ? nil : service.parameters.accounting_schema ; end
           def accounting_prefix ; service.parameters.accounting_prefix.nil? ? nil : service.parameters.accounting_prefix ; end
 
-          def params_for_body(params)
-            params.blank? ?  '' : params.to_json
-          end
-
-          def params_for_query(params)
-            query = ""
-            if !params.blank?
-              case
-                when params.is_a?(Array)
-                  # query = params.join('&')
-                  query = params.map{ |v| URI.encode(URI.encode(v), "&") }.join('&')
-                when params.is_a?(Hash)
-                  query = params.map do |k,v|
-                    if v.is_a?(String)
-                      "#{k}=\"#{URI.encode(URI.encode(v), "&")}\""
-                    else
-                      "#{k}=#{v}"
-                    end
-                  end.join('&')
-                else
-                  query = params.to_s
-              end
-            end
-            query
-          end
-
       end
 
     end
