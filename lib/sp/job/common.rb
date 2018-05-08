@@ -206,8 +206,7 @@ module SP
         td.job_id               = job[:id]
         td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        if $config[:options] && $config[:options][:jsonapi] == true
-          raise "Job didn't specify the mandatory field prefix!" if job[:prefix].blank?
+        if $config[:options] && $config[:options][:jsonapi] == true && !job[:prefix].blank?
           td.jsonapi.set_url(job[:prefix])
           set_jsonapi_parameters(job)
         end
