@@ -117,7 +117,11 @@ module SP
             _connect()
           end
           _check_life_span()
-          @connection.exec(sprintf(query, *args))
+          if args.length > 0
+            @connection.exec(sprintf(query, *args))
+          else
+            @connection.exec(query)
+          end
         }
       end
 
@@ -139,7 +143,7 @@ module SP
 
       private
 
-      def _connect () 
+      def _connect ()
         _disconnect()
         @connection = PG.connect(@config[:conn_str])
       end
