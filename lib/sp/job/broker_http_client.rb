@@ -157,6 +157,38 @@ module SP
       end
 
       #
+      # Perfom an HTTP GET FILE request and, if required, renew access token.
+      #
+      # @param url
+      # @param uri
+      #
+      def get_file(url:, uri:, auto_renew_token: true)
+        if true == auto_renew_token || nil == @session.access_token
+          response = call_and_try_to_recover do
+            do_http_get(url, nil)
+          end
+        else
+          response = do_http_get(url, nil)
+        end
+        if 200 == response.code
+          begin
+            File.open(uri, 'w') {
+              |file| file.write(response.body)
+            }
+            uri
+          rescue Exception => e
+            raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
+          end
+        else
+          if 401 == response.code
+            raise ::SP::Job::BrokerOAuth2Client::UnauthorizedUser.new(nil)
+          else
+            raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
+          end
+        end
+      end
+
+      #
       # Perfom an HTTP POST request and, if required, renew access token.
       #
       # @param a_uri
@@ -219,7 +251,9 @@ module SP
       #
       def do_http_get (a_uri, a_content_type = 'application/vnd.api+json')
         http_request = Curl::Easy.http_get(a_uri) do |curl|
-          curl.headers['Content-Type']  = a_content_type;
+          if nil != a_content_type
+            curl.headers['Content-Type']  = a_content_type
+          end
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
         end
         Response.new(http_request)
