@@ -172,7 +172,7 @@ module SP
         end
         if 200 == response.code
           begin
-            File.open(uri, 'w') {
+            File.open(uri, 'wb') {
               |file| file.write(response.body)
             }
             uri
