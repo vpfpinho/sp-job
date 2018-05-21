@@ -297,7 +297,7 @@ module SP
             response << args[:response]
           elsif args[:response].instance_of? StringIO
             raw = args[:response].string
-            response << raw.bytesize.to_s
+            response << raw.size.to_s
             response << ','
             response << raw
           else
