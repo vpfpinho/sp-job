@@ -320,6 +320,9 @@ module SP
       end
 
       def error_handler (args)
+        if $config[:options][:source] == "broker"
+          raise "Implementation error : please use 'raise' instead of report_error or raise_error"
+        end
         td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
@@ -331,12 +334,18 @@ module SP
         td.job_id = nil
       end
 
+      #
+      # @NOTE: do not use this method if $config[:options][:source] == "broker"
+      #
       def report_error (args)
         td = thread_data
         error_handler(args)
         raise ::SP::Job::JobAborted.new(args: args, job: td.current_job)
       end
 
+      #
+      # @NOTE: do not use this method if $config[:options][:source] == "broker"
+      #
       def raise_error (args)
         td = thread_data
         error_handler(args)
@@ -513,6 +522,28 @@ module SP
        $redis.expire(td.job_key, new_delay)
        # puts "INITIAL #{jobs[:validity]} / DELAY #{delay} ==> NEW validity #{new_delay} | #{count}".red
      end
+
+     class Exception < StandardError
+
+       private
+
+       @status_code  = nil
+       @content_type = nil
+       @body         = nil
+
+       public
+       attr_accessor :status_code
+       attr_accessor :content_type
+       attr_accessor :body
+
+       public
+       def initialize(status_code:, content_type:, body:)
+         @status_code  = status_code
+         @content_type = content_type
+         @body         = body
+       end
+
+     end # class Error
 
       private
 

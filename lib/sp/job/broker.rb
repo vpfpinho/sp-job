@@ -33,10 +33,10 @@ module SP
       #
       # Helper class that defined an 'Broker' error.
       #
-      class Error < ::SP::Job::JSONAPIError
+      class Error < ::SP::Job::JSONAPI::Error
 
         def initialize (i18n:, code:, internal:)
-          super(code: code, internal: internal)
+          super(status_code: code, code: code, detail: nil, internal: internal)
           @i18n = i18n
         end
 

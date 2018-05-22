@@ -20,6 +20,7 @@
 #
 require 'sp/job/pg_connection'
 require 'sp/job/job_db_adapter'
+require 'sp/job/jsonapi_error'
 require 'roadie'
 require 'thread'
 
@@ -102,7 +103,7 @@ module SP
       attr_reader :args
 
       def initialize (args:, job: nil)
-	      super(args[:message] || $current_job[:tube] || $args[:program_name])
+	      super(args[:message] || $args[:program_name])
         @job     = job
         @args    = args
       end
@@ -239,19 +240,39 @@ Backburner.configure do |config|
         logger.warn "got a deadline warning".red
       else
         begin
-          raise_error(message: e)
+
+          if $config[:options] && $config[:options][:source] == "broker"
+            args = {}
+            args[:status] = 'error'
+            args[:action] = 'response'
+            if e.is_a?(::SP::Job::JSONAPI::Error)
+              args[:status_code]  = e.status_code
+              args[:content_type] = e.content_type
+              args[:response]     = e.body
+            else
+              e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
+              args[:status_code]  = e.status_code
+              args[:content_type] = e.content_type
+              args[:response]     = e.body
+            end
+            update_progress(args)
+          else
+            raise_error(message: e)
+          end
+
         rescue
           # Do not retrow!!!!
         end
       end
     end
-
     # Report exception to rollbar
     $roolbar_mutex.synchronize {
       if $rollbar
         if e.instance_of? ::SP::Job::JobException
           e.job[:password] = '<redacted>'
           Rollbar.error(e, e.message, { job: e.job, args: e.args})
+        elsif e.is_a?(::SP::Job::JSONAPI::Error)
+          Rollbar.error(e, e.body)
         else
           Rollbar.error(e)
         end
@@ -479,6 +500,7 @@ module Backburner
       raise e
     end
   end
+
 end
 
 # Mix-in the common mix-in to make code available for the lambdas used in this file
@@ -492,7 +514,7 @@ logger.debug "PID ........ #{Process.pid}"
 #
 $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$transient_job = $config[:options] && $config[:options][:transient] == true
+$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == "broker" )
 $raw_response  = $config[:options] && $config[:options][:raw_response] == true
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"

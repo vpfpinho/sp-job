@@ -219,59 +219,33 @@ module SP
       end
 
       #
-      # Perfom an HTTP GET obtain a file request and, if required, renew access token.
-      #
-      # @param url
-      # @param uri
-      # @param auto_renew_token
-      #
-      def get_file(url:, uri:, auto_renew_token: true)
-        if true == auto_renew_token || nil == @session.access_token
-          response = call_and_try_to_recover do
-            do_http_get(url, nil)
-          end
-        else
-          response = do_http_get(url, nil)
-        end
-        if 200 == response.code
-          begin
-            File.open(uri, 'wb') {
-              |file| file.write(response.body)
-            }
-            uri
-          rescue Exception => e
-            raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
-          end
-        else
-          if 401 == response.code
-            raise ::SP::Job::BrokerOAuth2Client::UnauthorizedUser.new(nil)
-          else
-            raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
-          end
-        end
-      end
-
-      #
       # Perfom an HTTP POST to obtain a file request and, if required, renew access token.
       #
       # @param url
       # @param content_type
       # @param body
-      # @param callback
       # @param auto_renew_token
       #
-      def get_file(url:, content_type:, body:, auto_renew_token: true)
+      def get_file(url:, content_type: nil, body: nil, auto_renew_token: true)
         if true == auto_renew_token || nil == @session.access_token
           response = call_and_try_to_recover do
-            do_http_post(url, body, content_type)
+            if nil != body
+              do_http_post(url, body, content_type)
+            else
+              do_http_get(url, nil)
+            end
           end
         else
-          response = do_http_post(url, body, content_type)
+          if nil != body
+            response = do_http_post(url, body, content_type)
+          else
+            response = do_http_get(url, nil)
+          end
         end
         if 200 == response.code
           begin
             if block_given?
-              yield(response.headers[:'Content-Type'], response.body)
+              yield(response.code, response.headers[:'Content-Type'], response.body)
             else
               return response
             end
@@ -282,7 +256,15 @@ module SP
           if 401 == response.code
             raise ::SP::Job::BrokerOAuth2Client::UnauthorizedUser.new(nil)
           else
-            raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
+            begin
+              if block_given?
+                yield(response.code, response.headers[:'Content-Type'], response.body)
+              else
+                return response
+              end
+            rescue Exception => e
+              raise ::SP::Job::BrokerOAuth2Client::InternalError.new(nil)
+            end
           end
         end
       end
