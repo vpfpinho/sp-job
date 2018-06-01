@@ -234,13 +234,16 @@ Backburner.configure do |config|
   config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
   config.on_error      = lambda { |e|
     td = thread_data
+
+    # ensure currently open ( if any ) transaction rollback
+    $pg.rollback unless ! $pg
+
     if td.exception_reported == false
       td.exception_reported = true
       if e.instance_of? Beaneater::DeadlineSoonError
         logger.warn "got a deadline warning".red
       else
         begin
-
           if $config[:options] && $config[:options][:source] == "broker"
             args = {}
             args[:status] = 'error'
@@ -458,6 +461,8 @@ module Backburner
       task.delete
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
+      # ensure currently open ( if any ) transaction rollback
+      $pg.rollback unless ! $pg
     rescue ::SP::Job::JobAborted
       #
       # This exception:
@@ -470,6 +475,8 @@ module Backburner
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
       thread_data.job_id = nil
+      # ensure currently open ( if any ) transaction rollback
+      $pg.rollback unless ! $pg
     rescue ::SP::Job::JobCancelled => jc
       #
       # This exception:
@@ -495,8 +502,12 @@ module Backburner
         }
       end
       thread_data.job_id = nil
+      # ensure currently open ( if any ) transaction rollback
+      $pg.rollback unless ! $pg
     rescue => e
       @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      # ensure currently open ( if any ) transaction rollback
+      $pg.rollback unless ! $pg
       raise e
     end
   end

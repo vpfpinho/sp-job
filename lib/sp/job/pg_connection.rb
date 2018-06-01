@@ -58,6 +58,7 @@ module SP
             @treshold = new_min.to_i
           end
         end
+        @transaction_open = false
       end
 
       #
@@ -141,6 +142,54 @@ module SP
         @config[:conn_str]
       end
 
+      #
+      # Call this to open a transaction
+      #
+      def begin
+        @mutex.synchronize {
+          if nil == @connection
+            _connect()
+          end
+          _check_life_span()
+          r = @connection.exec("BEGIN;")
+          if PG::PGRES_COMMAND_OK != r.result_status
+            raise "Unable to BEGIN a new transaction!"
+          end
+          @transaction_open = true
+        }
+      end
+
+      #
+      # Call this to commit the currently open transaction
+      #
+      def commit
+        @mutex.synchronize {
+          if nil != @connection && true == @transaction_open
+            r = @connection.exec("COMMIT;")
+            if PG::PGRES_COMMAND_OK != r.result_status
+              raise "Unable to COMMIT a transaction!"
+            end
+            @transaction_open = false
+          end
+        }
+      end
+
+      #
+      # Call this to open a transaction
+      #
+      def rollback
+        @mutex.synchronize {
+          if nil != @connection && true == @transaction_open
+            r = @connection.exec("ROLLBACK;")
+            if PG::PGRES_COMMAND_OK != r.result_status
+              raise "Unable to ROLLBACK a transaction!"
+            end
+            @transaction_open = false
+          end
+        }
+
+      end
+
       private
 
       def _connect ()
@@ -149,6 +198,7 @@ module SP
       end
 
       def _disconnect ()
+        @transaction_open = false
         if @connection.nil?
           return
         end
@@ -167,6 +217,9 @@ module SP
       # Check connection life span
       #
       def _check_life_span ()
+        if true == @transaction_open
+          return
+        end
         return unless @treshold > 0
         @counter += 1
         if @counter > @treshold
