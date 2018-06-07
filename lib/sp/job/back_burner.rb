@@ -493,7 +493,7 @@ module Backburner
         end
       end
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
-      report_error(message: 'i18n_job_cancelled', status: 'cancelled')
+      error_handler(message: 'i18n_job_cancelled', status: 'cancelled')
       if $redis_mutex.nil?
         $redis.hset(thread_data.job_key, 'cancelled', true)
       else
