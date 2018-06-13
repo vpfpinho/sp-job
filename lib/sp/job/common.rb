@@ -68,7 +68,15 @@ module SP
       end
 
       def redis
-        $redis
+        # callback is not optional
+        if $redis_mutex.nil?
+          yield($redis)
+        else
+          # ... to enforce safe usage!
+          $redis_mutex.synchronize {
+            yield($redis)
+          }
+        end
       end
 
       def config
