@@ -33,6 +33,10 @@ module SP
           super(status_code: status, content_type: 'application/vnd.api+json;charset=utf-8', body: body)
         end
 
+      def message
+        @body[:errors][0][:detail]
+      end
+
       end # class Error
 
     end # JSONAPI module
