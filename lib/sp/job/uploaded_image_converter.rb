@@ -51,12 +51,12 @@ module SP
 
       def self.perform (job)
 
-        raise_error(message: 'i18n_entity_id_must_be_defined') if job[:entity_id].nil? || job[:entity_id].to_i == 0
+        raise_error(message: 'i18n_entity_id_must_be_defined') if job[:to_entity_id].nil? || job[:to_entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
         progress    = step
         original    = File.join(config[:paths][:temporary_uploads], job[:original])
-        destination = File.join(config[:paths][:uploads_storage], job[:entity], id_to_path(job[:entity_id]), job[:folder])
+        destination = File.join(config[:paths][:uploads_storage], job[:entity], id_to_path(job[:to_entity_id]), job[:folder])
 
         #
         # Check the original image, check format and limits
@@ -98,7 +98,7 @@ module SP
         end
 
         # Closing arguments, all done
-        send_response(message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:entity_id]), job[:folder], 'logo_template.png'))
+        send_response(message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:to_entity_id]), job[:folder], 'logo_template.png'))
 
         # Remove original file
         FileUtils::rm_f(original) if config[:options][:delete_originals] 
