@@ -356,6 +356,9 @@ module SP
       #
       def raise_error (args)
         td = thread_data
+        if ! args.is_a? Hash
+          raise "'args' must be an Hash!"
+        end
         error_handler(args)
         raise ::SP::Job::JobException.new(args: args, job: td.current_job)
       end
