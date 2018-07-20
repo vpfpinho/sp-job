@@ -67,6 +67,13 @@ module SP
         $pg
       end
 
+      def user_db
+        if $user_db.nil?
+          $user_db = $cluster_members[config[:cluster][:user_db]].db
+        end
+        $user_db
+      end
+
       def redis
         # callback is not optional
         if $redis_mutex.nil?
@@ -484,11 +491,11 @@ module SP
       def pg_server_error(e)
         raise e if e.is_a?(::SP::Job::JobCancelled)
         base_exception = e
-        begin
+        while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
           base_exception = base_exception.cause
-        end while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
+        end
 
-        return base_exception.is_a?(PG::ServerError) ? e.cause.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
+        return base_exception.is_a?(PG::ServerError) ? base_exception.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
       end
 
       def file_identifier_to_url(id, filename)
