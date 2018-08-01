@@ -535,38 +535,81 @@ module SP
       def get_percentage(total: 1, count: 0) ; (total > 0 ? (count * 100 / total) : count).to_i ; end
 
       def on_retry_job (count, delay, jobs)
-       td = thread_data
-       new_delay = jobs[:validity].to_i + (delay.to_i * count)
-       $redis.expire(td.job_key, new_delay)
-       # puts "INITIAL #{jobs[:validity]} / DELAY #{delay} ==> NEW validity #{new_delay} | #{count}".red
-     end
+        td = thread_data
+        new_delay = jobs[:validity].to_i + (delay.to_i * count)
+        $redis.expire(td.job_key, new_delay)
+        # puts "INITIAL #{jobs[:validity]} / DELAY #{delay} ==> NEW validity #{new_delay} | #{count}".red
+      end
 
-     class Exception < StandardError
+      def print_and_archive(payload, entity_id)
+        payload[:ttr]            ||= 300
+        payload[:validity]       ||= 500
+        payload[:auto_printable] ||= false
+        payload[:documents]      ||= []
 
-       private
+        jwt = JWTHelper.jobify(
+          key: config[:nginx_broker_private_key],
+          tube: 'casper-print-queue',
+          payload: payload
+        )
 
-       @status_code  = nil
-       @content_type = nil
-       @body         = nil
+        pdf_response = CurlHTTPClient.post(
+          url: get_cdn_public_url,
+          headers: {
+            'Content-Type' => 'application/text'
+          },
+          body: jwt,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/pdf'
+            }
+          }
+        )
 
-       public
-       attr_accessor :status_code
-       attr_accessor :content_type
-       attr_accessor :body
+        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
+        file_identifier = send_to_upload_server(src_file: tmp_file, id: entity_id, extension: ".pdf")
+        file_identifier
+      end
 
-       public
-       def initialize(status_code:, content_type:, body:)
-         @status_code  = status_code
-         @content_type = content_type
-         @body         = body
-       end
+      class Exception < StandardError
 
-     end # class Error
+        private
+
+        @status_code  = nil
+        @content_type = nil
+        @body         = nil
+
+        public
+        attr_accessor :status_code
+        attr_accessor :content_type
+        attr_accessor :body
+
+        public
+        def initialize(status_code:, content_type:, body:)
+          @status_code  = status_code
+          @content_type = content_type
+          @body         = body
+        end
+
+      end # class Error
 
       private
 
       def get_random_folder
         ALPHABET[rand(26)] + ALPHABET[rand(26)]
+      end
+
+      def get_cdn_public_url
+        cdn_public_url = "#{config[:broker][:cdn][:protocol]}://#{config[:broker][:cdn][:host]}"
+        if config[:broker][:cdn][:port] && 80 != config[:broker][:cdn][:port]
+        	cdn_public_url += ":#{config[:broker][:cdn][:port]}"
+        end
+        if config[:broker][:cdn][:path]
+        	cdn_public_url += "/#{config[:broker][:cdn][:path]}"
+        end
+        cdn_public_url
       end
     end # Module Common
   end # Module Job
