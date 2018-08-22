@@ -365,6 +365,7 @@ task :configure, [ :action ] do |task, args|
   #
   # Configure system, projects and user files
   #
+  hostname = %x[hostname -s].strip
   locations = {}
   used_locations = []
   if action == 'dry-run' || action == 'overwrite'
@@ -382,6 +383,13 @@ task :configure, [ :action ] do |task, args|
     erblist.each do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
 
+      # do not configure motd
+      if dst_file == '/etc/motd'
+        if OS.mac? || ! @config.motd || ! @config.motd[hostname.to_sym]
+          next
+        end
+      end
+
       # developer exception
       if OS.mac? && @config.nginx_broker && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
@@ -393,6 +401,7 @@ task :configure, [ :action ] do |task, args|
         locations[dst_file] = template
         next
       end
+
 
       # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
       m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
