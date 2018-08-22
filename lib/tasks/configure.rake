@@ -413,6 +413,14 @@ task :configure, [ :action ] do |task, args|
         end
       end
 
+      # Keep redis conf files always readable
+      if !OS.mac?
+        m =  /.*(redis)\/(.*)$/.match(dst_file)
+        if m
+          safesudo("chmod +r #{dst_file}")
+        end
+      end
+
       # 2nd filtered
       if @config.erb_exclusion_list
         base_filename = File.basename(dst_file)
