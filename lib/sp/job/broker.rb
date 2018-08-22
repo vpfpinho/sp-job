@@ -36,7 +36,7 @@ module SP
       class Error < ::SP::Job::JSONAPI::Error
 
         def initialize (i18n:, code:, internal:)
-          super(status_code: code, code: code, detail: nil, internal: internal)
+          super(status: code, code: code, detail: nil, internal: internal)
           @i18n = i18n
         end
 
@@ -236,10 +236,10 @@ module SP
             raise InternalError.new(i18n: nil, internal: nil)
           end
 
-          if refresh.nil? 
+          if refresh.nil?
             refresh = @redis.hget("#{@service_id}:oauth:access_token:#{access}",'refresh_token')
           end
-          
+
           # delete tokens from redis
           @redis.multi do |multi|
             multi.del("#{@service_id}:oauth:access_token:#{access}")
@@ -282,7 +282,7 @@ module SP
         #
         # Obtain an 'access' and a 'refresh' token.
         #
-        # @param args check the authorize method o OAuth2 class 
+        # @param args check the authorize method o OAuth2 class
         # @return hash with response content type and status code
         #
         def authorize (args)
@@ -295,7 +295,7 @@ module SP
         #
         # Refresh an access token.
         #
-        # @param args check the refresh method o OAuth2 class 
+        # @param args check the refresh method o OAuth2 class
         # @return hash with response content type and status code
         #
         def refresh (args)
@@ -308,7 +308,7 @@ module SP
         #
         # Patch a pair of tokens, by generating new ones
         #
-        # @param args check the patch methods o OAuth2 class 
+        # @param args check the patch methods o OAuth2 class
         # @return hash with response content type and status code
         #
         def patch (args)
@@ -321,11 +321,11 @@ module SP
         #
         # Remove a pair of tokens from redis.
         #
-        # @param args check the dispose method o OAuth2 class 
+        # @param args check the dispose method o OAuth2 class
         # @return hash with response content type and status code
         #
         def dispose (args)
-          call do 
+          call do
             finalized(response: oauth2.dispose(args))
           end
           @output

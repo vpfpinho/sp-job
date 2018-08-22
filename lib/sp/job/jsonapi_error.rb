@@ -33,13 +33,17 @@ module SP
           super(status_code: status, content_type: 'application/vnd.api+json;charset=utf-8', body: body)
         end
 
-      def message
-        @body[:errors][0][:detail]
-      end
+        def code
+          @body[:errors][0][:code]
+        end
 
-      def content_type_and_body
-        [ 'application/vnd.api+json', message ]
-      end
+        def message
+          @body[:errors][0][:detail]
+        end
+
+        def content_type_and_body
+          [ 'application/vnd.api+json', message ]
+        end
 
       end # class Error
 
