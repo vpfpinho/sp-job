@@ -351,6 +351,16 @@ task :configure, [ :action ] do |task, args|
       create_directory "#{@config.prefix}#{path}"
     end
   end
+  if OS.mac? && @config.jobs
+    @config.jobs.each do |job|
+      if job.paths
+        job.paths.each do |path|
+          puts "Creating directory #{@config.prefix}#{path}"
+          create_directory "#{@config.prefix}#{path}"
+        end
+      end
+    end
+  end
 
   #
   # Configure system, projects and user files
