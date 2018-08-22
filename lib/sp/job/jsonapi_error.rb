@@ -37,6 +37,10 @@ module SP
         @body[:errors][0][:detail]
       end
 
+      def content_type_and_body
+        [ 'application/vnd.api+json', message ]
+      end
+
       end # class Error
 
     end # JSONAPI module
