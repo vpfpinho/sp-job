@@ -159,11 +159,11 @@ $args = {
 #
 $option_parser = OptionParser.new do |opts|
   opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
-  opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:default_log_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
-  opts.on('-l', '--log=LOGFILE'       , "path to log file (default: '#{$args[:log_file]}')")                        { |v| $args[:log_file]    = File.expand_path(v) }
-  opts.on('-d', '--debug'             , "developer mode: log to stdout and print job")                              { $args[:debug]           = true                }
-  opts.on('-v', '--log_level=LEVEL'   , "Log level DEBUG, INFO, WARN, ERROR, FATAL")                                { |v| $args[:log_level]   = v                   }
-  opts.on('-i', '--index=IDX'         , "systemd instance index")                                                   { |v| $args[:index]       = v                   }
+  opts.on('-c', '--config=CONFIG.JSON', "path to json configuration file (default: '#{$args[:config_file]}')") { |v| $args[:config_file] = File.expand_path(v) }
+  opts.on('-l', '--log=LOGFILE'       , "path to log file (default: '#{$args[:default_log_file]}')")           { |v| $args[:log_file]    = File.expand_path(v) }
+  opts.on('-d', '--debug'             , "developer mode: log to stdout and print job")                         { $args[:debug]           = true                }
+  opts.on('-v', '--log_level=LEVEL'   , "Log level DEBUG, INFO, WARN, ERROR, FATAL")                           { |v| $args[:log_level]   = v                   }
+  opts.on('-i', '--index=IDX'         , "systemd instance index")                                              { |v| $args[:index]       = v                   }
 end
 $option_parser.parse!
 
