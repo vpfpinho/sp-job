@@ -67,6 +67,42 @@ module SP
 
           return rv
         end
+
+        #
+        # Creates a uniquely named file inside the specified folder. The created file is empty
+        #
+        # @param folder Folder where the file will be created
+        # @param name
+        # @param extension
+        # @return Absolute file path
+        #
+        def self.create_n (folder:, name:, extension:)
+          FileUtils.mkdir_p(folder) if !Dir.exist?(folder)
+          if nil != name
+            fd = ::SP::Job::Unique::File.mkstemps("#{folder}/#{name}.XXXXXX.#{extension}", extension.length + 1)
+          else
+            fd = ::SP::Job::Unique::File.mkstemps("#{folder}/XXXXXX.#{extension}", extension.length + 1)
+          end
+          return nil if fd < 0
+
+          ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
+          if OS.mac?
+            r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
+          else
+            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
+            if r > 0 && r < 8192
+              r = 0
+            end
+          end
+          ::SP::Job::Unique::File.close(fd)
+          return nil if r != 0
+          return nil if ptr.null?
+
+          rv = ptr.read_string
+
+          return rv
+        end
+
       end
     end
   end
