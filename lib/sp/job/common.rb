@@ -163,6 +163,31 @@ module SP
         return entity[0] + folder + destination_file[-(6+extension.length)..-1]
       end
 
+
+      #
+      # Retrieve a previously uploaded file.
+      #
+      # @param file
+      # @param tmp_dir
+      #
+      # @return When tmp_dir is set file URI otherwise file body.
+      #
+      def get_from_upload_server(file:, tmp_dir:)
+        response = Net::HTTP.get_response(URI("#{config[:uploads][:protocol]}://#{config[:uploads][:server]}:#{config[:uploads][:port]}/#{config[:uploads][:path]}/#{file}"))
+        if 200 != response.code.to_i
+          raise "#{response['Status']}"
+        end
+        if tmp_dir
+          uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+          File.open(uri, 'wb') {
+             |f| f.write(response.body)
+          }
+          uri
+        else
+          response.body
+        end
+      end
+
       #
       # Submit job to beanstalk queue
       #
