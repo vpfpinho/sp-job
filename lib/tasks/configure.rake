@@ -489,7 +489,12 @@ task :configure, [ :action ] do |task, args|
       @job_name        = name
       @job_description = "TODO Description"
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
-
+      @job_args        = ''
+      if job && job.args
+        job.args.to_h.each do | k, v |
+          @job_args += "-#{k} #{v}"
+        end
+      end
       puts "  #{name}:"
       if File.exists? "#{@job_dir}/conf.json.erb"
         template = "#{@job_dir}/conf.json.erb"
