@@ -490,9 +490,19 @@ task :configure, [ :action ] do |task, args|
       @job_description = "TODO Description"
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
       @job_args        = ''
-      if job && job.args
-        job.args.to_h.each do | k, v |
-          @job_args += "-#{k} #{v}"
+      @job_exec        = @config.bundle_exec
+      @job_working_dir = @config.paths.working_directory
+      if job
+        if job.args
+          job.args.to_h.each do | k, v |
+            @job_args += "-#{k} #{v}"
+          end
+        end
+        if job.exec_prefix
+          @job_exec = job.exec_prefix
+        end
+        if job.working_directory_suffix
+          @job_working_dir += "/#{job.working_directory_suffix}"
         end
       end
       puts "  #{name}:"
