@@ -487,7 +487,7 @@ task :configure, [ :action ] do |task, args|
     puts "Configuring JOBS"
     @config.jobs.to_h.each do |name, job|
       @job_name        = name
-      @job_description = "TODO Description"
+      @job_description = @job_name
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
       @job_args        = ''
       @job_exec        = @config.bundle_exec
