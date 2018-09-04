@@ -578,7 +578,9 @@ module SP
           payload: payload
         )
 
-        pdf_response = NetHTTPClient.post(
+        klass = RUBY_ENGINE == 'jruby' ? ManticoreHTTPClient : CurlHTTPClient
+
+        pdf_response = klass.post(
           url: get_cdn_public_url,
           headers: {
             'Content-Type' => 'application/text'
