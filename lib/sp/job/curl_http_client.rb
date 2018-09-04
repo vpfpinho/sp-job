@@ -61,7 +61,7 @@ module SP
         o = {
           code: curb_r.response_code,
           body: curb_r.body,
-          description: self.http:_reason(code: curb_r.response_code),
+          description: self.http_reason(code: curb_r.response_code),
           content: {
             type: nil,
             length: 0
