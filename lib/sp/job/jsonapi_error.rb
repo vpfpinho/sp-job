@@ -14,15 +14,13 @@ module SP
     module JSONAPI
 
       class Error < ::SP::Job::Common::Exception
-        include ::SP::Job::HttpStatusCode
-
         def initialize(status:, code:, detail:, internal:nil)
           body = {
              errors: [
                {
                  code: "#{code}",
                  detail: "#{detail}",
-                 status: "#{status} - #{self.http_reason(code: status)}"
+                 status: "#{status} - #{::SP::Job::HttpClient.http_reason(code: status)}"
                }
             ]
           }

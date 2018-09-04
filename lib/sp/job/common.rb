@@ -173,18 +173,18 @@ module SP
       # @return When tmp_dir is set file URI otherwise file body.
       #
       def get_from_upload_server(file:, tmp_dir:)
-        response = Net::HTTP.get_response(URI("#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}"))
-        if 200 != response.code.to_i
-          raise "#{response['Status']}"
+        response = HttpClient.get_klass.get("#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}")
+        if 200 != response[:code]
+          raise "#{response[:code]}"
         end
         if tmp_dir
           uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
           File.open(uri, 'wb') {
-             |f| f.write(response.body)
+             |f| f.write(response[:body])
           }
           uri
         else
-          response.body
+          response[:body]
         end
       end
 
@@ -578,9 +578,7 @@ module SP
           payload: payload
         )
 
-        klass = RUBY_ENGINE == 'jruby' ? ManticoreHTTPClient : CurlHTTPClient
-
-        pdf_response = klass.post(
+        pdf_response = HttpClient.get_klass.post(
           url: get_cdn_public_url,
           headers: {
             'Content-Type' => 'application/text'

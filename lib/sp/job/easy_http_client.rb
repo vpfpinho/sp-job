@@ -21,8 +21,7 @@
 
 module SP
   module Job
-    module HttpStatusCode
-
+    class EasyHttpClient
       @@REASONS = {
         100 => 'Continue',
         101 => 'Switching Protocols',
@@ -79,9 +78,17 @@ module SP
         510 => 'Not Extended'
       }
 
-      def http_reason(code:)
+      def self.http_reason(code:)
         return @@REASONS[code]
       end
-    end # module HttpStatusCode
-  end # module Job
-end #module SP
+
+      def self.post(url:, headers:, body:, expect:)
+        raise NotImplementedError
+      end
+
+      def self.get(url:)
+        raise NotImplementedError
+      end
+    end
+  end
+end

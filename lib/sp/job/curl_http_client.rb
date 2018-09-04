@@ -24,12 +24,11 @@
 #
 
 require 'curb'
+require_relative 'easy_http_client'
 
 module SP
   module Job
-    class CurlHTTPClient
-      extend ::SP::Job::HttpStatusCode
-
+    class CurlHTTPClient < EasyHttpClient
       def self.post(url:, headers:, body:, expect:)
         # since we're not auto-renew tokens, we can use a simple CURL request
         r = Curl::Easy.http_post(url, body) do |handle|
@@ -54,6 +53,11 @@ module SP
         nr
       end
 
+      def self.get(url:)
+        response = Curl::Easy.http_get(url)
+        self.normalize_response(curb_r: response)
+      end
+
       private
 
       def self.normalize_response(curb_r:)
@@ -61,7 +65,7 @@ module SP
         o = {
           code: curb_r.response_code,
           body: curb_r.body,
-          description: self.http_reason(code: curb_r.response_code),
+          description: http_reason(code: curb_r.response_code),
           content: {
             type: nil,
             length: 0

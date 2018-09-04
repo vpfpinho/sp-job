@@ -24,12 +24,11 @@
 #
 
 require 'manticore'
+require_relative 'easy_http_client'
 
 module SP
   module Job
-    class ManticoreHTTPClient
-      extend ::SP::Job::HttpStatusCode
-
+    class ManticoreHTTPClient < EasyHttpClient
       def self.post(url:, headers:, body:, expect:)
         client = ::Manticore::Client.new
         nr = self.normalize_response(response: client.post(url, body: body, headers: headers))
@@ -52,13 +51,18 @@ module SP
         nr
       end
 
+      def self.get(url:)
+        client = ::Manticore::Client.new
+        self.normalize_response(response: client.get(url))
+      end
+
       private
 
       def self.normalize_response(response:)
         o = {
           code: response.code,
           body: response.body,
-          description: self.http_reason(code: response.code),
+          description: http_reason(code: response.code),
           content: {
             type: nil,
             length: 0
