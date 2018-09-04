@@ -133,9 +133,9 @@ module SP
       # in the path of ssh user
       #
       # Also make sure the job using this method has the following configuration parameers
-      #   1. config[:uploads][:local] true if this machine is also the upload server
-      #   2. config[:uploads][:local] name of upload host with ssh access
-      #   3. config[:uploads][:path] base path of for file uploads server on the local or remote machine
+      #   1. config[:scp_config][:local] true if this machine is also the upload server
+      #   2. config[:scp_config][:local] name of upload host with ssh access
+      #   3. config[:scp_config][:path] base path of for file uploads server on the local or remote machine
       #
       # @param src_file name of local file to upload
       # @param id entity id user_id or company_id
@@ -146,12 +146,12 @@ module SP
       def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder: nil)
         folder ||= get_random_folder
         remote_path = File.join(entity, id_to_path(id.to_i), folder)
-        if config[:uploads][:local] == true
-          destination_file = ::SP::Job::Unique::File.create(File.join(config[:uploads][:path], remote_path), extension)
+        if config[:scp_config][:local] == true
+          destination_file = ::SP::Job::Unique::File.create(File.join(config[:scp_config][:path], remote_path), extension)
           FileUtils.cp(src_file, destination_file)
         else
-          uploads_server = config[:uploads][:server]
-          destination_file = %x[ssh #{uploads_server} unique-file -p #{File.join(config[:uploads][:path], remote_path)} -e #{extension[1..-1]}].strip
+          uploads_server = config[:scp_config][:server]
+          destination_file = %x[ssh #{uploads_server} unique-file -p #{File.join(config[:scp_config][:path], remote_path)} -e #{extension[1..-1]}].strip
           if $?.exitstatus == 0
             %x[scp #{src_file} #{uploads_server}:#{destination_file}]
             raise_error(message: 'i18n_upload_to_server_failed') if $?.exitstatus != 0
@@ -173,7 +173,7 @@ module SP
       # @return When tmp_dir is set file URI otherwise file body.
       #
       def get_from_upload_server(file:, tmp_dir:)
-        response = Net::HTTP.get_response(URI("#{config[:uploads][:protocol]}://#{config[:uploads][:server]}:#{config[:uploads][:port]}/#{config[:uploads][:path]}/#{file}"))
+        response = Net::HTTP.get_response(URI("#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}"))
         if 200 != response.code.to_i
           raise "#{response['Status']}"
         end
