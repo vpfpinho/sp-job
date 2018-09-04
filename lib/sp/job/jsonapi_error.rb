@@ -14,6 +14,7 @@ module SP
     module JSONAPI
 
       class Error < ::SP::Job::Common::Exception
+        include ::SP::Job::HttpStatusCode
 
         def initialize(status:, code:, detail:, internal:nil)
           body = {
@@ -21,7 +22,7 @@ module SP
                {
                  code: "#{code}",
                  detail: "#{detail}",
-                 status: "#{status} - #{::SP::Job::BrokerHTTPClient.reason(code: status)}"
+                 status: "#{status} - #{self.http_reason(code: status)}"
                }
             ]
           }

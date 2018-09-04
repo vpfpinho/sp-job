@@ -23,21 +23,28 @@
 # A helper class to do HTTP request without session management.
 #
 
-require 'curb'
+require 'net/http'
+require 'uri'
 
 module SP
   module Job
-    class CurlHTTPClient
+    class NetHTTPClient
       extend ::SP::Job::HttpStatusCode
 
       def self.post(url:, headers:, body:, expect:)
-        # since we're not auto-renew tokens, we can use a simple CURL request
-        r = Curl::Easy.http_post(url, body) do |handle|
-          headers.each do |k,v|
-            handle.headers[k] = v
-          end
+        uri = URI.parse(url)
+        http = Net::HTTP.new(uri.host, uri.port)
+
+        request = Net::HTTP::Post.new(uri.request_uri)
+        request.body = body
+
+        headers.each do |k,v|
+          request[k] = v
         end
-        nr = self.normalize_response(curb_r: r)
+
+        r = http.request(request)
+
+        nr = self.normalize_response(response: r)
         # compare status code
         if nr[:code] != expect[:code]
           if 401 == nr[:code]
@@ -56,27 +63,26 @@ module SP
 
       private
 
-      def self.normalize_response(curb_r:)
-        http_response, *http_headers = curb_r.header_str.split(/[\r\n]+/).map(&:strip)
+      def self.normalize_response(response:)
         o = {
-          code: curb_r.response_code,
-          body: curb_r.body,
-          description: self.http:_reason(code: curb_r.response_code),
+          code: response.code.to_i,
+          body: response.body,
+          description: self.http_reason(code: response.code.to_i),
           content: {
             type: nil,
             length: 0
           }
-         }
-        http_headers.each do |header|
-          m = header.match("(^Content-Type){1}:\s(.*){1}")
-          if nil != m && 3 == m.length
-            o[:content][:type] = m[2]
-          end
-          m = header.match("(^Content-Length){1}:\s\([0-9]+){1}")
-          if nil != m && 3 == m.length
-            o[:content][:length] = m[2]
+        }
+
+        response.header.each_header do |key, value|
+          case key
+          when 'content-type'
+            o[:content][:type] = value
+          when 'content-length'
+            o[:content][:length] = value
           end
         end
+
         o
       end
 

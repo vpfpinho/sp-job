@@ -578,7 +578,7 @@ module SP
           payload: payload
         )
 
-        pdf_response = CurlHTTPClient.post(
+        pdf_response = NetHTTPClient.post(
           url: get_cdn_public_url,
           headers: {
             'Content-Type' => 'application/text'
