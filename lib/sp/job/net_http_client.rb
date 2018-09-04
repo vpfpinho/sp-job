@@ -23,8 +23,8 @@
 # A helper class to do HTTP request without session management.
 #
 
-require 'net/http'
-require 'uri'
+# require 'net/http'
+# require 'uri'
 
 module SP
   module Job
@@ -32,33 +32,41 @@ module SP
       extend ::SP::Job::HttpStatusCode
 
       def self.post(url:, headers:, body:, expect:)
-        uri = URI.parse(url)
-        http = Net::HTTP.new(uri.host, uri.port)
+        # uri = URI.parse(url)
+        # http = Net::HTTP.new(uri.host, uri.port)
+        #
+        # request = Net::HTTP::Post.new(uri.request_uri)
+        # request.body = body
+        #
+        # headers.each do |k,v|
+        #   request[k] = v
+        # end
+        #
+        # r = http.request(request)
+        #
+        # nr = self.normalize_response(response: r)
+        # # compare status code
+        # if nr[:code] != expect[:code]
+        #   if 401 == nr[:code]
+        #     raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'A01', detail: nil)
+        #   else
+        #     raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'B01', detail: nil)
+        #   end
+        # end
+        # # compare content-type
+        # if nr[:content][:type] != expect[:content][:type]
+        #   raise ::SP::Job::JSONAPI::Error.new(status: 500, code: 'I01', detail: "Unexpected 'Content-Type': #{nr[:content][:type]}, expected #{expect[:content][:type]}!")
+        # end
+        # # done
+        # nr
+        client = Manticore::Client.new
+        response = client.post(url, body: body, headers: headers)
 
-        request = Net::HTTP::Post.new(uri.request_uri)
-        request.body = body
 
-        headers.each do |k,v|
-          request[k] = v
-        end
-
-        r = http.request(request)
-
-        nr = self.normalize_response(response: r)
-        # compare status code
-        if nr[:code] != expect[:code]
-          if 401 == nr[:code]
-            raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'A01', detail: nil)
-          else
-            raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'B01', detail: nil)
-          end
-        end
-        # compare content-type
-        if nr[:content][:type] != expect[:content][:type]
-          raise ::SP::Job::JSONAPI::Error.new(status: 500, code: 'I01', detail: "Unexpected 'Content-Type': #{nr[:content][:type]}, expected #{expect[:content][:type]}!")
-        end
-        # done
-        nr
+        ap response.code
+        ap response.body
+        ap response.headers
+        nil
       end
 
       private

@@ -34,6 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'backburner'
   spec.add_dependency 'pg'            unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'jruby-pg'      if     RUBY_ENGINE == 'jruby'
+  spec.add_dependency 'manticore'     if     RUBY_ENGINE == 'jruby'
   spec.add_dependency 'curb'          unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'oauth2'        unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'oauth2-client' unless RUBY_ENGINE == 'jruby'
