@@ -173,7 +173,7 @@ module SP
       # @return When tmp_dir is set file URI otherwise file body.
       #
       def get_from_upload_server(file:, tmp_dir:)
-        response = HttpClient.get_klass.get("#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}")
+        response = HttpClient.get_klass.get(url: "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}")
         if 200 != response[:code]
           raise "#{response[:code]}"
         end
