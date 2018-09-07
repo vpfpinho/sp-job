@@ -70,17 +70,22 @@ class ClusterMember
   #
   def self.configure_cluster
     $cluster_members = {}
+    match = $pg.conn_str.match(%r[.*application_name=(\w+).*])
+
+    if !match.nil? && match.size == 2
+      app_name = " application_name=#{match[1]}"
+    else
+      app_name = ''
+    end
+
     $config[:cluster][:members].each do |cfg|
-      cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } application_name=toconline-login"
-      if cfg[:db][:conn_str] == $pg.conn_str
+      cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } #{app_name}"
+      if cfg[:number] == $config[:runs_on_cluster]
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
-        flags = ' *'
       else
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id])
-        flags = ' '
       end
-      flags += '<=' if cfg[:number] == $config[:runs_on_cluster]
-      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{flags}"
+      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
     end
   end
 
@@ -124,8 +129,8 @@ module SP
     class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
       def initialize
         self.job_status = {}
-        if $config[:options] && $config[:options][:jsonapi] == true
-          self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, nil, SP::Job::JobDbAdapter)
+        if $config[:jsonapi] && $config[:jsonapi][:prefix]
+          self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
         end
       end
     end
@@ -533,9 +538,6 @@ if $config[:postgres] && $config[:postgres][:conn_str]
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
-  end
-  if $config[:options][:jsonapi] == true
-    $jsonapi = SP::Duh::JSONAPI::Service.new($pg, ($jsonapi.nil? ? nil : $jsonapi.url), SP::Job::JobDbAdapter)
   end
 end
 

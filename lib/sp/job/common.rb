@@ -102,6 +102,10 @@ module SP
         thread_data.jsonapi.adapter
       end
 
+      def has_jsonapi
+        return thread_data.jsonapi != nil
+      end
+
       #
       # You should not use this method ... unless ... you REALLY need to overide the JSON:API
       # parameters defined by the JOB object
@@ -246,8 +250,7 @@ module SP
         td.job_id               = job[:id]
         td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        if $config[:options] && $config[:options][:jsonapi] == true && !job[:prefix].blank?
-          td.jsonapi.set_url(job[:prefix])
+        if has_jsonapi
           set_jsonapi_parameters(job)
         end
 
