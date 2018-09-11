@@ -446,6 +446,44 @@ module SP
         ERB.new(erb_template).result(erb_binding)
       end
 
+      def manage_notification(options = {}, notification = {})
+
+        options = {
+          service: 'toc-dev',
+          type: 'notifications',
+          action: :new
+        }.merge(options)
+
+        if options[:redis]
+          $redis = options[:redis]
+        end
+
+        redis_key = {
+          key: [options[:service], options[:type], options[:entity], options[:entity_id]].join(":"),
+          public_key: [options[:service], options[:entity], options[:entity_id]].join(":")
+        }
+
+        # ap [options, redis_key]
+
+        if options[:action] == :new
+
+          notification.merge!({id: SecureRandom.hex})
+          response_object = notification
+
+          # ap ["notification SADD => ", notification]
+          $redis.sadd redis_key[:key], "#{notification.to_json}"
+        else
+          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}*" })
+
+          if match_member && match_member[1][0]
+            response_object = { id: notification[:identity], destroy: true }
+            $redis.srem redis_key[:key], "#{match_member[1][0]}"
+          end
+        end
+
+        $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+      end
+
       def send_email (args)
 
         if args.has_key?(:body) && args[:body] != nil
