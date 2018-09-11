@@ -466,6 +466,10 @@ module SP
         # ap [options, redis_key]
 
         if options[:action] == :new
+          
+          # notification = {
+          #   until: "2018-12-31T23:59:00.000Z" #
+          # }.merge(notification)
 
           notification.merge!({id: SecureRandom.hex})
           response_object = notification
