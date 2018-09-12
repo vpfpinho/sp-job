@@ -111,7 +111,7 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
+        thread_data.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(params))
       end
 
       #

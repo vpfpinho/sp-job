@@ -130,7 +130,7 @@ module SP
       def initialize
         self.job_status = {}
         if $config[:jsonapi] && $config[:jsonapi][:prefix]
-          self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
+          self.jsonapi = SP::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
         end
       end
     end
