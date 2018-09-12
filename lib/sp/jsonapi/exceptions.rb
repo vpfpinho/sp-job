@@ -4,17 +4,17 @@ module SP
 
       # JSONAPI service and configuration errors
 
-      class ServiceSetupError < SP::Exceptions::GenericError ; ; end
-      class ServiceProtocolError < SP::Exceptions::GenericDetailedError ; ; end
-      class InvalidResourceConfigurationError < SP::Exceptions::GenericDetailedError ; ; end
-      class InvalidResourcePublisherError < SP::Exceptions::GenericDetailedError ; ; end
-      class DuplicateResourceError < SP::Exceptions::GenericDetailedError ; ; end
-      class SaveConfigurationError < SP::Exceptions::GenericError ; ; end
-      class InvalidJSONAPIKeyError < SP::Exceptions::GenericDetailedError ; ; end
+      class ServiceSetupError < StandardError ; ; end
+      class ServiceProtocolError < StandardError ; ; end
+      class InvalidResourceConfigurationError < StandardError ; ; end
+      class InvalidResourcePublisherError < StandardError ; ; end
+      class DuplicateResourceError < StandardError ; ; end
+      class SaveConfigurationError < StandardError ; ; end
+      class InvalidJSONAPIKeyError < StandardError ; ; end
 
       # JSONAPI model querying errors
 
-      class GenericModelError < SP::Exceptions::GenericError
+      class GenericModelError < StandardError
 
         attr_reader :id
         attr_reader :status

@@ -111,7 +111,11 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
+        if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
+          thread_data.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(params))
+        else
+          thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
+        end
       end
 
       #

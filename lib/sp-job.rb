@@ -51,14 +51,13 @@ require 'sp/job/broker_oauth2_client'  unless RUBY_ENGINE == 'jruby'
 # JSONAPI library classes
 require 'sp/jsonapi'
 require 'sp/jsonapi/exceptions'
-require 'sp/jsonapi/resource_publisher'
 # Parameters class
 require 'sp/jsonapi/parameters'
 # Service classes
 require 'sp/jsonapi/service'
-require 'sp/jsonapi/configuration'
 # Adpater classes
 require 'sp/jsonapi/adapters/base'
 require 'sp/jsonapi/adapters/raw_db'
 require 'sp/jsonapi/adapters/db'
+
 require 'sp/jsonapi/model/base'
