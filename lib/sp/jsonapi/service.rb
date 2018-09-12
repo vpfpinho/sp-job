@@ -14,7 +14,6 @@ module SP
       def connection ; @pg_connection ; end
       def url ; @url ; end
       def set_url(value) ; @url = value ; end
-      def configuration ; @configuration ; end
       def adapter
         raise Exceptions::ServiceSetupError.new('JSONAPI prefix not specified', nil) if url.blank?
         @adapter_instance ||= @adapter.new(self)
@@ -34,18 +33,8 @@ module SP
         @pg_connection = pg_connection
         @url           = url
         protocol       = :db
-        @configuration = Configuration.new(pg_connection, url)
         @adapter       = default_adapter
         adapter unless url.nil?
-      end
-
-      def setup
-        begin
-          create_jsonapi_function()
-        rescue StandardError => e
-          raise Exceptions::ServiceSetupError.new(nil, e)
-        end
-        configuration.setup()
       end
 
       def close
@@ -53,7 +42,6 @@ module SP
         @adapter_instance = nil
         @adapter          = nil
         @url              = nil
-        @configuration    = nil
       end
 
       def set_jsonapi_parameters(parameters = nil) ; @parameters = parameters ; end
