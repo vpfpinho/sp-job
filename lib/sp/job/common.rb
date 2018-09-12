@@ -111,7 +111,7 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        thread_data.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(params))
+        thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
       end
 
       #
@@ -466,7 +466,7 @@ module SP
         # ap [options, redis_key]
 
         if options[:action] == :new
-          
+
           # notification = {
           #   until: "2018-12-31T23:59:00.000Z" #
           # }.merge(notification)

@@ -3,7 +3,7 @@ module SP
 
     unless RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
 
-      class JobDbAdapter < ::SP::JSONAPI::Adapters::Db
+      class JobDbAdapter < ::SP::Duh::JSONAPI::Adapters::Db
 
         private
 
