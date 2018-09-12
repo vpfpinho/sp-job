@@ -62,5 +62,3 @@ require 'sp/jsonapi/adapters/base'
 require 'sp/jsonapi/adapters/raw_db'
 require 'sp/jsonapi/adapters/db'
 require 'sp/jsonapi/model/base'
-# API documentationlibrary classes
-require 'sp/jsonapi/doc/generator'
