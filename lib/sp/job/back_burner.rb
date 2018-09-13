@@ -269,7 +269,11 @@ Backburner.configure do |config|
             end
             update_progress(args)
           else
-            raise_error(message: e)
+            if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
+              raise_error(message: e)
+            else
+              raise_error(message: 'i18n_unexpected_server_error')
+            end
           end
 
         rescue
