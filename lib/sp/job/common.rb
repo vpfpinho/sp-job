@@ -467,29 +467,53 @@ module SP
           public_key: [options[:service], options[:entity], options[:entity_id]].join(":")
         }
 
-        # ap [options, redis_key]
-
         if options[:action] == :new
 
           # notification = {
           #   until: "2018-12-31T23:59:00.000Z" #
           # }.merge(notification)
 
-          notification.merge!({id: SecureRandom.hex})
           response_object = notification
 
           # ap ["notification SADD => ", notification]
           $redis.sadd redis_key[:key], "#{notification.to_json}"
-        else
-          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}*" })
+          $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+          ap ["REDIS PUBLISH NEW", redis_key[:public_key], response_object.to_json]
+        elsif options[:action] == :update
+
+          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
 
           if match_member && match_member[1][0]
-            response_object = { id: notification[:identity], destroy: true }
+
+            notification.merge!({id: notification[:identity]}) if notification[:identity]
+            response_object = notification
+
             $redis.srem redis_key[:key], "#{match_member[1][0]}"
+            notification.delete(:identity)
+            $redis.sadd redis_key[:key], "#{notification.to_json}"
+            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+
+            ap ["REDIS PUBLISH UPDATE", redis_key[:public_key], response_object.to_json]
+
+          else
+            puts 'nothing to update'
           end
+        else
+
+          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
+          if match_member && match_member[1].any?
+            response_object = { id: notification[:identity], destroy: true } if notification[:identity]
+            $redis.srem redis_key[:key], "#{match_member[1][0]}"
+            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+
+            ap ["REDIS PUBLISH DESTROY", redis_key[:public_key], response_object.to_json]
+
+          else
+            puts 'nothing to destroy'
+          end
+
         end
 
-        $redis.publish redis_key[:public_key], "#{response_object.to_json}"
       end
 
       def send_email (args)
