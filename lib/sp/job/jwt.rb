@@ -63,6 +63,24 @@ module SP
         })
       end
 
+      # Submit a jwt for a job
+      def self.submit (url:, jwt:)
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: {
+            'Content-Type' => 'application/text'
+          },
+          body: jwt,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/json'
+            }
+          }
+        )
+        response
+      end
+
     end # end class 'JWT'
   end # module Job
 end# module SP
