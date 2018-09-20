@@ -197,6 +197,26 @@ module SP
       end
 
       #
+      # Submit jwt
+      #
+      def submit_jwt (url, jwt)
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: {
+            'Content-Type' => 'application/text'
+          },
+          body: jwt,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/json'
+            }
+          }
+        )
+        response
+      end
+
+      #
       # Submit job to beanstalk queue
       #
       # Mandatory (symbolized) keys in args:
