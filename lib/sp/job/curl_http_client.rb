@@ -25,6 +25,7 @@
 
 require 'curb'
 require_relative 'easy_http_client'
+require_relative 'jsonapi_error'
 
 module SP
   module Job

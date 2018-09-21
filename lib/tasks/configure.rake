@@ -492,6 +492,7 @@ task :configure, [ :action ] do |task, args|
       @job_args        = ''
       @job_exec        = @config.bundle_exec
       @job_working_dir = @config.paths.working_directory
+      @job_environment = nil
       if job
         if job.args
           job.args.to_h.each do | k, v |
@@ -503,6 +504,9 @@ task :configure, [ :action ] do |task, args|
         end
         if job.working_directory_suffix
           @job_working_dir += "/#{job.working_directory_suffix}"
+        end
+        if job.environment
+          @job_environment = "#{job.environment}"
         end
       end
       puts "  #{name}:"
