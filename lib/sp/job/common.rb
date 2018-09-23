@@ -506,25 +506,29 @@ module SP
           # ap ["notification SADD => ", notification]
           $redis.sadd redis_key[:key], "#{notification.to_json}"
           $redis.publish redis_key[:public_key], "#{response_object.to_json}"
-          ap ["REDIS PUBLISH NEW", redis_key[:public_key], response_object.to_json]
+          # ap ["REDIS PUBLISH NEW", redis_key[:public_key], response_object.to_json]
         elsif options[:action] == :update
 
-          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
+          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:id]}\"*" })
 
           if match_member && match_member[1][0]
 
-            notification.merge!({id: notification[:identity]}) if notification[:identity]
+            notification.merge!({id: notification[:id]}) if notification[:id]
             response_object = notification
 
             $redis.srem redis_key[:key], "#{match_member[1][0]}"
             notification.delete(:identity)
             $redis.sadd redis_key[:key], "#{notification.to_json}"
-            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
 
-            ap ["REDIS PUBLISH UPDATE", redis_key[:public_key], response_object.to_json]
+            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+            # ap ["REDIS PUBLISH UPDATE", redis_key[:public_key], response_object.to_json]
 
           else
-            puts 'nothing to update'
+            # puts 'nothing to update [[better insert]]'
+            manage_notification(
+              options.merge({action: :new}),
+              notification
+            )
           end
         else
 
