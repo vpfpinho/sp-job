@@ -383,6 +383,7 @@ module SP
         else
           update_progress(args)
         end
+        signal_job_termination(td)
         td.job_id = nil
       end
 
@@ -398,6 +399,7 @@ module SP
         update_progress(args)
         logger.error(args)
         td.exception_reported = true
+        signal_job_termination(td)
         td.job_id = nil
       end
 
@@ -446,6 +448,12 @@ module SP
           }
         end
         td.report_time_stamp = Time.now.to_f
+      end
+
+      def signal_job_termination (td)
+        redis do |r|
+          r.publish $config[:service_id] + ':job-signal', { channel: td.publish_key, id: td.job_id.to_i, status: 'finished' }.to_json
+        end
       end
 
       def expand_mail_body (template)
@@ -656,7 +664,6 @@ module SP
         td = thread_data
         new_delay = jobs[:validity].to_i + (delay.to_i * count)
         $redis.expire(td.job_key, new_delay)
-        # puts "INITIAL #{jobs[:validity]} / DELAY #{delay} ==> NEW validity #{new_delay} | #{count}".red
       end
 
       def print_and_archive(payload, entity_id)
@@ -729,6 +736,7 @@ module SP
         end
         cdn_public_url
       end
+
     end # Module Common
   end # Module Job
 end # Module SP

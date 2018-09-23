@@ -35,7 +35,7 @@ module SP
       # jwt_validity: Must be set in hours
       # tube: Name of the tube
       # ttr: Job max execution time in seconds
-      # pyaload: Data to be used on the job
+      # payload: Data to be used on the job
       def self.jobify(key:, jwt_validity: 24, tube:, ttr: 8600, payload:)
         # UTC timestamp
         now        = Time.now.getutc.to_i
