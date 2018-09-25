@@ -618,7 +618,7 @@ module SP
         m.deliver!
       end
 
-      def pg_server_error(e)
+      def pg_server_error (e)
         raise e if e.is_a?(::SP::Job::JobCancelled)
         base_exception = e
         while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
@@ -662,7 +662,7 @@ module SP
         ]
       end
 
-      def get_percentage(total: 1, count: 0) ; (total > 0 ? (count * 100 / total) : count).to_i ; end
+      def get_percentage (total: 1, count: 0) ; (total > 0 ? (count * 100 / total) : count).to_i ; end
 
       def on_retry_job (count, delay, jobs)
         td = thread_data
@@ -670,7 +670,7 @@ module SP
         $redis.expire(td.job_key, new_delay)
       end
 
-      def print_and_archive(payload, entity_id)
+      def print_and_archive (payload, entity_id)
         payload[:ttr]            ||= 300
         payload[:validity]       ||= 500
         payload[:auto_printable] ||= false

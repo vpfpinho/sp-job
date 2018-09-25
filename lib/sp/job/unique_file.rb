@@ -63,7 +63,7 @@ module SP
           return nil if r != 0
           return nil if ptr.null?
 
-          rv = ptr.read_string
+          rv = ptr.read_string.force_encoding('UTF-8')
 
           return rv
         end
@@ -98,7 +98,7 @@ module SP
           return nil if r != 0
           return nil if ptr.null?
 
-          rv = ptr.read_string
+          rv = ptr.read_string.force_encoding('UTF-8')
 
           return rv
         end
