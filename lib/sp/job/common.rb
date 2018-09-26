@@ -274,6 +274,7 @@ module SP
         td.job_id               = job[:id]
         td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        td.job_tube             = (job[:tube] || $args[:program_name])
         if has_jsonapi
           set_jsonapi_parameters(job)
         end
@@ -350,7 +351,11 @@ module SP
         args[:content_type] ||= 'application/json'
         args[:response]     ||= {}
         args[:status_code]  ||= 200
-        if $raw_response && $transient_job
+        # $raw_response cam either be:
+        # - a Boolean (true or false)
+        # - an Array of tube names; in this case, the response is raw if the current tube name is one of the Array names
+        is_raw_response = ($raw_response.is_a?(Array) ? td.job_tube.in?($raw_response) : $raw_response)
+        if is_raw_response && $transient_job
           response = '*'
           response << args[:status_code].to_s
           response << ','

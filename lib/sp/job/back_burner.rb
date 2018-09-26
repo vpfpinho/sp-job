@@ -126,7 +126,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube)
       def initialize
         self.job_status = {}
         if $config[:jsonapi] && $config[:jsonapi][:prefix]
@@ -539,7 +539,10 @@ logger.debug "PID ........ #{Process.pid}"
 $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == "broker" )
-$raw_response  = $config[:options] && $config[:options][:raw_response] == true
+# raw_response, in the job conf.json cam either be:
+# - a Boolean (true or false)
+# - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
+$raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
