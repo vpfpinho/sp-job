@@ -33,8 +33,8 @@ module SP
 
       def initialize (configuration:, serviceId:, multithread: false, programName: 'foo', redis:)
         @sid           = serviceId
-        @access_ttl    = 200
-        @refresh_ttl   = 300
+        @access_ttl    = 6 * 3600
+        @refresh_ttl   = 400
         @tolerance_ttl = 120 # Time a deleted token will remain "alive"
         @redis         = redis
         @session_base  = {
@@ -101,7 +101,7 @@ module SP
           session = r.hgetall(key)
           r.expire(key, @tolerance_ttl)
         end
-        session.merge(patch)
+        session.merge!(patch)
         return create_token(patch: session)
       end
 
