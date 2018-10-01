@@ -87,7 +87,11 @@ module SP
         redis do |r|
           session = r.hgetall(key)
         end
-        return session
+        rv = Hash.new
+        session.each do |key,value|
+          rv[key.to_sym] = value
+        end
+        return rv
       end
 
       def patch (token:, patch:)
