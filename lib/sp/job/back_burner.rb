@@ -19,6 +19,7 @@
 # encoding: utf-8
 #
 require 'sp/job/pg_connection'
+require 'sp/job/session'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
 require 'roadie'
@@ -30,6 +31,7 @@ require 'thread'
 class ClusterMember
 
   attr_reader :redis     # connection to cluster redis
+  attr_reader :session   # access to redis session
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
   attr_reader :config    # cluster configuration read from the conf.json
@@ -44,6 +46,7 @@ class ClusterMember
   #
   def initialize (configuration:, serviceId:, db: nil)
     @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
+    @session = ::SP::Job::Session.new(configuration: configuration, serviceId: serviceId, redis: @redis, programName: $args[:program_name])
     if db.nil?
       @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db])
     else
@@ -539,7 +542,7 @@ logger.debug "PID ........ #{Process.pid}"
 $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == "broker" )
-# raw_response, in the job conf.json cam either be:
+# raw_response, in the job conf.json can either be:
 # - a Boolean (true or false)
 # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
 $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)

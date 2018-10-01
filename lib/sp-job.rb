@@ -35,6 +35,7 @@ require 'ostruct'
 require 'json'
 require 'mail'
 require 'uri'
+require 'securerandom'
 
 require 'sp/job'
 require 'sp/job/version'

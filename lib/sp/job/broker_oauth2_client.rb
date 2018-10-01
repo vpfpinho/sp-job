@@ -141,7 +141,7 @@ module SP
       #
       # Unauthorized User
       #
-      class UnauthorizedUser< Error
+      class UnauthorizedUser < Error
         def initialize(a_description)
           super "unauthorized_user", a_description
         end
@@ -198,7 +198,7 @@ module SP
           handle          = Curl::Easy.new(url)
           headers.each do |key, value|
             handle.headers[key] = value
-          end         
+          end
 
           case http_method
           when :get
@@ -208,7 +208,7 @@ module SP
             args = []
             params.each do |key, value|
               args << Curl::PostField.content(key, value)
-            end            
+            end
             handle.http_post(args)
             return Response.new(code: handle.response_code.to_s, body: handle.body_str)
           when :delete
