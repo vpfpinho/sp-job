@@ -103,7 +103,9 @@ module SP
             session[key] = value
           end
         end
-        return create_token(patch: session)
+        at, rt = create_token(patch: session)
+        dispose(:token token)
+        return at,rt
       end
 
       def dispose (token:, timeleft: nil)
