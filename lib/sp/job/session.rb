@@ -108,6 +108,20 @@ module SP
         return at,rt
       end
 
+      def x_patch (source:, token:, patch:)
+        session = source.get(token: token)
+        patch.each do |key, value|
+          if value.nil?
+            session.delete(key)
+          else
+            session[key] = value
+          end
+        end
+        at, rt = create_token(patch: session)
+        source.dispose(:token token)
+        return at,rt
+      end
+
       def dispose (token:, timeleft: nil)
         timeleft ||= @tolerance_ttl
         key = "#{@sid}:oauth:access_token:#{token}"
