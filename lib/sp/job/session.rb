@@ -31,9 +31,9 @@ module SP
       attr_reader :access_ttl
       attr_reader :refresh_ttl
 
-      def initialize (configuration:, serviceId:, multithread: false, programName: 'foo', redis:)
+      def initialize (configuration:, serviceId:, multithread: false, programName:, redis:)
         @sid           = serviceId
-        @access_ttl    = 6 * 3600
+        @access_ttl    = 6 * 3600 # TODO read from redadis conf
         @refresh_ttl   = 400
         @tolerance_ttl = 120 # Time a deleted token will remain "alive"
         @redis         = redis
@@ -95,13 +95,14 @@ module SP
       end
 
       def patch (token:, patch:)
-        key = "#{@sid}:oauth:access_token:#{token}"
-        session = nil
-        redis do |r|
-          session = r.hgetall(key)
-          r.expire(key, @tolerance_ttl)
+        session = get(token: token)
+        patch.each do |key, value|
+          if value.nil?
+            session.delete(key)
+          else
+            session[key] = value
+          end
         end
-        session.merge!(patch)
         return create_token(patch: session)
       end
 
