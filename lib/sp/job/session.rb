@@ -104,7 +104,7 @@ module SP
           end
         end
         at, rt = create_token(patch: session)
-        dispose(:token token)
+        dispose(token: token)
         return at,rt
       end
 
@@ -118,7 +118,7 @@ module SP
           end
         end
         at, rt = create_token(patch: session)
-        source.dispose(:token token)
+        source.dispose(token: token)
         return at,rt
       end
 
