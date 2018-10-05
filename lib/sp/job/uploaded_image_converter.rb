@@ -23,24 +23,23 @@
 #
 # How to use this to implement a customized image conversion
 #
-# require 'rmagick'
 # require 'sp-job'
 # require 'sp/job/back_burner'
 # require 'sp/job/uploaded_image_converter'
-# 
+#
 # class CLASSNAME < ::SP::Job::UploadedImageConverter
-# 
+#
 #   def self.perform(job)
-# 
+#
 #     ... Your code before the image conversion ...
 #
 #     SP::Job::UploadedImageConverter.perform(job)
-# 
+#
 #     ... your code after the conversion ...
 #
 #   end
 # end
-# 
+#
 # Backburner.work
 #
 
@@ -60,7 +59,7 @@ module SP
 
         #
         # Check the original image, check format and limits
-        # 
+        #
         FileUtils::mkdir_p destination
         update_progress(progress: progress, message: 'i18n_reading_original_$image', image: job[:original])
         img_info = %x[identify #{original}]
@@ -68,7 +67,7 @@ module SP
         if $?.success? == false
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
-        if m.nil? || m.size != 4 
+        if m.nil? || m.size != 4
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
         unless config[:options][:formats].include? m[1]
@@ -87,7 +86,12 @@ module SP
         # Iterate the copies array
         #
         job[:copies].each do |copy|
-          %x[convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
+          if config[:scp_config][:local]
+            puts "convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}"
+            %x[convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
+          else
+            puts "ssh @config.paths.remote_uploads_storage"
+          end
           unless $?.success?
             raise_error(message: 'i18n_internal_error', info: "convert failed to scale #{original} to #{copy[:geometry]}")
           end
@@ -97,11 +101,10 @@ module SP
           barrier = false
         end
 
+        #
         # Closing arguments, all done
-        send_response(message: 'i18n_image_conversion_complete', link: File.join('/',job[:entity], id_to_path(job[:to_entity_id]), job[:folder], 'logo_template.png'))
-
-        # Remove original file
-        FileUtils::rm_f(original) if config[:options][:delete_originals] 
+        #
+        send_response(message: 'i18n_image_conversion_complete', response: { hostname: config[:urls][:upload_public], path: File.join('/',job[:entity], id_to_path(job[:to_entity_id]), job[:folder])})
 
       end
 
