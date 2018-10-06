@@ -54,15 +54,25 @@ module SP
 
         step        = 100 / (job[:copies].size + 1)
         progress    = step
-        original    = File.join(config[:paths][:temporary_uploads], job[:original])
-        destination = File.join(config[:paths][:uploads_storage], job[:entity], id_to_path(job[:to_entity_id]), job[:folder])
+        original    = File.join(config[:scp_config][:temp_uploads], job[:original])
+        destination = File.join(config[:scp_config][:path], job[:entity], id_to_path(job[:to_entity_id]), job[:folder])
+
+        if config[:scp_config][:local]
+          ssh = ''
+          FileUtils::mkdir_p destination
+        else
+          ssh = "ssh #{config[:scp_config][:server]} "
+          %x[#{ssh}mkdir -p #{destination}]
+          unless $?.success?
+            raise_error(message: 'i18n_internal_error', info: "unable to create remote directory")
+          end
+        end
 
         #
         # Check the original image, check format and limits
         #
-        FileUtils::mkdir_p destination
-        update_progress(progress: progress, message: 'i18n_reading_original_$image', image: job[:original])
-        img_info = %x[identify #{original}]
+        update_progress(progress: progress, message: 'i18n_reading_original_$image', image: job[:original_file_path] || job[:original])
+        img_info = %x[#{ssh}identify #{original}]
         m = %r[.*\.ul\s(\w+)\s(\d+)x(\d+)\s.*].match img_info
         if $?.success? == false
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
@@ -86,12 +96,7 @@ module SP
         # Iterate the copies array
         #
         job[:copies].each do |copy|
-          if config[:scp_config][:local]
-            puts "convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}"
-            %x[convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
-          else
-            puts "ssh @config.paths.remote_uploads_storage"
-          end
+          %x[#{ssh}convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
           unless $?.success?
             raise_error(message: 'i18n_internal_error', info: "convert failed to scale #{original} to #{copy[:geometry]}")
           end
