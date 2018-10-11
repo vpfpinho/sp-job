@@ -74,6 +74,13 @@ module SP
         $user_db
       end
 
+      def main_bo_db
+        if $main_bo_db.nil?
+          $main_bo_db = $cluster_members[config[:cluster][:main_bo_db]].db
+        end
+        $main_bo_db
+      end
+
       def redis
         # callback is not optional
         if $redis_mutex.nil?
