@@ -569,7 +569,7 @@ module SP
         end
 
         submit_job(
-            tube: 'mail-queue',
+            tube: args[:'mail-queue-tube'] || 'mail-queue',
             job: {
               to:       args[:to],
               subject:  args[:subject],
