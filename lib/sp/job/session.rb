@@ -33,17 +33,16 @@ module SP
 
       def initialize (configuration:, serviceId:, multithread: false, programName:, redis:)
         @sid           = serviceId
-        @access_ttl    = 6 * 3600 # TODO read from redadis conf
-        @refresh_ttl   = 400
-        @tolerance_ttl = 120 # Time a deleted token will remain "alive"
+        @access_ttl    = configuration[:oauth2][:access_ttl]  || (6 * 3600)  # Duration of the access tokens
+        @refresh_ttl   = configuration[:oauth2][:refresh_ttl] || (400)       # Duration of the refresh tokens
+        @tolerance_ttl = configuration[:oauth2][:deleted_ttl] || 30          # Time a deleted token will remain "alive"
         @redis         = redis
         @session_base  = {
           patched_by:   programName,
           client_id:    configuration[:oauth2][:client_id],
           redirect_uri: configuration[:oauth2][:redirect_uri],
           scope:        configuration[:oauth2][:scope],
-          issuer:       programName,
-          on_refresh_issue_new_pair: true
+          issuer:       programName
         }
 
         if multithread
@@ -69,20 +68,33 @@ module SP
         end
       end
 
+      #
+      # @param patch symbolicated hash with session data
+      # @param
+      # keys with nil value are not set
+      #
       def create (patch:, with_refresh: false)
+        session = patch.merge(@session_base)
+        session[:created_at] = Time.new.iso8601
         if with_refresh
-          refresh_token = create_token(patch: patch, refresh_token: true)
-          patch[:refresh_token] = refresh_token
+          refresh_token = create_token(session: session, refresh_token: true)
+          session[:refresh_token] = refresh_token
         else
-          patch.delete(:refresh_token)
+          session.delete(:refresh_token)
           refresh_token = nil
         end
-        access_token = create_token(patch: patch)
+        access_token = create_token(session: session)
         return access_token, refresh_token
       end
 
-      def get (token:)
-        key = "#{@sid}:oauth:access_token:#{token}"
+      #
+      # Retrieve session hash from redis, keys are symbolicated
+      #
+      # @param token The access or refresh token
+      # @param refresh true for refresh, false for access_token
+      #
+      def get (token:, refresh: false)
+        key = "#{@sid}:oauth:#{refresh ? 'refresh_token' : 'access_token'}:#{token}"
         session = nil
         redis do |r|
           session = r.hgetall(key)
@@ -94,8 +106,17 @@ module SP
         return rv
       end
 
+      #
+      # Create a new session by merging an existing session with the given patch
+      #
+      # @param token The access token to retrieve the original session hash
+      # @param patch a symbolicated hash that will overide existing keys and/or add new ones
+      #
+      # @note Use null values on the patch to delete keys from the original session
+      #
       def patch (token:, patch:)
         session = get(token: token)
+        refresh_token = session[:refresh_token]
         patch.each do |key, value|
           if value.nil?
             session.delete(key)
@@ -103,13 +124,14 @@ module SP
             session[key] = value
           end
         end
-        at, rt = create_token(patch: session)
-        dispose(token: token)
+        at, rt = create(patch: session, with_refresh: refresh_token != nil)
+        dispose(token: token, refresh_token: refresh_token)
         return at,rt
       end
 
       def x_patch (source:, token:, patch:)
         session = source.get(token: token)
+        refresh_token = session[:refresh_token]
         patch.each do |key, value|
           if value.nil?
             session.delete(key)
@@ -117,32 +139,53 @@ module SP
             session[key] = value
           end
         end
-        at, rt = create_token(patch: session)
-        source.dispose(token: token)
+        at, rt = create(patch: session, with_refresh: refresh_token != nil)
+        source.dispose(token: token, refresh_token: refresh_token)
         return at,rt
       end
 
-      def dispose (token:, timeleft: nil)
+      #
+      # Delete tokens, immediately or after a grace period.
+      #
+      # @param token access token to dispose
+      # @param refresh_token (optional) refresh token to dispose,
+      # @param timeleft grace period to keep the token alive, 0 to dispose immediately
+      #
+      # @note if the refresh token is not supplied attempts to retrive it from the access token
+      #
+      def dispose (token:, refresh_token:, timeleft: nil)
         timeleft ||= @tolerance_ttl
-        key = "#{@sid}:oauth:access_token:#{token}"
+        key  = "#{@sid}:oauth:access_token:#{token}"
         redis do |r|
+          if refresh_token.nil?
+            refresh_token = r.hget(key, 'refresh_token')
+          end
+          unless refresh_token.nil?
+            rkey = "#{@sid}:oauth:refresh_token:#{token}"
+            r.expire(rkey, timeleft)
+          end
           r.expire(key, timeleft)
         end
       end
 
       protected
 
-      def create_token (patch:, refresh_token: false)
-        session = patch.merge(@session_base)
-        session[:created_at] = Time.new.iso8601
+      def create_token (session:, refresh_token: false)
         token = nil
         3.times do
           token = SecureRandom.hex(32)
           key = "#{@sid}:oauth:#{refresh_token ? 'refresh_token' : 'access_token'}:#{token}"
+          hset = []
+          session.each do |key, value|
+            unless value.nil?
+              hset << key
+              hset << value.to_s
+            end
+          end
           redis do |r|
             unless r.exists(key)
               r.pipelined do
-                r.hmset(key, session.flatten.map{|e| e.to_s })
+                r.hmset(key, hset)
                 r.expire(key, refresh_token ? @refresh_ttl : @access_ttl)
               end
               return token
