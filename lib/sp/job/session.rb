@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011-2016 Cloudware S.A. All rights reserved.
+# Copyright (c) 2017-2018 Cloudware S.A. All rights reserved.
 #
 # This file is part of sp-job.
 #
@@ -33,8 +33,8 @@ module SP
 
       def initialize (configuration:, serviceId:, multithread: false, programName:, redis:)
         @sid           = serviceId
-        @access_ttl    = configuration[:oauth2][:access_ttl]  || (6 * 3600)  # Duration of the access tokens
-        @refresh_ttl   = configuration[:oauth2][:refresh_ttl] || (400)       # Duration of the refresh tokens
+        @access_ttl    = configuration[:oauth2][:access_ttl]  || (1 * 3600)  # Duration of the access tokens
+        @refresh_ttl   = configuration[:oauth2][:refresh_ttl] || (2 * 3600)  # Duration of the refresh tokens
         @tolerance_ttl = configuration[:oauth2][:deleted_ttl] || 30          # Time a deleted token will remain "alive"
         @redis         = redis
         @session_base  = {
@@ -69,9 +69,11 @@ module SP
       end
 
       #
+      # Create a brand new access token with optional refresh token
+      #
       # @param patch symbolicated hash with session data
-      # @param
-      # keys with nil value are not set
+      # @param with_refresh when true the refresh token is also created, when false just access
+      # @return access_token or access_token and refresh token
       #
       def create (patch:, with_refresh: false)
         session = patch.merge(@session_base)
@@ -85,6 +87,18 @@ module SP
         end
         access_token = create_token(session: session)
         return access_token, refresh_token
+      end
+
+      #
+      # Create an access token by clonning a refresh token
+      #
+      # @param refresh_token the id of the refresh token
+      # @param session symbolicated session data
+      #
+      def create_from_refresh (refresh_token:, session:)
+        session[:created_at] = Time.new.iso8601
+        session[:refresh_token] = refresh_token
+        return create_token(session: session)
       end
 
       #
@@ -129,6 +143,14 @@ module SP
         return at,rt
       end
 
+      #
+      # Cross patch, creates a new token on the current cluster by patch a source token from another cluster
+      #
+      # @param source session handler from which the original token is read
+      # @param token id of the original token on the source cluster
+      # @param patch symbolicated hash that is fused into source cluster
+      # @return fresh pait of access_token and refresh_token
+      #
       def x_patch (source:, token:, patch:)
         session = source.get(token: token)
         refresh_token = session[:refresh_token]
@@ -148,24 +170,40 @@ module SP
       # Delete tokens, immediately or after a grace period.
       #
       # @param token access token to dispose
-      # @param refresh_token (optional) refresh token to dispose,
+      # @param refresh_token (optional) refresh token to dispose
       # @param timeleft grace period to keep the token alive, 0 to dispose immediately
       #
       # @note if the refresh token is not supplied attempts to retrive it from the access token
       #
-      def dispose (token:, refresh_token:, timeleft: nil)
+      def dispose (token:, refresh_token: nil, timeleft: nil)
         timeleft ||= @tolerance_ttl
-        key  = "#{@sid}:oauth:access_token:#{token}"
+        key = "#{@sid}:oauth:access_token:#{token}"
         redis do |r|
-          if refresh_token.nil?
+          if refresh_token.to_s.size == 0
             refresh_token = r.hget(key, 'refresh_token')
           end
-          unless refresh_token.nil?
-            rkey = "#{@sid}:oauth:refresh_token:#{token}"
+          if refresh_token.to_s.size != 0
+            rkey = "#{@sid}:oauth:refresh_token:#{refresh_token}"
             r.expire(rkey, timeleft)
           end
           r.expire(key, timeleft)
         end
+      end
+
+      #
+      # Extend the life of a token by timetolive seconds
+      #
+      # @param token the token to preserve
+      # @param refresh true it's a refresh token, false for access
+      # @param timetolive new duration in seconds
+      #
+      def extend (token:, refresh: false, timetolive:)
+        key = "#{@sid}:oauth:#{refresh ? 'refresh_token' : 'access_token'}:#{token}"
+        rv  = 0
+        redis do |r|
+          rv = r.expire(key, timetolive)
+        end
+        return rv
       end
 
       protected
