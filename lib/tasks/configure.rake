@@ -493,6 +493,7 @@ task :configure, [ :action ] do |task, args|
       @job_exec        = @config.bundle_exec
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
+      @job_threads     = nil
       if job
         if job.args
           job.args.to_h.each do | k, v |
@@ -508,6 +509,7 @@ task :configure, [ :action ] do |task, args|
         if job.environment
           @job_environment = "#{job.environment}"
         end
+        @job_threads = job.threads
       end
       puts "  #{name}:"
       if File.exists? "#{@job_dir}/conf.json.erb"
