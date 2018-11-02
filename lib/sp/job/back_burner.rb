@@ -22,6 +22,7 @@ require 'sp/job/pg_connection'
 require 'sp/job/session'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
+require 'sp/job/broker_oauth2_client' # ::SP::Job::BrokerOAuth2Client::InvalidToken
 require 'roadie'
 require 'thread'
 
@@ -264,13 +265,17 @@ Backburner.configure do |config|
               args[:status_code]  = e.status_code
               args[:content_type] = e.content_type
               args[:response]     = e.body
+            elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
+              args[:status_code]  = 401
+              args[:content_type] = ''
+              args[:response]     = ''
             else
               e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
               args[:status_code]  = e.status_code
               args[:content_type] = e.content_type
               args[:response]     = e.body
             end
-            update_progress(args)
+            send_response(args)
           else
             if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
               raise_error(message: e)
