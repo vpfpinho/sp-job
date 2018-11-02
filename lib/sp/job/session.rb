@@ -121,7 +121,7 @@ module SP
       end
 
       #
-      # Create a new session by merging an existing session with the given patch
+      # Create a token pair session by merging an existing access_token with the given patch
       #
       # @param token The access token to retrieve the original session hash
       # @param patch a symbolicated hash that will overide existing keys and/or add new ones
@@ -144,7 +144,7 @@ module SP
       end
 
       #
-      # Cross patch, creates a new token on the current cluster by patch a source token from another cluster
+      # Cross patch, creates a new token on the current cluster by patching a source token from another cluster
       #
       # @param source session handler from which the original token is read
       # @param token id of the original token on the source cluster
