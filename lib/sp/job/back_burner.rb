@@ -22,7 +22,7 @@ require 'sp/job/pg_connection'
 require 'sp/job/session'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
-require 'sp/job/broker_oauth2_client' # ::SP::Job::BrokerOAuth2Client::InvalidToken
+require 'sp/job/broker_oauth2_client' unless RUBY_ENGINE == 'jruby' # ::SP::Job::BrokerOAuth2Client::InvalidToken
 require 'roadie'
 require 'thread'
 
@@ -55,11 +55,13 @@ class ClusterMember
     end
     @number = configuration[:number]
     @config = configuration
-    @broker = ::SP::Job::Broker::Job.new(config: {
-                                           :service_id => serviceId,
-                                           :oauth2 => configuration[:oauth2],
-                                           :redis => @redis
-                                        })
+    unless RUBY_ENGINE == 'jruby'
+      @broker = ::SP::Job::Broker::Job.new(config: {
+                                            :service_id => serviceId,
+                                            :oauth2 => configuration[:oauth2],
+                                            :redis => @redis
+                                          })
+    end
   end
 
   #
