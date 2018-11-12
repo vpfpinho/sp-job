@@ -545,6 +545,21 @@ task :configure, [ :action ] do |task, args|
                      diff: diff_before_copy,
                      dry_run: dry_run
       )
+
+      # logrotate.erb?
+      if File.exists? "#{@job_dir}/logrorate.erb"
+        template = "#{@job_dir}/logrotate.erb"
+      else
+        template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
+      end
+      if File.exists? template
+        diff_and_write(contents: expand_template(template),
+                       path: "#{@config.prefix}/etc/logrotate.d/#{@job_name}",
+                       diff: diff_before_copy,
+                       dry_run: dry_run
+        )
+      end
+      
     end
   end
 end
