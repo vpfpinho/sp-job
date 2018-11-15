@@ -590,9 +590,12 @@ module SP
         document = Roadie::Document.new email_body
         email_body = document.transform
 
+        to_email = config[:override_mail_recipient] if config[:override_mail_recipient]
+        to_email ||= args[:to]
+
         m = Mail.new do
           from     $config[:mail][:from]
-          to       args[:to]
+          to       to_email
           subject  args[:subject]
           reply_to (args[:reply_to] || $config[:mail][:from])
 
