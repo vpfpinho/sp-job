@@ -20,6 +20,7 @@
 #
 require 'sp/job/pg_connection'
 require 'sp/job/session'
+require 'sp/job/broker'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
 require 'roadie'
