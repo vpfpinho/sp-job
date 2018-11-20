@@ -147,13 +147,21 @@ module SP
         end
       end
 
-
       #
       # Internal error.
       #
       class InternalError < Error
         def initialize(a_description)
           super "internal_error", a_description
+        end
+      end
+
+      #
+      # Invalid token.
+      #
+      class InvalidToken < Error
+        def initialize(a_description)
+          super "invalid_token", a_description
         end
       end
 
