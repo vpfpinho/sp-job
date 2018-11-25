@@ -493,7 +493,7 @@ module SP
       def manage_notification(options = {}, notification = {})
 
         options = {
-          service: 'toc-dev',
+          service: "#{$config[:service_id]}",
           type: 'notifications',
           action: :new
         }.merge(options)
