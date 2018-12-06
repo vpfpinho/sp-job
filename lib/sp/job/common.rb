@@ -25,6 +25,7 @@ module SP
     module Common
 
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      EXCLUDE_MEMBER = 1 # JAN EMERGENCY $config[:service_id] ? 1 : 0
 
       def thread_data
         $thread_data[Thread.current]
@@ -499,7 +500,9 @@ module SP
         }.merge(options)
 
         if options[:redis]
-          $redis = options[:redis]
+          redis_client = options[:redis]
+        else
+          redis_client = $redis
         end
 
         redis_key = {
@@ -516,23 +519,23 @@ module SP
           response_object = notification
 
           # ap ["notification SADD => ", notification]
-          $redis.sadd redis_key[:key], "#{notification.to_json}"
-          $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+          redis_client.sadd redis_key[:key], "#{notification.to_json}"
+          redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
           # ap ["REDIS PUBLISH NEW", redis_key[:public_key], response_object.to_json]
         elsif options[:action] == :update
 
-          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:id]}\"*" })
+          match_member = redis_client.sscan(redis_key[:key], 0, { match: "*#{notification[:id]}\"*" })
 
           if match_member && match_member[1][0]
 
             notification.merge!({id: notification[:id]}) if notification[:id]
             response_object = notification
 
-            $redis.srem redis_key[:key], "#{match_member[1][0]}"
+            redis_client.srem redis_key[:key], "#{match_member[1][0]}"
             notification.delete(:identity)
-            $redis.sadd redis_key[:key], "#{notification.to_json}"
+            redis_client.sadd redis_key[:key], "#{notification.to_json}"
 
-            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
             # ap ["REDIS PUBLISH UPDATE", redis_key[:public_key], response_object.to_json]
 
           else
@@ -544,11 +547,11 @@ module SP
           end
         else
 
-          match_member = $redis.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
+          match_member = redis_client.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
           if match_member && match_member[1].any?
             response_object = { id: notification[:identity], destroy: true } if notification[:identity]
-            $redis.srem redis_key[:key], "#{match_member[1][0]}"
-            $redis.publish redis_key[:public_key], "#{response_object.to_json}"
+            redis_client.srem redis_key[:key], "#{match_member[1][0]}"
+            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
 
             ap ["REDIS PUBLISH DESTROY", redis_key[:public_key], response_object.to_json]
 
