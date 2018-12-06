@@ -563,7 +563,7 @@ if $config[:postgres] && $config[:postgres][:conn_str]
   end
 end
 
-$excluded_members = $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact
+$excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
 
 #
 # Global data for mutex and sync
