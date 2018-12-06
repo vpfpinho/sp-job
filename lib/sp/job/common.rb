@@ -25,7 +25,10 @@ module SP
     module Common
 
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-      EXCLUDE_MEMBER = 1 # JAN EMERGENCY $config[:service_id] ? 1 : 0
+
+      def exclude_member(member_number)
+        $excluded_members.include? member_number
+      end
 
       def thread_data
         $thread_data[Thread.current]
