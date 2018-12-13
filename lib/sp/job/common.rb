@@ -208,42 +208,6 @@ module SP
       end
 
       #
-      # Retrieve a previously uploaded file, but now EXTRA.
-      #
-      # @param file
-      # @param tmp_dir
-      #
-      # @return When tmp_dir is set file URI otherwise file body.
-      #
-      def get_from_upload_server_ex(file:, tmp_dir:)
-        attempt = 0
-        max_attempts = 5
-        url = "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{config[:tmp_file_server][:path]}/#{file}"
-        begin
-          response = HttpClient.get_klass.get(url: url )
-          if response[:code] != 200
-            raise "#{response[:code]}"
-          end
-          if tmp_dir
-            uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
-            File.open(uri, 'wb') {
-               |f| f.write(response[:body])
-            }
-            uri
-          else
-            response[:body]
-          end
-        rescue
-          attempt += 1
-          logger.warn "HTTP GET #{url} failed with code #{response[:code]}. Trying again in 1 second. Try #{attempt} of #{max_attempts}"
-          sleep 1
-          retry if attempt < max_attempts
-          raise StandardError, "Couldn't retrieve file from server, tried #{max_attempts} times. Response: #{response[:code]}, URL: #{url}"
-        end
-      end
-
-
-      #
       # Submit jwt
       #
       def submit_jwt (url, jwt)
