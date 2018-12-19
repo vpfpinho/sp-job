@@ -566,6 +566,26 @@ module SP
 
       end
 
+      def email_addresses_valid? (email_addresses)
+        begin
+          raise ::ArgumentError.new 'A lista de emails tem de estar preenchida' if email_addresses.nil? || email_addresses.empty?
+
+          email_addresses = email_addresses.split(',').map(&:strip)
+          valid_email_addresses = email_addresses.select { |email| /^[^@\s]+@[^@\s]+(\.[^@\s]+)+$/ =~ email }
+          diff_email_addresses = email_addresses - valid_email_addresses
+
+          raise ::Exception.new "Os seguintes endereços de email não são válidos: #{diff_email_addresses.join(', ')}" if diff_email_addresses.length > 0
+
+          return [ true, nil ]
+        rescue ::Exception => e
+          return [ false, e.message ]
+        end
+      end
+
+      def sanitize_email_addresses! (email_addresses)
+        email_addresses.split(',').map { |email| email.strip.downcase }.join(', ')
+      end
+
       def send_email (args)
 
         if args.has_key?(:body) && args[:body] != nil
@@ -599,9 +619,14 @@ module SP
         to_email = config[:override_mail_recipient] if config[:override_mail_recipient]
         to_email ||= args[:to]
 
+        # Do not send email to Cc if there is an override_mail_recipient
+        cc_email = nil
+        cc_email ||= args[:cc] if !args[:cc].nil? && config[:override_mail_recipient].nil?
+
         m = Mail.new do
           from     $config[:mail][:from]
           to       to_email
+          cc       cc_email unless cc_email.nil?
           subject  args[:subject]
           reply_to (args[:reply_to] || $config[:mail][:from])
 

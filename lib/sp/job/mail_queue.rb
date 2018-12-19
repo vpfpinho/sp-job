@@ -44,11 +44,12 @@ module SP
           body:        job[:body],
           template:    job[:template],
           to:          job[:to],
+          cc:          job[:cc],
           reply_to:    job[:reply_to],
           subject:     job[:subject],
           attachments: job[:attachments]
         )
-        logger.info "mailto: #{job[:to]} - #{job[:subject]}"
+        logger.info "mail - to: #{job[:to]} cc: #{job[:cc]} subject: #{job[:subject]}"
       end
 
       def self.on_failure (e, job)
