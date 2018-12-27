@@ -300,9 +300,11 @@ module SP
 
       def update_progress (args)
         td = thread_data
-        status   = args[:status]
-        progress = args[:progress]
-        p_index  = args[:index] || 0
+        status              = args[:status]
+        progress            = args[:progress]
+        p_index             = args[:index] || 0
+        notification_title  = args[:title]
+        p_options           = args[:options]
 
         if args.has_key? :message
           message_args = Hash.new
@@ -352,6 +354,36 @@ module SP
 
         if ['completed', 'error', 'follow-up', 'cancelled'].include?(status) || (Time.now.to_f - td.report_time_stamp) > $min_progress || args[:barrier]
           update_progress_on_redis
+          if td.current_job[:notification]
+            notification_icon   = p_options && p_options[:icon] || td.current_job[:notification_options] && td.current_job[:notification_options][:icon] ||  "toc-icons:notification_SIS"
+            notification_link   = p_options && p_options[:link] || td.current_job[:notification_options] && td.current_job[:notification_options][:link] ||  ""
+            notification_remote = p_options && p_options[:remote] || td.current_job[:notification_options] && td.current_job[:notification_options][:remote] || false
+            notification_title  = notification_title || p_options && p_options[:title] || td.current_job[:notification_options] && td.current_job[:notification_options][:title] ||  "Notification title"
+
+            message = {
+              dismiss: ['completed', 'error', 'follow-up', 'cancelled', 'imported'].include?(status),
+              status: status || td.job_notification[:status],
+              icon: notification_icon,
+              link: notification_link,
+              title: notification_title,
+              updated_at: Time.new,
+              per_user: false,
+              remote: notification_remote,
+              tube: td.job_tube,
+              id: [td.job_tube, td.job_id].join(":"),
+              identity: td.job_id,
+              content: p_options && p_options[:message] || td.job_notification[:message]
+            }
+
+            notification_options = {
+              service: $config[:service_id],
+              entity: 'company',
+              entity_id: td.current_job[:entity_id],
+              action: :update
+            }
+
+            manage_notification(notification_options, message)
+          end
         end
       end
 
@@ -515,16 +547,27 @@ module SP
 
         if options[:action] == :new
 
-          # notification = {
-          #   until: "2018-12-31T23:59:00.000Z" #
-          # }.merge(notification)
-
           response_object = notification
 
-          # ap ["notification SADD => ", notification]
-          redis_client.sadd redis_key[:key], "#{notification.to_json}"
-          redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
-          # ap ["REDIS PUBLISH NEW", redis_key[:public_key], response_object.to_json]
+          job_type  = notification[:tube]
+          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" })
+
+          if job_exists[1] && job_exists[1].any?
+            job_exists[1].map do |key|
+              redis_client.srem redis_key[:key], "#{key}"
+              temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
+              redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
+            end
+            # ap ["theres a similar job notification => REDIS PUBLISH DESTROY", redis_key[:public_key], temp_response_object.to_json]
+
+            # ap ["create the new one after destroy similar"]
+            redis_client.sadd redis_key[:key], "#{notification.to_json}"
+            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+          else
+            redis_client.sadd redis_key[:key], "#{notification.to_json}"
+            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+          end
+
         elsif options[:action] == :update
 
           match_member = redis_client.sscan(redis_key[:key], 0, { match: "*#{notification[:id]}\"*" })
@@ -555,9 +598,6 @@ module SP
             response_object = { id: notification[:identity], destroy: true } if notification[:identity]
             redis_client.srem redis_key[:key], "#{match_member[1][0]}"
             redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
-
-            ap ["REDIS PUBLISH DESTROY", redis_key[:public_key], response_object.to_json]
-
           else
             puts 'nothing to destroy'
           end
