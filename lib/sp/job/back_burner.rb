@@ -162,6 +162,7 @@ end
 $prefix           = OS.mac? ? '/usr/local' : ''
 $rollbar          = false
 $min_progress     = 3
+$gracefull_exit   = false
 $args = {
   stdout:           false,
   log_level:        'info',
@@ -417,30 +418,37 @@ module Backburner
 
   module Logger
 
-    if RUBY_ENGINE != 'jruby'
+    #if RUBY_ENGINE != 'jruby'
+    #
+    #  def log_job_begin(name, args)
+    #    log_info "Job ##{args[0][:id]} started (#{name})"
+    #    @job_started_at = Time.now
+    #  end
 
-      def log_job_begin(name, args)
-        log_info "Job ##{args[0][:id]} started (#{name})"
-        @job_started_at = Time.now
+    #else
+
+    def log_job_begin(name, args)
+      param_log = ''
+      args = args[0]
+      [ :user_id, :entity_id, :entity_schema, :sharded_schema, :subentity_id, :subentity_prefix, :subentity_schema, :action].each do |key|
+        if args.has_key?(key)
+          param_log += "#{key}: #{args[key]},"
+        end
       end
-
-    else
-
-      def log_job_begin(name, args)
-        log_info "Job ##{args[0][:id]} started (#{name})"
-        Thread.current[:job_started_at] = Time.now
-      end
-
-      # Print out when a job completed
-      # If message is nil, job is considered complete
-      def log_job_end(name, message = nil)
-        ellapsed = Time.now - Thread.current[:job_started_at]
-        ms = (ellapsed.to_f * 1000).to_i
-        action_word = message ? 'finished' : 'completed'
-        log_info("Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}")
-      end
-
+      log_info "Job ##{args[:id]} started #{name}: #{param_log}".white
+      Thread.current[:job_started_at] = Time.now
     end
+
+    # Print out when a job completed
+    # If message is nil, job is considered complete
+    def log_job_end(name, message = nil)
+      ellapsed = Time.now - Thread.current[:job_started_at]
+      ms = (ellapsed.to_f * 1000).to_i
+      action_word = message ? 'finished' : 'completed'
+      log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
+    end
+
+    #end
   end
 
   class Job
@@ -571,6 +579,14 @@ $excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].
 $threads = [ Thread.current ]
 $thread_data = {}
 $thread_data[Thread.current] = ::SP::Job::ThreadData.new
+
+#
+# Signal handler
+#
+Signal.trap('SIGQUIT') {
+  $gracefull_exit = true
+  check_gracefull_exit(dolog: false)
+}
 
 #
 # Open a second thread that will listen to cancellation and other "signals"

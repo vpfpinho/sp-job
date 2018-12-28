@@ -403,6 +403,45 @@ module SP
         td.job_id = nil
       end
 
+      def on_bury_lock_cleanup(*args)
+        logger.error "Bury caused an exception (#{args.to_s})"
+      end
+
+      def on_failure_lock_cleanup(e, *args)
+        logger.error "Lock cleanup caused an exception (#{e})"
+      end
+
+      def after_perform_lock_cleanup (*args)
+        check_gracefull_exit(dolog: true)
+      end
+
+      def check_gracefull_exit (dolog: false)
+        if $gracefull_exit
+          jobs = 0
+          $thread_data.each do |thread, thread_data|
+            unless thread_data.job_id.nil?
+              jobs += 1
+            end
+          end
+          if jobs == 0
+            message =  'SIGQUIT requested no jobs are running exiting now'
+            if dolog
+              logger.info message
+            else
+              puts message
+            end
+            exit
+          else
+            message = "SIGQUIT requested but #{jobs} jobs are still running"
+            if dolog
+              logger.info message
+            else
+              puts message
+            end
+          end
+        end
+      end
+
       def error_handler (args)
         if $config[:options][:source] == "broker"
           raise "Implementation error : please use 'raise' instead of report_error or raise_error"
