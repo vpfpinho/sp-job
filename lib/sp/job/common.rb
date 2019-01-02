@@ -526,6 +526,36 @@ module SP
         ERB.new(erb_template).result(erb_binding)
       end
 
+      def manage_notification_worker(options = {}, notification = {})
+
+        if options[:redis]
+          redis_client_master = options[:redis]
+        end
+
+        raise 'Can do anything without redis connection on redis_client_master' unless redis_client_master
+
+        queues      = redis_client_master.smembers("resque:queues")
+        queue_type  = notification[:type]
+        c_id        = notification[:company_id]
+        n_id        = notification[:resource_id]
+
+        queue_len = redis_client_master.llen("resque:queue:#{queue_type}")
+        redis_client_master.lrange("resque:queue:#{queue_type}", 0, queue_len)
+        match_string = "[#{c_id},#{n_id}]"
+        rem_command = redis_client_master.lrange("resque:queue:#{queue_type}", 0, queue_len).find do |queue_find|
+          queue_find.include?(match_string)
+        end
+
+        # ap ["notification", notification, "queues", queues, queue_type, c_id, n_id, "rem_command", rem_command]
+
+        if rem_command
+          puts "queue_type => #{queue_type} :::: rem_command => #{rem_command}".red
+          redis_client_master.lrem("resque:queue:#{queue_type}", "-2", rem_command)
+        end
+
+      end
+
+
       def manage_notification(options = {}, notification = {})
 
         options = {
