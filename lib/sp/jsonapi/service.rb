@@ -15,7 +15,7 @@ module SP
       def url ; @url ; end
       def set_url(value) ; @url = value ; end
       def adapter
-        raise Exceptions::ServiceSetupError.new('JSONAPI prefix not specified', nil) if url.blank?
+        raise Exceptions::ServiceSetupError.new('JSONAPI prefix not specified', nil) if url.nil? && url.empty?
         @adapter_instance ||= @adapter.new(self)
         SP::JSONAPI::Model::Base.adapter ||= @adapter_instance
         @adapter_instance
