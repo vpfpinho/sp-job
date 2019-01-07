@@ -456,7 +456,7 @@ module SP
             end
           end
           if jobs == 0
-            message =  'SIGQUIT requested no jobs are running exiting now'
+            message =  'SIGUSR2 requested no jobs are running exiting now'
             if dolog
               logger.info message
             else
@@ -464,7 +464,7 @@ module SP
             end
             exit
           else
-            message = "SIGQUIT requested but #{jobs} jobs are still running"
+            message = "SIGUSR2 requested but #{jobs} jobs are still running"
             if dolog
               logger.info message
             else

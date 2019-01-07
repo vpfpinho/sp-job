@@ -583,7 +583,7 @@ $thread_data[Thread.current] = ::SP::Job::ThreadData.new
 #
 # Signal handler
 #
-Signal.trap('SIGQUIT') {
+Signal.trap('SIGUSR2') {
   $gracefull_exit = true
   check_gracefull_exit(dolog: false)
 }
