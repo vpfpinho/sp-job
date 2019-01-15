@@ -150,7 +150,7 @@ module SP
         # @param scope
         # @param old
         #
-        def refresh (scope: nil, old: nil)
+        def refresh(scope: nil, old: nil, delete: true)
           at_response = @client.refresh_access_token(
             a_refresh_token = old[:refresh_token],
             a_scope = scope
@@ -168,12 +168,14 @@ module SP
             raise InternalError.new(i18n: nil, internal: nil)
           end
           # delete old tokens from redis
-          @redis.multi do |multi|
-            if nil != old[:access_token]
-              multi.del("#{@service_id}:oauth:access_token:#{old[:access_token]}")
-            end
-            if nil != old[:refresh_token]
-              multi.del("#{@service_id}:oauth:refresh_token:#{old[:refresh_token]}")
+          if true == delete
+            @redis.multi do |multi|
+              if nil != old[:access_token]
+                multi.del("#{@service_id}:oauth:access_token:#{old[:access_token]}")
+              end
+              if nil != old[:refresh_token]
+                multi.del("#{@service_id}:oauth:refresh_token:#{old[:refresh_token]}")
+              end
             end
           end
           # return oauth response

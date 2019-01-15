@@ -664,13 +664,19 @@ module SP
           email_body = expand_mail_body args[:template]
         end
 
+        ___internal=nil
+        if args.has_key?(:___internal) && nil != args[:___internal]
+          ___internal = args[:___internal]
+        end
+
         submit_job(
             tube: args[:'mail-queue-tube'] || 'mail-queue',
             job: {
               to:       args[:to],
               subject:  args[:subject],
               reply_to: args[:reply_to],
-              body:     email_body
+              body:     email_body,
+              ___internal: ___internal
             }
           )
       end
