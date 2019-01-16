@@ -362,6 +362,7 @@ module SP
 
             message = {
               dismiss: ['completed', 'error', 'follow-up', 'cancelled', 'imported'].include?(status),
+              can_be_canceled: !['completed', 'error', 'follow-up', 'cancelled', 'imported'].include?(status),
               status: status || td.job_notification[:status],
               icon: notification_icon,
               link: notification_link,
