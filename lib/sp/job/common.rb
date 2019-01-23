@@ -407,15 +407,25 @@ module SP
           response << args[:content_type]
           response << ','
           if args[:response].instance_of? String
+            args[:response] = args[:response].force_encoding('utf-8')
             response << args[:response].bytesize.to_s
             response << ','
             response << args[:response]
           elsif args[:response].instance_of? StringIO
-            raw = args[:response].string
+            raw = args[:response].string.force_encoding('utf-8')
             response << raw.size.to_s
             response << ','
             response << raw
           else
+            if args[:response].is_a?(Hash)
+              if args[:response].has_key?(:errors) && args[:response][:errors].is_a?(Array)
+                args[:response][:errors].each do | e |
+                  if e.has_key?(:detail)
+                    e[:detail] = e[:detail].force_encoding('utf-8')
+                  end
+                end
+              end
+            end
             json = args[:response].to_json
             response << json.bytesize.to_s
             response << ','

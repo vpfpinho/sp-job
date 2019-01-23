@@ -246,6 +246,86 @@ end
 #
 # Configure backburner queue
 #
+
+class InternalBrokerException
+
+  def self.handle(task:, exception:, hooks:, callback: method(:send_response))
+
+    response = InternalBrokerException.translate_to_response(e: exception)
+    job_id   = task.id
+    job_body = JSON.parse(task.body, symbolize_names: true)
+
+    job_options = hooks[:var].invoke_hook_events(hooks[:klass], :on_raise_response_was_sent, job_id, job_body, response)
+    if nil == job_options || false == job_options.is_a?(Array) || 1 != job_options.size || false == job_options[0].is_a?(Hash)
+      rv = { response: response }
+    else
+      job_options = job_options[0]
+      # rollbar it
+      if true == job_options.include?(:rollbar) && true == job_options[:rollbar]
+        InternalBrokerException.rollbar(job_id: job_id, job_body: job_body, exception: exception)
+      end
+      #
+      rv = { bury: job_options[:bury] , raise: job_options[:raise], response: job_options[:response] || response }
+    end
+
+    # send response
+    callback.call(rv.delete(:response))
+
+    # done
+    rv
+
+  end
+
+  def self.translate_to_response(e:)
+    args = {}
+    args[:status] = 'error'
+    args[:action] = 'response'
+    if e.is_a?(::SP::Job::JSONAPI::Error)
+      args[:status_code]  = e.status_code
+      args[:content_type] = e.content_type
+      args[:response]     = e.body
+    elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
+      args[:status_code]  = 401
+      args[:content_type] = ''
+      args[:response]     = ''
+    else
+      e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
+      args[:status_code]  = e.status_code
+      args[:content_type] = e.content_type
+      args[:response]     = e.body
+    end
+    args
+  end
+
+  #
+  # Report exception to rollbar
+  #
+  # @param j Job ID
+  # @param a Job Body
+  # @param e Exception
+  #
+  def self.rollbar(job_id:, job_body:, exception:)
+    $roolbar_mutex.synchronize {
+      if $rollbar
+        if exception.instance_of? ::SP::Job::JobException
+          exception.job[:password] = '<redacted>'
+          Rollbar.error(exception, exception.message, { job: exception.job, args: exception.args})
+        elsif exception.is_a?(::SP::Job::JSONAPI::Error)
+          [:access_token, :refresh_token, :password].each do | s |
+            if job_body.has_key?(s)
+              job_body[s] = '<redacted>'
+            end
+          end
+          Rollbar.error(exception, exception.message, { job: job_id, args: job_body, response: exception.body })
+        else
+          Rollbar.error(exception)
+        end
+      end
+    }
+  end
+
+end
+
 Backburner.configure do |config|
 
   config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
@@ -261,25 +341,8 @@ Backburner.configure do |config|
         logger.warn "got a deadline warning".red
       else
         begin
-          if $config[:options] && $config[:options][:source] == "broker"
-            args = {}
-            args[:status] = 'error'
-            args[:action] = 'response'
-            if e.is_a?(::SP::Job::JSONAPI::Error)
-              args[:status_code]  = e.status_code
-              args[:content_type] = e.content_type
-              args[:response]     = e.body
-            elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
-              args[:status_code]  = 401
-              args[:content_type] = ''
-              args[:response]     = ''
-            else
-              e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
-              args[:status_code]  = e.status_code
-              args[:content_type] = e.content_type
-              args[:response]     = e.body
-            end
-            send_response(args)
+          if $config[:options] && $config[:options][:source] == 'broker'
+            send_response(InternalBrokerException.translate_to_response(e:e))
           else
             if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
               raise_error(message: e)
@@ -287,7 +350,6 @@ Backburner.configure do |config|
               raise_error(message: 'i18n_unexpected_server_error')
             end
           end
-
         rescue
           # Do not retrow!!!!
         end
@@ -537,10 +599,38 @@ module Backburner
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue => e
-      @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      # prepare next action for this exception
+      exception_options = {
+        bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
+        raise: true
+      }
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
-      raise e
+      # if we're in broker mode
+      if $config[:options] && $config[:options][:source] == 'broker'
+        begin
+          tmp = InternalBrokerException.handle(task: task, exception: e, hooks: { klass: job_class, var:@hooks }, callback: method(:send_response))
+          exception_options[:bury]  = tmp.has_key?(:bury)  ? tmp[:bury]  : exception_options[:bury]
+          exception_options[:raise] = tmp.has_key?(:raise) ? tmp[:raise] : exception_options[:raise]
+        rescue => ne
+          @hooks.invoke_hook_events(job_class, :on_failure, ne, *args)
+          raise ne
+        end
+      else
+        @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      end
+      # delete it now?
+      if nil != task
+        if true == exception_options[:bury]
+          task.bury
+        else
+          task.delete
+        end
+      end
+      # re-raise?
+      if true == exception_options[:raise]
+        raise e
+      end
     end
   end
 
@@ -557,7 +647,7 @@ logger.debug "PID ........ #{Process.pid}"
 #
 $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == "broker" )
+$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
 # raw_response, in the job conf.json can either be:
 # - a Boolean (true or false)
 # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
