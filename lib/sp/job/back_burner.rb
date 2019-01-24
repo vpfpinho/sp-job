@@ -639,8 +639,8 @@ end
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
 
-logger.debug "Log file ... #{$args[:log_file]}"
-logger.debug "PID ........ #{Process.pid}"
+logger.info "Log file ... #{$args[:log_file]}"
+logger.info "PID ........ #{Process.pid}"
 
 #
 # Now create the global data needed by the mix-in methods
