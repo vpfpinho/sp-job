@@ -249,7 +249,7 @@ end
 
 class InternalBrokerException
 
-  def self.handle(task:, exception:, hooks:, callback: method(:send_response))
+  def self.handle(task:, exception:, hooks:, callback:)
 
     response = InternalBrokerException.translate_to_response(e: exception)
     job_id   = task.id
@@ -368,6 +368,9 @@ Backburner.configure do |config|
         end
       end
     }
+
+    # Signal job termination
+    td.job_id = nil
 
     # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
     case e
@@ -522,16 +525,23 @@ module Backburner
     #   @task.process
     #
     def process
+      td = thread_data
+
       # Invoke the job setup function, bailout if the setup returns false
       unless job_class.respond_to?(:prepare_job) && job_class.prepare_job(*args)
-        task.delete
         logger.warn "Delete stale or preempted task".red
+
+        # Signal job termination and remove from queue
+        td.job_id = nil
+        task.delete
         return false
       end
 
       # Invoke before hook and stop if false
       res = @hooks.invoke_hook_events(job_class, :before_perform, *args)
       unless res
+        # Signal job termination and remove from queue
+        td.job_id = nil
         task.delete
         return false
       end
@@ -568,7 +578,7 @@ module Backburner
       end
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
-      thread_data.job_id = nil
+      td.job_id = nil
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue ::SP::Job::JobCancelled => jc
@@ -589,13 +599,13 @@ module Backburner
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       error_handler(message: 'i18n_job_cancelled', status: 'cancelled')
       if $redis_mutex.nil?
-        $redis.hset(thread_data.job_key, 'cancelled', true)
+        $redis.hset(td.job_key, 'cancelled', true)
       else
         $redis_mutex.synchronize {
-          $redis.hset(thread_data.job_key, 'cancelled', true)
+          $redis.hset(td.job_key, 'cancelled', true)
         }
       end
-      thread_data.job_id = nil
+      td.job_id = nil
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue => e
@@ -627,6 +637,9 @@ module Backburner
           task.delete
         end
       end
+      # Signal job termination
+      td.job_id = nil
+
       # re-raise?
       if true == exception_options[:raise]
         raise e

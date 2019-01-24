@@ -292,6 +292,8 @@ module SP
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         unless $redis.exists(td.job_key)
+          # Signal job termination
+          td.job_id = nil
           logger.warn 'Job validity has expired: job ignored'.yellow
           return false
         end
@@ -472,7 +474,8 @@ module SP
             else
               puts message
             end
-            exit
+            $beaneater.close
+            exit 0
           else
             message = "SIGUSR2 requested but #{jobs} jobs are still running"
             if dolog
