@@ -162,6 +162,7 @@ end
 $prefix           = OS.mac? ? '/usr/local' : ''
 $rollbar          = false
 $min_progress     = 3
+$gracefull_exit   = false
 $args = {
   stdout:           false,
   log_level:        'info',
@@ -245,6 +246,86 @@ end
 #
 # Configure backburner queue
 #
+
+class InternalBrokerException
+
+  def self.handle(task:, exception:, hooks:, callback:)
+
+    response = InternalBrokerException.translate_to_response(e: exception)
+    job_id   = task.id
+    job_body = JSON.parse(task.body, symbolize_names: true)
+
+    job_options = hooks[:var].invoke_hook_events(hooks[:klass], :on_raise_response_was_sent, job_id, job_body, response)
+    if nil == job_options || false == job_options.is_a?(Array) || 1 != job_options.size || false == job_options[0].is_a?(Hash)
+      rv = { response: response }
+    else
+      job_options = job_options[0]
+      # rollbar it
+      if true == job_options.include?(:rollbar) && true == job_options[:rollbar]
+        InternalBrokerException.rollbar(job_id: job_id, job_body: job_body, exception: exception)
+      end
+      #
+      rv = { bury: job_options[:bury] , raise: job_options[:raise], response: job_options[:response] || response }
+    end
+
+    # send response
+    callback.call(rv.delete(:response))
+
+    # done
+    rv
+
+  end
+
+  def self.translate_to_response(e:)
+    args = {}
+    args[:status] = 'error'
+    args[:action] = 'response'
+    if e.is_a?(::SP::Job::JSONAPI::Error)
+      args[:status_code]  = e.status_code
+      args[:content_type] = e.content_type
+      args[:response]     = e.body
+    elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
+      args[:status_code]  = 401
+      args[:content_type] = ''
+      args[:response]     = ''
+    else
+      e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
+      args[:status_code]  = e.status_code
+      args[:content_type] = e.content_type
+      args[:response]     = e.body
+    end
+    args
+  end
+
+  #
+  # Report exception to rollbar
+  #
+  # @param j Job ID
+  # @param a Job Body
+  # @param e Exception
+  #
+  def self.rollbar(job_id:, job_body:, exception:)
+    $roolbar_mutex.synchronize {
+      if $rollbar
+        if exception.instance_of? ::SP::Job::JobException
+          exception.job[:password] = '<redacted>'
+          Rollbar.error(exception, exception.message, { job: exception.job, args: exception.args})
+        elsif exception.is_a?(::SP::Job::JSONAPI::Error)
+          [:access_token, :refresh_token, :password].each do | s |
+            if job_body.has_key?(s)
+              job_body[s] = '<redacted>'
+            end
+          end
+          Rollbar.error(exception, exception.message, { job: job_id, args: job_body, response: exception.body })
+        else
+          Rollbar.error(exception)
+        end
+      end
+    }
+  end
+
+end
+
 Backburner.configure do |config|
 
   config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
@@ -260,25 +341,8 @@ Backburner.configure do |config|
         logger.warn "got a deadline warning".red
       else
         begin
-          if $config[:options] && $config[:options][:source] == "broker"
-            args = {}
-            args[:status] = 'error'
-            args[:action] = 'response'
-            if e.is_a?(::SP::Job::JSONAPI::Error)
-              args[:status_code]  = e.status_code
-              args[:content_type] = e.content_type
-              args[:response]     = e.body
-            elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
-              args[:status_code]  = 401
-              args[:content_type] = ''
-              args[:response]     = ''
-            else
-              e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
-              args[:status_code]  = e.status_code
-              args[:content_type] = e.content_type
-              args[:response]     = e.body
-            end
-            send_response(args)
+          if $config[:options] && $config[:options][:source] == 'broker'
+            send_response(InternalBrokerException.translate_to_response(e:e))
           else
             if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
               raise_error(message: e)
@@ -286,7 +350,6 @@ Backburner.configure do |config|
               raise_error(message: 'i18n_unexpected_server_error')
             end
           end
-
         rescue
           # Do not retrow!!!!
         end
@@ -305,6 +368,9 @@ Backburner.configure do |config|
         end
       end
     }
+
+    # Signal job termination
+    td.job_id = nil
 
     # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
     case e
@@ -417,30 +483,37 @@ module Backburner
 
   module Logger
 
-    if RUBY_ENGINE != 'jruby'
+    #if RUBY_ENGINE != 'jruby'
+    #
+    #  def log_job_begin(name, args)
+    #    log_info "Job ##{args[0][:id]} started (#{name})"
+    #    @job_started_at = Time.now
+    #  end
 
-      def log_job_begin(name, args)
-        log_info "Job ##{args[0][:id]} started (#{name})"
-        @job_started_at = Time.now
+    #else
+
+    def log_job_begin(name, args)
+      param_log = ''
+      args = args[0]
+      [ :user_id, :entity_id, :entity_schema, :sharded_schema, :subentity_id, :subentity_prefix, :subentity_schema, :action].each do |key|
+        if args.has_key?(key) && !(args[key].nil? || args[key].empty?)
+          param_log += "#{key}: #{args[key]},"
+        end
       end
-
-    else
-
-      def log_job_begin(name, args)
-        log_info "Job ##{args[0][:id]} started (#{name})"
-        Thread.current[:job_started_at] = Time.now
-      end
-
-      # Print out when a job completed
-      # If message is nil, job is considered complete
-      def log_job_end(name, message = nil)
-        ellapsed = Time.now - Thread.current[:job_started_at]
-        ms = (ellapsed.to_f * 1000).to_i
-        action_word = message ? 'finished' : 'completed'
-        log_info("Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}")
-      end
-
+      log_info "Job ##{args[:id]} started #{name}: #{param_log}".white
+      Thread.current[:job_started_at] = Time.now
     end
+
+    # Print out when a job completed
+    # If message is nil, job is considered complete
+    def log_job_end(name, message = nil)
+      ellapsed = Time.now - Thread.current[:job_started_at]
+      ms = (ellapsed.to_f * 1000).to_i
+      action_word = message ? 'finished' : 'completed'
+      log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
+    end
+
+    #end
   end
 
   class Job
@@ -452,16 +525,23 @@ module Backburner
     #   @task.process
     #
     def process
+      td = thread_data
+
       # Invoke the job setup function, bailout if the setup returns false
       unless job_class.respond_to?(:prepare_job) && job_class.prepare_job(*args)
-        task.delete
         logger.warn "Delete stale or preempted task".red
+
+        # Signal job termination and remove from queue
+        td.job_id = nil
+        task.delete
         return false
       end
 
       # Invoke before hook and stop if false
       res = @hooks.invoke_hook_events(job_class, :before_perform, *args)
       unless res
+        # Signal job termination and remove from queue
+        td.job_id = nil
         task.delete
         return false
       end
@@ -498,7 +578,7 @@ module Backburner
       end
       # Invoke after perform hook
       @hooks.invoke_hook_events(job_class, :after_perform, *args)
-      thread_data.job_id = nil
+      td.job_id = nil
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue ::SP::Job::JobCancelled => jc
@@ -519,20 +599,51 @@ module Backburner
       @hooks.invoke_hook_events(job_class, :on_failure, jc, *args)
       error_handler(message: 'i18n_job_cancelled', status: 'cancelled')
       if $redis_mutex.nil?
-        $redis.hset(thread_data.job_key, 'cancelled', true)
+        $redis.hset(td.job_key, 'cancelled', true)
       else
         $redis_mutex.synchronize {
-          $redis.hset(thread_data.job_key, 'cancelled', true)
+          $redis.hset(td.job_key, 'cancelled', true)
         }
       end
-      thread_data.job_id = nil
+      td.job_id = nil
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue => e
-      @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      # prepare next action for this exception
+      exception_options = {
+        bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
+        raise: true
+      }
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
-      raise e
+      # if we're in broker mode
+      if $config[:options] && $config[:options][:source] == 'broker'
+        begin
+          tmp = InternalBrokerException.handle(task: task, exception: e, hooks: { klass: job_class, var:@hooks }, callback: method(:send_response))
+          exception_options[:bury]  = tmp.has_key?(:bury)  ? tmp[:bury]  : exception_options[:bury]
+          exception_options[:raise] = tmp.has_key?(:raise) ? tmp[:raise] : exception_options[:raise]
+        rescue => ne
+          @hooks.invoke_hook_events(job_class, :on_failure, ne, *args)
+          raise ne
+        end
+      else
+        @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
+      end
+      # delete it now?
+      if nil != task
+        if true == exception_options[:bury]
+          task.bury
+        else
+          task.delete
+        end
+      end
+      # Signal job termination
+      td.job_id = nil
+
+      # re-raise?
+      if true == exception_options[:raise]
+        raise e
+      end
     end
   end
 
@@ -541,15 +652,15 @@ end
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
 
-logger.debug "Log file ... #{$args[:log_file]}"
-logger.debug "PID ........ #{Process.pid}"
+logger.info "Log file ... #{$args[:log_file]}"
+logger.info "PID ........ #{Process.pid}"
 
 #
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == "broker" )
+$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
 # raw_response, in the job conf.json can either be:
 # - a Boolean (true or false)
 # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
@@ -571,6 +682,14 @@ $excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].
 $threads = [ Thread.current ]
 $thread_data = {}
 $thread_data[Thread.current] = ::SP::Job::ThreadData.new
+
+#
+# Signal handler
+#
+Signal.trap('SIGUSR2') {
+  $gracefull_exit = true
+  check_gracefull_exit(dolog: false)
+}
 
 #
 # Open a second thread that will listen to cancellation and other "signals"

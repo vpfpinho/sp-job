@@ -109,7 +109,7 @@ module SP
         #
         # Closing arguments, all done
         #
-        send_response(message: 'i18n_image_conversion_complete', response: { hostname: config[:urls][:upload_public], path: File.join('/',job[:entity], id_to_path(job[:to_entity_id]), job[:folder])})
+        return { hostname: config[:urls][:upload_public], path: File.join('/',job[:entity], id_to_path(job[:to_entity_id]), job[:folder])}
 
       end
 

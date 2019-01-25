@@ -292,6 +292,8 @@ module SP
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         unless $redis.exists(td.job_key)
+          # Signal job termination
+          td.job_id = nil
           logger.warn 'Job validity has expired: job ignored'.yellow
           return false
         end
@@ -408,15 +410,25 @@ module SP
           response << args[:content_type]
           response << ','
           if args[:response].instance_of? String
+            args[:response] = args[:response].force_encoding('utf-8')
             response << args[:response].bytesize.to_s
             response << ','
             response << args[:response]
           elsif args[:response].instance_of? StringIO
-            raw = args[:response].string
+            raw = args[:response].string.force_encoding('utf-8')
             response << raw.size.to_s
             response << ','
             response << raw
           else
+            if args[:response].is_a?(Hash)
+              if args[:response].has_key?(:errors) && args[:response][:errors].is_a?(Array)
+                args[:response][:errors].each do | e |
+                  if e.has_key?(:detail)
+                    e[:detail] = e[:detail].force_encoding('utf-8')
+                  end
+                end
+              end
+            end
             json = args[:response].to_json
             response << json.bytesize.to_s
             response << ','
@@ -434,6 +446,46 @@ module SP
         end
         signal_job_termination(td)
         td.job_id = nil
+      end
+
+      def on_bury_lock_cleanup(*args)
+        logger.error "Bury caused an exception (#{args.to_s})"
+      end
+
+      def on_failure_lock_cleanup(e, *args)
+        logger.error "Lock cleanup caused an exception (#{e})"
+      end
+
+      def after_perform_lock_cleanup (*args)
+        check_gracefull_exit(dolog: true)
+      end
+
+      def check_gracefull_exit (dolog: false)
+        if $gracefull_exit
+          jobs = 0
+          $thread_data.each do |thread, thread_data|
+            unless thread_data.job_id.nil?
+              jobs += 1
+            end
+          end
+          if jobs == 0
+            message =  'SIGUSR2 requested no jobs are running exiting now'
+            if dolog
+              logger.info message
+            else
+              puts message
+            end
+            $beaneater.close
+            exit 0
+          else
+            message = "SIGUSR2 requested but #{jobs} jobs are still running"
+            if dolog
+              logger.info message
+            else
+              puts message
+            end
+          end
+        end
       end
 
       def error_handler (args)
