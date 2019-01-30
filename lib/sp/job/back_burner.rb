@@ -609,15 +609,15 @@ module Backburner
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
     rescue => e
-      # prepare next action for this exception
-      exception_options = {
-        bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
-        raise: true
-      }
       # ensure currently open ( if any ) transaction rollback
       $pg.rollback unless ! $pg
       # if we're in broker mode
       if $config[:options] && $config[:options][:source] == 'broker'
+        # prepare next action for this exception
+        exception_options = {
+          bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
+          raise: true
+        }
         begin
           tmp = InternalBrokerException.handle(task: task, exception: e, hooks: { klass: job_class, var:@hooks }, callback: method(:send_response))
           exception_options[:bury]  = tmp.has_key?(:bury)  ? tmp[:bury]  : exception_options[:bury]
@@ -626,24 +626,24 @@ module Backburner
           @hooks.invoke_hook_events(job_class, :on_failure, ne, *args)
           raise ne
         end
+        # delete it now?
+        if nil != task
+          if true == exception_options[:bury]
+            task.bury
+          else
+            task.delete
+          end
+        end
+        # re-raise?
+        if true == exception_options[:raise]
+          raise e
+        end
       else
         @hooks.invoke_hook_events(job_class, :on_failure, e, *args)
-      end
-      # delete it now?
-      if nil != task
-        if true == exception_options[:bury]
-          task.bury
-        else
-          task.delete
-        end
+        raise e
       end
       # Signal job termination
       td.job_id = nil
-
-      # re-raise?
-      if true == exception_options[:raise]
-        raise e
-      end
     end
   end
 
