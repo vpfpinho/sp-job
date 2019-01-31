@@ -449,11 +449,11 @@ module SP
       end
 
       def on_bury_lock_cleanup(*args)
-        logger.error "Bury caused an exception (#{args.to_s})"
+        #logger.error "Caused an exception (#{args.to_s})"
       end
 
       def on_failure_lock_cleanup(e, *args)
-        logger.error "Lock cleanup caused an exception (#{e})"
+        #logger.error "Lock cleanup caused an exception (#{e})"
       end
 
       def after_perform_lock_cleanup (*args)
