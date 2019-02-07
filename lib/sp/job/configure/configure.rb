@@ -314,7 +314,7 @@ def self.get_config (args)
   # Read optional brand information
   #
   if conf['product']
-    brand_file = "#{@project}/products/#{conf['product']}/brands.yml"
+    brand_file = "#{@project}/configure/products/#{conf['product']}/brands.yml"
     if File.exists?(brand_file)
       brands = YAML.load_file(brand_file)
     end
