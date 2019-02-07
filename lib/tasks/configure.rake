@@ -348,6 +348,9 @@ task :configure, [ :action ] do |task, args|
   end
   if @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.paths
     @config.nginx_epaper.nginx.paths.each do |path|
+      if OS.mac? && @config.nginx_epaper.nginx.suffix
+        path = path.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
+      end
       create_directory "#{@config.prefix}#{path}"
     end
   end
@@ -393,6 +396,9 @@ task :configure, [ :action ] do |task, args|
       # developer exception
       if OS.mac? && @config.nginx_broker && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+      if OS.mac? && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
+        dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
 
       # Nginx Locations must be filtered, only handle locations that are used
@@ -521,7 +527,7 @@ task :configure, [ :action ] do |task, args|
         throw "Missing #{template} => configuration file for #{@job_name}"
       end
       if OS.mac?
-        create_directory("/usr/local/var/lock/#{@job_name}/")
+        create_directory("#{@config.prefix}/var/lock/#{@job_name}/")
       end
       create_directory "#{@config.prefix}/etc/#{@job_name}"
       create_directory "#{@config.prefix}/var/log/#{@job_name}"
