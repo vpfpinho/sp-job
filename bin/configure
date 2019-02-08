@@ -32,7 +32,7 @@ $option_parser = OptionParser.new do |opts|
   opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
   opts.on('-m', '--dump'      , "dump merged configuration")                               { $args[:print_config] = true        }
   opts.on('-o', '--overwrite' , "overwrite system, project and user files, BE CAREFULL!")  { $args[:action]       = 'overwrite' }
-  opts.on('-p', '--hotfix'    , "hotfix modifies only project and user files")             { $args[:action]       = 'hotfix'    }
+  opts.on('-h', '--hotfix'    , "hotfix modifies only project and user files")             { $args[:action]       = 'hotfix'    }
   opts.on('-d', '--debug'     , "developer mode: log to stdout and print job")             { $args[:debug]        = true        }
 end
 $option_parser.parse!
