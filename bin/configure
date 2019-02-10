@@ -29,7 +29,7 @@ $args = {}
 # Parse command line arguments
 #
 $option_parser = OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME} ARGS"
+  opts.banner = "Usage: #{File.basename($PROGRAM_NAME)} [options]"
   opts.on('-m', '--dump'      , "dump merged configuration")                               { $args[:print_config] = true        }
   opts.on('-o', '--overwrite' , "overwrite system, project and user files, BE CAREFULL!")  { $args[:action]       = 'overwrite' }
   opts.on('-h', '--hotfix'    , "hotfix modifies only project and user files")             { $args[:action]       = 'hotfix'    }
