@@ -868,6 +868,10 @@ module SP
             content: {
               type: 'application/pdf'
             }
+          },
+          conn_options: {
+            connection_timeout: payload[:ttr],
+            request_timeout: payload[:ttr]
           }
         )
 
