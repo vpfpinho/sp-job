@@ -29,7 +29,9 @@ require_relative 'easy_http_client'
 module SP
   module Job
     class ManticoreHTTPClient < EasyHttpClient
-      def self.post(url:, headers:, body:, expect:, conn_options:)
+      def self.post(url:, headers:, body:, expect:, conn_options: {})
+        conn_options[:connection_timeout] ||= 10
+        conn_options[:request_timeout] ||= 60
         client = ::Manticore::Client.new(socket_timeout: conn_options[:connection_timeout], request_timeout: conn_options[:request_timeout])
         nr = self.normalize_response(response: client.post(url, body: body, headers: headers))
 

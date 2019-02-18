@@ -30,8 +30,10 @@ require_relative 'jsonapi_error'
 module SP
   module Job
     class CurlHTTPClient < EasyHttpClient
-      def self.post(url:, headers:, body:, expect:, conn_options:)
+      def self.post(url:, headers:, body:, expect:, conn_options: {})
         # since we're not auto-renew tokens, we can use a simple CURL request
+        conn_options[:connection_timeout] ||= 10
+        conn_options[:request_timeout] ||= 60
         r = Curl::Easy.http_post(url, body) do |handle|
           handle.connect_timeout = conn_options[:connection_timeout]
           handle.timeout = conn_options[:request_timeout]
