@@ -30,7 +30,7 @@ module SP
   module Job
     class ManticoreHTTPClient < EasyHttpClient
       def self.post(url:, headers:, body:, expect:)
-        client = ::Manticore::Client.new
+        client = ::Manticore::Client.new(socket_timeout: 300, request_timeout: 300)
         nr = self.normalize_response(response: client.post(url, body: body, headers: headers))
 
         # compare status code
