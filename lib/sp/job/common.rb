@@ -415,7 +415,11 @@ module SP
             response << ','
             response << args[:response]
           elsif args[:response].instance_of? StringIO
-            raw = args[:response].string.force_encoding('utf-8')
+            if 'application/json' == args[:content_type]
+              raw = args[:response].string.force_encoding('utf-8')
+            else
+              raw = args[:response].string
+            end
             response << raw.size.to_s
             response << ','
             response << raw
