@@ -311,7 +311,7 @@ module SP
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link].include? key
+            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
@@ -346,8 +346,9 @@ module SP
         td.job_notification[:message]     = message unless message.nil?
         td.job_notification[:index]       = p_index unless p_index.nil?
         td.job_notification[:status]      = status.nil? ? 'in-progress' : status
-        td.job_notification[:link]        = args[:link] if args[:link]
-        td.job_notification[:status_code] = args[:status_code] if args[:status_code]
+        [:status_code, :custom, :link].each do |key|
+          td.job_notification[key] = args[key] if args[key]
+        end
         if args.has_key? :response
           td.job_notification[:response]     = args[:response]
           td.job_notification[:content_type] = args[:content_type]
