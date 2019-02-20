@@ -175,6 +175,11 @@ end
 
 def self.diff_and_write (contents:, path:, diff: true, dry_run: false)
 
+  if contents.length == 0
+    puts "\t* contents for #{path} is empty, ignored, we don't write empty files".green
+    return
+  end
+
   if OS.mac?
     create_directory File.dirname path
   end
