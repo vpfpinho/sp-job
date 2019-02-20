@@ -416,7 +416,11 @@ module SP
             response << ','
             response << args[:response]
           elsif args[:response].instance_of? StringIO
-            raw = args[:response].string.force_encoding('utf-8')
+            if 'application/json' == args[:content_type]
+              raw = args[:response].string.force_encoding('utf-8')
+            else
+              raw = args[:response].string
+            end
             response << raw.size.to_s
             response << ','
             response << raw
@@ -869,6 +873,10 @@ module SP
             content: {
               type: 'application/pdf'
             }
+          },
+          conn_options: {
+            connection_timeout: payload[:ttr],
+            request_timeout: payload[:ttr]
           }
         )
 

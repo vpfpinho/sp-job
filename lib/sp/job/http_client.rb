@@ -34,8 +34,8 @@ module SP
         RUBY_ENGINE == 'jruby' ? ManticoreHTTPClient : CurlHTTPClient
       end
 
-      def self.post(url:, headers:, body:, expect:)
-        get_klass.post(url: url, headers: headers, body: body, expect: expect)
+      def self.post(url:, headers:, body:, expect:, conn_options: {})
+        get_klass.post(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
       end
 
       def self.get(url:)
