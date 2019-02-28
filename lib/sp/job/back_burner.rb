@@ -539,6 +539,7 @@ module Backburner
 
       # Invoke before hook and stop if false
       res = @hooks.invoke_hook_events(job_class, :before_perform, *args)
+      @hooks.invoke_hook_events(job_class, :prepend_platform_configuration, *args)
       unless res
         # Signal job termination and remove from queue
         td.job_id = nil

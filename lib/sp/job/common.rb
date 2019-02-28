@@ -26,6 +26,16 @@ module SP
 
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
+      def prepend_platform_configuration (job)
+        begin
+          if config && config[:brands] && job && job[:x_brand]
+            @platform_configuration = config[:brands][job[:x_brand].to_sym][:"platform-configuration"]
+          end
+        rescue Exception => e
+          raise 'No Platform Configuration'
+        end
+      end
+
       def exclude_member(member_number)
         $excluded_members.include? member_number
       end
