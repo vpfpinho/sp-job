@@ -247,6 +247,10 @@ module SP
         rv
       end
 
+      def get_next_job_id
+        ($redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+      end
+
       def _submit_job (args)
         job      = args[:job]
         tube     = args[:tube] || $args[:program_name]
@@ -254,7 +258,7 @@ module SP
 
         validity = args[:validity] || 180
         ttr      = args[:ttr]      || 60
-        job[:id] = ($redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+        job[:id] ||= get_next_job_id
         job[:tube] = tube
         job[:validity] = validity
         redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"

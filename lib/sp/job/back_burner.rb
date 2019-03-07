@@ -133,7 +133,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key)
       def initialize
         self.job_status = {}
         if $config[:jsonapi] && $config[:jsonapi][:prefix]
@@ -699,10 +699,14 @@ $cancel_thread = Thread.new {
     $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
     $subscription_redis.subscribe($config[:service_id] + ':job-signal') do |on|
       on.message do |channel, msg|
+        logger.info "Message #{msg}".yellow
         begin
           message = JSON.parse(msg, {symbolize_names: true})
           $threads.each do |thread|
-            if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id && message[:status] == 'cancelled'
+            logger.info "Job id ..... #{$thread_data[thread].job_id}"
+            logger.info "Target id .. #{message[:id].to_s}"
+            logger.info "Status ..... #{message[:status]}"
+            if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id.to_s && message[:status] == 'cancelled'
               logger.info "Received cancel signal for job #{$thread_data[thread].job_id}"
               thread.raise(::SP::Job::JobCancelled.new)
             end
