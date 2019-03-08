@@ -295,12 +295,26 @@ module SP
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
-        unless $redis.exists(td.job_key)
+        exists = redis do |r|
+          r.exists(td.job_key)
+        end
+        unless exists
           # Signal job termination
           td.job_id = nil
           logger.warn 'Job validity has expired: job ignored'.yellow
           return false
         end
+
+        # Make sure the job was not explicity cancelled
+        status = redis do |r|
+          r.hget(td.job_key, 'status')
+        end
+        if status == 'cancelled'
+          td.job_id = nil
+          logger.warn 'Job was explicity cancelled'.yellow
+          return false
+        end
+
         return true
       end
 
