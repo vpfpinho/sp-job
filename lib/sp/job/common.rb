@@ -306,10 +306,10 @@ module SP
         end
 
         # Make sure the job was not explicity cancelled
-        status = redis do |r|
-          r.hget(td.job_key, 'status')
+        cancelled = redis do |r|
+          r.hget(td.job_key, 'cancelled')
         end
-        if status == 'cancelled'
+        if cancelled == 'true'
           td.job_id = nil
           logger.warn 'Job was explicity cancelled'.yellow
           return false
