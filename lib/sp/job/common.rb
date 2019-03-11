@@ -257,6 +257,10 @@ module SP
         rv
       end
 
+      def get_next_job_id
+        ($redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+      end
+
       def _submit_job (args)
         job      = args[:job]
         tube     = args[:tube] || $args[:program_name]
@@ -264,7 +268,7 @@ module SP
 
         validity = args[:validity] || 180
         ttr      = args[:ttr]      || 60
-        job[:id] = ($redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+        job[:id] ||= get_next_job_id
         job[:tube] = tube
         job[:validity] = validity
         redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
@@ -301,12 +305,26 @@ module SP
         end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
-        unless $redis.exists(td.job_key)
+        exists = redis do |r|
+          r.exists(td.job_key)
+        end
+        unless exists
           # Signal job termination
           td.job_id = nil
           logger.warn 'Job validity has expired: job ignored'.yellow
           return false
         end
+
+        # Make sure the job was not explicity cancelled
+        cancelled = redis do |r|
+          r.hget(td.job_key, 'cancelled')
+        end
+        if cancelled == 'true'
+          td.job_id = nil
+          logger.warn 'Job was explicity cancelled'.yellow
+          return false
+        end
+
         return true
       end
 

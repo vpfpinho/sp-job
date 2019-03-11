@@ -133,7 +133,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key)
       def initialize
         self.job_status = {}
         if $config[:jsonapi] && $config[:jsonapi][:prefix]
@@ -703,7 +703,7 @@ $cancel_thread = Thread.new {
         begin
           message = JSON.parse(msg, {symbolize_names: true})
           $threads.each do |thread|
-            if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id && message[:status] == 'cancelled'
+            if $thread_data[thread].job_id != nil && message[:id].to_s == $thread_data[thread].job_id.to_s && message[:status] == 'cancelled'
               logger.info "Received cancel signal for job #{$thread_data[thread].job_id}"
               thread.raise(::SP::Job::JobCancelled.new)
             end
