@@ -717,14 +717,21 @@ module SP
           raise ::ArgumentError.new 'A lista de emails tem de estar preenchida' if email_addresses.nil? || email_addresses.empty?
 
           email_addresses = email_addresses.split(',').map(&:strip)
-          valid_email_addresses = email_addresses.select { |email| /^[^@\s]+@[^@\s]+(\.[^@\s]+)+$/ =~ email }
+          valid_email_addresses = email_addresses.select { |email| !email.match(RFC822::EMAIL).nil? }
           diff_email_addresses = email_addresses - valid_email_addresses
 
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{diff_email_addresses.join(', ')}" if diff_email_addresses.length > 0
 
-          return [ true, nil ]
+          return { valid: true }
         rescue ::Exception => e
-          return [ false, e.message ]
+          return {
+            valid: false,
+            error: {
+              type: e.class,
+              message: e.message
+            },
+            invalid_emails: diff_email_addresses
+          }
         end
       end
 
@@ -771,9 +778,30 @@ module SP
         to_email = config[:override_mail_recipient] if config[:override_mail_recipient]
         to_email ||= args[:to]
 
+        response_errors = {}
+
+        to_emails_validation = email_addresses_valid?(to_email)
+        unless to_emails_validation[:valid]
+          response_errors[:mailto] = to_emails_validation[:error][:message]
+          response_errors[:mailto_invalid] = to_emails_validation[:invalid_emails]
+        end
+
         # Do not send email to Cc if there is an override_mail_recipient
         cc_email = nil
         cc_email ||= args[:cc] if !args[:cc].nil? && config[:override_mail_recipient].nil?
+
+        if !cc_email.nil?
+          cc_emails_validation = email_addresses_valid?(cc_email)
+          unless cc_emails_validation[:valid]
+            response_errors[:mailcc] = cc_emails_validation[:error][:message]
+            response_errors[:mailcc_invalid] = cc_emails_validation[:invalid_emails]
+          end
+        end
+
+        if response_errors.length != 0
+          report_error(message: 'invalidEmails', status_code: 400, response: response_errors)
+          return
+        end
 
         m = Mail.new do
           from     $config[:mail][:from]
