@@ -30,6 +30,7 @@ module SP
         begin
           if config && config[:brands] && job && job[:x_brand]
             @platform_configuration = config[:brands][job[:x_brand].to_sym][:"platform-configuration"]
+            @color_scheme           = config[:brands][job[:x_brand].to_sym][:"color-scheme"]
           end
         rescue Exception => e
           raise 'No Platform Configuration'
