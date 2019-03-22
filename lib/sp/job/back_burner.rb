@@ -77,16 +77,9 @@ class ClusterMember
   #
   def self.configure_cluster
     $cluster_members = {}
-    match = $pg.conn_str.match(%r[.*application_name=(\w+).*])
-
-    if !match.nil? && match.size == 2
-      app_name = " application_name=#{match[1]}"
-    else
-      app_name = ''
-    end
 
     $config[:cluster][:members].each do |cfg|
-      cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } #{app_name}"
+      cfg[:db][:conn_str] = pg_conn_str(cfg)
       if cfg[:number] == $config[:runs_on_cluster]
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
       else
