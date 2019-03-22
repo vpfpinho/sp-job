@@ -353,6 +353,7 @@ module SP
         td.job_status[:link]        = args[:link] if args[:link]
         td.job_status[:status_code] = args[:status_code] if args[:status_code]
         td.job_status[:message]     = message unless message.nil?
+
         if args.has_key? :response
           td.job_status[:response]     = args[:response]
           td.job_status[:content_type] = args[:content_type]

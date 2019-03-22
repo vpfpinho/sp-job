@@ -155,6 +155,12 @@ module SP
   end
 end
 
+#
+# Helper to build BG connection strings
+#
+def pg_conn_str (config, app_name)
+  return "host=#{config[:host]} port=#{config[:port]} dbname=#{config[:dbname]} user=#{config[:user]}#{config[:password] && config[:password].size != 0 ? ' password='+ config[:password] : '' } #{app_name}"
+end
 
 #
 # Initialize global data needed for configuration
@@ -483,15 +489,6 @@ module Backburner
 
   module Logger
 
-    #if RUBY_ENGINE != 'jruby'
-    #
-    #  def log_job_begin(name, args)
-    #    log_info "Job ##{args[0][:id]} started (#{name})"
-    #    @job_started_at = Time.now
-    #  end
-
-    #else
-
     def log_job_begin(name, args)
       param_log = ''
       args = args[0]
@@ -513,7 +510,6 @@ module Backburner
       log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
     end
 
-    #end
   end
 
   class Job
@@ -652,8 +648,8 @@ end
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
 
-logger.info "Log file ... #{$args[:log_file]}"
-logger.info "PID ........ #{Process.pid}"
+logger.info "Log file ...... #{$args[:log_file]}"
+logger.info "PID ........... #{Process.pid}"
 
 #
 # Now create the global data needed by the mix-in methods
@@ -672,6 +668,16 @@ if $config[:postgres] && $config[:postgres][:conn_str]
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
   end
+end
+
+# Check if the user DB is on diferent database
+if config[:cluster][:user_db].instance_of? Hash
+  config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db], $PROGRAM_NAME)
+  $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
+  logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
+else
+  $user_db = nil # Will be grabbed from $cluster_members
+  logger.info "Central DB .... embedded in cluster #{config[:cluster][:user_db]}"
 end
 
 $excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
