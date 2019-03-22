@@ -674,13 +674,15 @@ if $config[:postgres] && $config[:postgres][:conn_str]
 end
 
 # Check if the user DB is on diferent database
-if config[:cluster][:user_db].instance_of? Hash
-  config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
-  $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
-  logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
-else
-  $user_db = nil # Will be grabbed from $cluster_members
-  logger.info "Central DB .... embedded in cluster #{config[:cluster][:user_db]}"
+if config[:cluster]
+  if config[:cluster][:user_db].instance_of? Hash
+    config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
+    $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
+    logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
+  else
+    $user_db = nil # Will be grabbed from $cluster_members
+    logger.info "Central DB .... embedded in cluster #{config[:cluster][:user_db]}"
+  end
 end
 
 $excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
