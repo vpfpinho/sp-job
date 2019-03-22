@@ -158,7 +158,10 @@ end
 #
 # Helper to build BG connection strings
 #
-def pg_conn_str (config, app_name)
+def pg_conn_str (config, app_name = nil)
+  if app_name.nil?
+    app_name = "application_name=#{$args[:program_name]}"
+  end
   return "host=#{config[:host]} port=#{config[:port]} dbname=#{config[:dbname]} user=#{config[:user]}#{config[:password] && config[:password].size != 0 ? ' password='+ config[:password] : '' } #{app_name}"
 end
 
@@ -672,7 +675,7 @@ end
 
 # Check if the user DB is on diferent database
 if config[:cluster][:user_db].instance_of? Hash
-  config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db], $PROGRAM_NAME)
+  config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
   $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
   logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
 else
