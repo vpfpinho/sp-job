@@ -651,6 +651,13 @@ logger.info "PID ........... #{Process.pid}"
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
+
+#### TODO read config direct from cluster that will allow unification of jobs configs
+
+# Cluster age config here
+
+#### TODO else classical config
+
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
 # raw_response, in the job conf.json can either be:
@@ -660,13 +667,16 @@ $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? f
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
+  logger.info "Consider getting the main DB from cluster config???".yellow
   $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
   end
 end
 
-# Check if the user DB is on diferent database
+#### TODO end ####
+
+# Check if the user DB is on a different database
 if config[:cluster]
   if config[:cluster][:user_db].instance_of? Hash
     config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
