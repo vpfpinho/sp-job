@@ -667,8 +667,7 @@ $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? f
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
-  logger.info "Consider getting the main DB from cluster config???".yellow
-  $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
+  $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
   end
