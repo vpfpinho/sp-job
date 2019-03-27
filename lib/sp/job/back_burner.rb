@@ -77,16 +77,9 @@ class ClusterMember
   #
   def self.configure_cluster
     $cluster_members = {}
-    match = $pg.conn_str.match(%r[.*application_name=(\w+).*])
-
-    if !match.nil? && match.size == 2
-      app_name = " application_name=#{match[1]}"
-    else
-      app_name = ''
-    end
 
     $config[:cluster][:members].each do |cfg|
-      cfg[:db][:conn_str] = "host=#{cfg[:db][:host]} port=#{cfg[:db][:port]} dbname=#{cfg[:db][:dbname]} user=#{cfg[:db][:user]}#{cfg[:db][:password] && cfg[:db][:password].size != 0 ? ' password='+ cfg[:db][:password] : '' } #{app_name}"
+      cfg[:db][:conn_str] = pg_conn_str(cfg[:db])
       if cfg[:number] == $config[:runs_on_cluster]
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
       else
@@ -155,6 +148,15 @@ module SP
   end
 end
 
+#
+# Helper to build BG connection strings
+#
+def pg_conn_str (config, app_name = nil)
+  if app_name.nil?
+    app_name = "application_name=#{$args[:program_name]}"
+  end
+  return "host=#{config[:host]} port=#{config[:port]} dbname=#{config[:dbname]} user=#{config[:user]}#{config[:password] && config[:password].size != 0 ? ' password='+ config[:password] : '' } #{app_name}"
+end
 
 #
 # Initialize global data needed for configuration
@@ -483,15 +485,6 @@ module Backburner
 
   module Logger
 
-    #if RUBY_ENGINE != 'jruby'
-    #
-    #  def log_job_begin(name, args)
-    #    log_info "Job ##{args[0][:id]} started (#{name})"
-    #    @job_started_at = Time.now
-    #  end
-
-    #else
-
     def log_job_begin(name, args)
       param_log = ''
       args = args[0]
@@ -513,7 +506,6 @@ module Backburner
       log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
     end
 
-    #end
   end
 
   class Job
@@ -653,13 +645,20 @@ end
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
 
-logger.info "Log file ... #{$args[:log_file]}"
-logger.info "PID ........ #{Process.pid}"
+logger.info "Log file ...... #{$args[:log_file]}"
+logger.info "PID ........... #{Process.pid}"
 
 #
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
+
+#### TODO read config direct from cluster that will allow unification of jobs configs
+
+# Cluster age config here
+
+#### TODO else classical config
+
 $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
 $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
 # raw_response, in the job conf.json can either be:
@@ -669,9 +668,23 @@ $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? f
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
-  $pg = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: $config[:postgres], multithreaded: $multithreading)
+  $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
+  end
+end
+
+#### TODO end ####
+
+# Check if the user DB is on a different database
+if config[:cluster]
+  if config[:cluster][:user_db].instance_of? Hash
+    config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
+    $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
+    logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
+  else
+    $user_db = nil # Will be grabbed from $cluster_members
+    logger.info "Central DB .... embedded in cluster #{config[:cluster][:user_db]}"
   end
 end
 
