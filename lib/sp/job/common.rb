@@ -45,7 +45,7 @@ module SP
         $thread_data[Thread.current]
       end
 
-      def http (oauth_client_id:, oauth_client_secret:)
+      def http (oauth_client_id:, oauth_client_secret:, oauth_client_host: nil, oauth_client_redirect_uri: nil)   
 
         $http_oauth_clients ||= {}
         $http_oauth_clients[oauth_client_id] ||= ::SP::Job::BrokerHTTPClient.new(
@@ -56,11 +56,11 @@ module SP
                                 ),
                   a_oauth2_client = ::SP::Job::BrokerOAuth2Client.new(
                     protocol:      $config[:api][:oauth][:protocol],
-                    host:          $config[:api][:oauth][:host],
+                    host:          oauth_client_host || $config[:api][:oauth][:host],
                     port:          $config[:api][:oauth][:port],
                     client_id:     oauth_client_id,
                     client_secret: oauth_client_secret,
-                    redirect_uri:  $config[:api][:oauth][:redirect_uri],
+                    redirect_uri:  oauth_client_redirect_uri || $config[:api][:oauth][:redirect_uri],
                     scope:         $config[:api][:oauth][:scope],
                     options:       {}
                   ),
