@@ -45,7 +45,7 @@ module SP
         $thread_data[Thread.current]
       end
 
-      def http (oauth_client_id:, oauth_client_secret:, oauth_client_host: nil, oauth_client_redirect_uri: nil)   
+      def http (oauth_client_id:, oauth_client_secret:, oauth_client_host: nil, oauth_client_redirect_uri: nil)
 
         $http_oauth_clients ||= {}
         $http_oauth_clients[oauth_client_id] ||= ::SP::Job::BrokerHTTPClient.new(
@@ -433,7 +433,7 @@ module SP
         # - a Boolean (true or false)
         # - an Array of tube names; in this case, the response is raw if the current tube name is one of the Array names
         is_raw_response = ($raw_response.is_a?(Array) ? td.job_tube.in?($raw_response) : $raw_response)
-        if is_raw_response && $transient_job
+        if is_raw_response && $transient_job || args[:force_raw_response]
           response = '*'
           response << args[:status_code].to_s
           response << ','
