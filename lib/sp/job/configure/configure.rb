@@ -386,6 +386,9 @@ def self.run_configure (args)
   end
   if @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.paths
     @config.nginx_epaper.nginx.paths.each do |path|
+      if OS.mac? && @config.nginx_epaper.nginx.suffix
+        path = path.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
+      end
       create_directory "#{@config.prefix}#{path}"
     end
   end
@@ -431,6 +434,9 @@ def self.run_configure (args)
       # developer exception
       if OS.mac? && @config.nginx_broker && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+      if OS.mac? && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
+        dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
 
       # Nginx Locations must be filtered, only handle locations that are used
