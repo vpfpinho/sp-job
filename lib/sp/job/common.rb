@@ -381,7 +381,7 @@ module SP
             notification_icon   = p_options && p_options[:icon] || td.current_job[:notification_options] && td.current_job[:notification_options][:icon] ||  "toc-icons:notification_SIS"
             notification_link   = p_options && p_options[:link] || td.current_job[:notification_options] && td.current_job[:notification_options][:link] ||  ""
             notification_remote = p_options && p_options[:remote] || td.current_job[:notification_options] && td.current_job[:notification_options][:remote] || false
-            notification_title  = notification_title || p_options && p_options[:title] || td.current_job[:notification_options] && td.current_job[:notification_options][:title] ||  "Notification title"
+            notification_title  = notification_title || p_options && p_options[:title] || td.current_job[:notification_options] && td.current_job[:notification_options][:title] || td.current_job[:notification_title] ||  "Notification title"
 
             message = {
               dismiss: ['completed', 'error', 'follow-up', 'cancelled', 'imported'].include?(status),
