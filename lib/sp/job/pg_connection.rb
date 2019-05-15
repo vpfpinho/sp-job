@@ -97,7 +97,19 @@ module SP
           _check_life_span()
           unless @id_cache.has_key? query
             id = "p#{Digest::MD5.hexdigest(query)}"
-            @connection.prepare(id, query)
+            begin
+              @connection.prepare(id, query)
+            rescue PG::DuplicatePstatement => ds
+              tmp_debug_str = "~~~\nCached Entry:\n"
+              @id_cache.each do | k, v |
+                if v == id
+                  tmp_debug_str += "#{v}: #{k}\n"
+                  break
+                end
+              end
+              tmp_debug_str += "~~~\nNew Entry: #{id}:#{query}\n"
+              raise "#{ds.message}\n#{tmp_debug_str}"
+            end
             @id_cache[query] = id
           else
             id = @id_cache[query]
