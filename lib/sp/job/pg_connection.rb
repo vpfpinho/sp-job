@@ -100,12 +100,17 @@ module SP
             begin
               @connection.prepare(id, query)
             rescue PG::DuplicatePstatement => ds
-              tmp_debug_str = "~~~\nCached Entry:\n"
+              tmp_debug_str = ""
               @id_cache.each do | k, v |
-                if v == id
+                if v == id || k == query
                   tmp_debug_str += "#{v}: #{k}\n"
                   break
                 end
+              end
+              if 0 == tmp_debug_str.length
+                  tmp_debug_str = "~~~\nAll Entries:\n"+id_cache.to_s
+              else
+                  tmp_debug_str = "~~~\nCached Entry:\n#{tmp_debug_str}"
               end
               tmp_debug_str += "~~~\nNew Entry: #{id}:#{query}\n"
               raise "#{ds.message}\n#{tmp_debug_str}"
