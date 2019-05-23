@@ -108,7 +108,7 @@ module SP
                 end
               end
               if 0 == tmp_debug_str.length
-                  tmp_debug_str = "~~~\nAll Entries:\n"+id_cache.to_s
+                  tmp_debug_str = "~~~\nAll Entries:\n" + @id_cache.to_s
               else
                   tmp_debug_str = "~~~\nCached Entry:\n#{tmp_debug_str}"
               end
