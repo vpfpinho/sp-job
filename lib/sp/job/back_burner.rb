@@ -603,7 +603,15 @@ module Backburner
       $pg.rollback unless ! $pg
     rescue => e
       # ensure currently open ( if any ) transaction rollback
-      $pg.rollback unless ! $pg
+
+      if $pg
+        $pg.rollback
+        if e.is_a?(Backburner::Job::JobTimeout)
+          logger.info 'RESET PG connection because Backburner::Job::JobTimeout could be inside PG'.red
+          $pg.connect()
+        end
+      end
+
       # if we're in broker mode
       if $config[:options] && $config[:options][:source] == 'broker'
         # prepare next action for this exception
