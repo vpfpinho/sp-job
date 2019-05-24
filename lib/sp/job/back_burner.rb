@@ -79,6 +79,7 @@ class ClusterMember
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
+      next if !cfg[:exclude_member].nil? && cfg[:exclude_member] == true
       cfg[:db][:conn_str] = pg_conn_str(cfg[:db])
       if cfg[:number] == $config[:runs_on_cluster]
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
