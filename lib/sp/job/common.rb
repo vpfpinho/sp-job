@@ -498,6 +498,23 @@ module SP
         #logger.error "Lock cleanup caused an exception (#{e})"
       end
 
+      def on_failure_for_all_jobs(e, *args)
+        begin
+          job = thread_data.current_job
+
+        _message = if (e.is_a?(::SP::Job::JobAborted))
+            eval(e.message)[:args][:message]
+          else
+            self.pg_server_error(e) || _notification
+          end
+
+          report_error(progress: 100, status: 'error', message: _message, detail: "Error in job with params: #{job} -> #{e}" )
+        rescue => e
+          logger.error "**** FAILURE ALL JOBS **** #{e}"
+        end
+        
+      end
+
       def after_perform_lock_cleanup (*args)
         check_gracefull_exit(dolog: true)
       end
@@ -674,8 +691,13 @@ module SP
 
           response_object = notification
 
-          job_type  = notification[:tube]
-          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" })
+          job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
+          
+          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
+
+          unless job_exists
+            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_name\":\"#{notification[:resource_job_name]}*" })
+          end
 
           if job_exists[1] && job_exists[1].any?
             job_exists[1].map do |key|
