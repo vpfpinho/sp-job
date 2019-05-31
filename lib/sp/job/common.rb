@@ -696,7 +696,7 @@ module SP
           job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
 
           unless job_exists
-            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_name\":\"#{notification[:resource_job_name]}*" })
+            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
           end
 
           if job_exists[1] && job_exists[1].any?
