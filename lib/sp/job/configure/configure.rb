@@ -324,6 +324,11 @@ def self.get_config (args)
       brands = YAML.load_file(brand_file)
     end
     conf['brands'] = brands['brands']
+  
+    application_file = "#{@project}/configure/products/#{conf['product']}/application.yml"
+    if File.exists?(application_file)
+      conf['application'] = YAML.load_file(application_file)
+    end
   end
 
   conf.clean_keys!
