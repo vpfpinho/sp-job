@@ -415,11 +415,11 @@ module SP
               message.merge!({
                 wizard: td.current_job[:notification_options][:wizard],
                 wizard_options: td.current_job[:notification_options][:wizard_options]
-              }) td.current_job[:notification_options][:wizard] && td.current_job[:notification_options][:wizard_options]
+              }) if td.current_job[:notification_options][:wizard] && td.current_job[:notification_options][:wizard_options]
 
               message.merge!({
                 expiration_date: td.current_job[:notification_options][:expiration_date]
-              }) td.current_job[:notification_options][:expiration_date]
+              }) if td.current_job[:notification_options][:expiration_date]
             end
 
             notification_options = {
