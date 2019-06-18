@@ -434,15 +434,12 @@ def self.run_configure (args)
       # developer exception
       if OS.mac?
         if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          puts "#{dst_file}".red
           dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
         end
         if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          puts "#{dst_file}".red
           dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
         end
         if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
-          puts "#{dst_file}".red
           dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
         end
       end
