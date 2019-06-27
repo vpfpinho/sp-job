@@ -219,6 +219,47 @@ module SP
         end
       end
 
+      def move_from_upload_server(tmp_file:, final_file:, content_type:, access:, user_id: nil, company_id: nil)
+
+        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+
+        headers = {
+          'Content-Type' => "#{content_type}",
+          'X-CASPER-ACCESS' => "#{access}",
+          'X-CASPER-MOVES-URI' => "#{tmp_file}",
+          'X-CASPER-FILENAME' => "#{final_file}"
+        }
+
+        if !company_id.nil? && user_id.nil?
+          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
+        elsif company_id.nil? && !user_id.nil?
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        else
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        end
+
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: headers,
+          body: '',
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/vnd.api+json;charset=utf-8'
+            }
+          }
+        )
+
+        if 200 != response[:code]
+          raise "#{response[:code]}"
+        end
+
+        response[:body]
+
+      end
+
       #
       # Submit jwt
       #
