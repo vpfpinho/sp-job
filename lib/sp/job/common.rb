@@ -219,7 +219,16 @@ module SP
         end
       end
 
-      def move_from_upload_server(tmp_file:, final_file:, content_type:, access:, user_id: nil, company_id: nil)
+      #
+      # Move a file from uploads/tmp to a permanent location in the file server
+      #
+      # @param tmp_file
+      # @param final_file
+      # @param content_type
+      # @param user_id
+      # @param company_id
+      #
+      def move_to_file_server(tmp_file:, final_file:, content_type:, access:, user_id: nil, company_id: nil)
 
         raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
 
@@ -258,6 +267,38 @@ module SP
 
         response[:body]
 
+      end
+
+      #
+      # Delete a file in the file server
+      #
+      # @param file_identifier
+      # @param user_id
+      # @param entity_id
+      # @param role_mask
+      # @param module_mask
+      #
+      def delete_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:)
+
+        raise 'missing file_identifier' if file_identifier.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}/#{file_identifier}"
+
+        headers = {          
+          'X-CASPER-USER-ID' => "#{user_id}",
+          'X-CASPER-ENTITY-ID' => "#{entity_id}",
+          'X-CASPER-ROLE-MASK' => "#{role_mask}",
+          'X-CASPER-MODULE-MASK' => "#{module_mask}"
+        }
+
+        response = HttpClient.get_klass.delete(
+          url: url,
+          headers: headers          
+        )
+
+        if 204 != response[:code]
+          raise "#{response[:code]}"
+        end
       end
 
       #
