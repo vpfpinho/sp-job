@@ -337,20 +337,24 @@ module SP
         response = yield
         if 401 == response.code && response.headers.has_key?(:'WWW-Authenticate')
           # try to refresh access_token
-          tokens_response = @oauth2_client.refresh_access_token(@session.refresh_token, @session.scope)
-          if 200 == tokens_response[:http][:status_code] && tokens_response[:oauth2] && ! tokens_response[:oauth2][:error]
-            # success: keep track of new data
-            @session.is_new        = false
-            @session.access_token  = tokens_response[:oauth2][:access_token]
-            @session.refresh_token = tokens_response[:oauth2][:refresh_token]
-            @session.scope         = tokens_response[:oauth2][:scope] || @session.scope
-            @session.expires_in    = tokens_response[:oauth2][:expires_in] || -1
-            # notify owner
-            if nil != @refreshed_callback
-              @refreshed_callback.call(@session)
-            end
-          else
+          if true == @auto_renew_refresh_token && nil == @session.refresh_token
             fetch_new_tokens()
+          else
+            tokens_response = @oauth2_client.refresh_access_token(@session.refresh_token, @session.scope)
+            if 200 == tokens_response[:http][:status_code] && tokens_response[:oauth2] && ! tokens_response[:oauth2][:error]
+              # success: keep track of new data
+              @session.is_new        = false
+              @session.access_token  = tokens_response[:oauth2][:access_token]
+              @session.refresh_token = tokens_response[:oauth2][:refresh_token]
+              @session.scope         = tokens_response[:oauth2][:scope] || @session.scope
+              @session.expires_in    = tokens_response[:oauth2][:expires_in] || -1
+              # notify owner
+              if nil != @refreshed_callback
+                @refreshed_callback.call(@session)
+              end
+            else
+              fetch_new_tokens()
+            end
           end
           # retry http request
           response = yield
