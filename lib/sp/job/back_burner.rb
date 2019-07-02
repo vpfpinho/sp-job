@@ -82,6 +82,9 @@ class ClusterMember
       next if !cfg[:exclude_member].nil? && cfg[:exclude_member] == true
       cfg[:db][:conn_str] = pg_conn_str(cfg[:db])
       if cfg[:number] == $config[:runs_on_cluster]
+        if $cluster_config
+          $cluster_config[:db][:conn_str] = cfg[:db][:conn_str]
+        end
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
       else
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id])
@@ -170,7 +173,7 @@ $args = {
   stdout:           false,
   log_level:        'info',
   program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:      File.join($prefix, 'etc', File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)), 'conf.json'),
+  config_file:      File.join($prefix, 'etc', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.conf.json"),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
@@ -209,42 +212,50 @@ if  OS.mac?
 end
 File.write("#{$prefix}/var/run/jobs/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
 
+ # Monkey patch for configuration deep merge
+class ::Hash
+
+  def config_merge (second)
+
+    second.each do |skey, sval|
+
+      if ! self.has_key?(skey)
+        self[skey] = sval
+      else
+        if Array === self[skey] && Array === sval
+          self[skey] = self[skey] | sval
+        elsif Hash === self[skey] && Hash === sval
+          self[skey].config_merge(sval)
+        else
+          self[skey] = sval
+        end
+      end
+    end
+  end
+
+  def clean_keys!
+    tmp = Hash.new
+
+    self.each do |key, val|
+      if Hash === val
+        val.clean_keys!
+      end
+
+      if key[-1] == '!'
+        tmp[key[0..-2]] = val
+        self.delete(key)
+      end
+    end
+
+    self.merge! tmp
+  end
+
+end # Hash monkey patch
+
 #
 # Read configuration
 #
 $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize_names: true)
-$min_progress = $config[:options][:min_progress]
-
-#
-# Sanity check we only support multithreading on JRUBY
-#
-if $config[:options] && $config[:options][:threads].to_i > 1
-  raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
-  $redis_mutex = Mutex.new
-  $roolbar_mutex = Mutex.new
-  $multithreading = true
-else
-  $redis_mutex = nil
-  $roolbar_mutex = ::SP::Job::FauxMutex.new
-  $multithreading = false
-end
-
-#
-# Configure rollbar
-#
-unless $config[:rollbar].nil?
-
-  if $config[:rollbar][:enabled] == 'false'
-    $rollbar = false
-  else
-    $rollbar = true
-  end
-
-  Rollbar.configure do |config|
-    config.access_token = $config[:rollbar][:token] if $config[:rollbar][:token]
-    config.environment  = $config[:rollbar][:environment] if $config[:rollbar] && $config[:rollbar][:environment]
-  end
-end
 
 #
 # Configure backburner queue
@@ -327,115 +338,6 @@ class InternalBrokerException
     }
   end
 
-end
-
-Backburner.configure do |config|
-
-  config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  config.on_error      = lambda { |e|
-    td = thread_data
-
-    # ensure currently open ( if any ) transaction rollback
-    $pg.rollback unless ! $pg
-
-    if td.exception_reported == false
-      td.exception_reported = true
-      if e.instance_of? Beaneater::DeadlineSoonError
-        logger.warn "got a deadline warning".red
-      else
-        begin
-          if $config[:options] && $config[:options][:source] == 'broker'
-            send_response(InternalBrokerException.translate_to_response(e:e))
-          else
-            if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
-              raise_error(message: e)
-            else
-              raise_error(message: 'i18n_unexpected_server_error')
-            end
-          end
-        rescue
-          # Do not retrow!!!!
-        end
-      end
-    end
-    # Report exception to rollbar
-    $roolbar_mutex.synchronize {
-      if $rollbar
-        if e.instance_of? ::SP::Job::JobException
-          e.job[:password] = '<redacted>'
-          Rollbar.error(e, e.message, { job: e.job, args: e.args})
-        elsif e.is_a?(::SP::Job::JSONAPI::Error)
-          Rollbar.error(e, e.body)
-        else
-          Rollbar.error(e)
-        end
-      end
-    }
-
-    # Signal job termination
-    td.job_id = nil
-
-    # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
-    case e
-    when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
-      logger.fatal "Lost connection to database exiting now"
-      exit
-    when Redis::CannotConnectError
-      logger.fatal "Can't connect to redis exiting now"
-      exit
-    end
-  }
-  config.max_job_retries  = ($config[:options] && $config[:options][:max_job_retries]) ? $config[:options][:max_job_retries] : 0
-  config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
-  config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
-  config.respond_timeout  = 120
-  config.default_worker   = $config[:options] && $config[:options][:threads].to_i > 1 ? SP::Job::WorkerThread : SP::Job::Worker
-  config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
-  config.logger.formatter = proc do |severity, datetime, progname, msg|
-    date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
-    "[#{date_format}] #{severity}: #{msg}\n"
-  end
-  if $args[:log_level].nil?
-    config.logger.level = Logger::INFO
-  else
-    case $args[:log_level].upcase
-    when 'DEBUG'
-      config.logger.level = Logger::DEBUG
-    when 'INFO'
-      config.logger.level = Logger::INFO
-    when 'WARN'
-      config.logger.level = Logger::WARN
-    when 'ERROR'
-      config.logger.level = Logger::ERROR
-    when 'FATAL'
-      config.logger.level = Logger::FATAL
-    else
-      config.logger.level = Logger::INFO
-    end
-  end
-  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S"
-  config.primary_queue          = $args[:program_name]
-  config.reserve_timeout        = nil
-  config.job_parser_proc        = lambda { |body|
-    rv = Hash.new
-    rv[:args] = [JSON.parse(body, :symbolize_names => true)]
-    rv[:class] = rv[:args][0][:tube] || $args[:program_name]
-    rv
-  }
-end
-
-if $config[:mail]
-  Mail.defaults do
-    delivery_method :smtp, {
-      :address => $config[:mail][:smtp][:address],
-      :port => $config[:mail][:smtp][:port].to_i,
-      :domain =>  $config[:mail][:smtp][:domain],
-      :user_name => $config[:mail][:smtp][:user_name],
-      :password => $config[:mail][:smtp][:password],
-      :authentication => $config[:mail][:smtp][:authentication],
-      :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
-    }
-  end
 end
 
 #
@@ -654,32 +556,199 @@ end
 # Mix-in the common mix-in to make code available for the lambdas used in this file
 extend SP::Job::Common
 
-logger.info "Log file ...... #{$args[:log_file]}"
-logger.info "PID ........... #{Process.pid}"
-
 #
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
 
 #### TODO read config direct from cluster that will allow unification of jobs configs
+if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:unified]
+  # Unified configuration
+  $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
+  $config.config_merge($config[:jobs][$args[:program_name].to_sym]) if !$config[:jobs][$args[:program_name].to_sym].nil?
 
-# Cluster age config here
+  # Get current member database configuration
+  $redis          = Redis.new(:host => $cluster_config[:redis][:casper][:host], :port => $cluster_config[:redis][:casper][:port], :db => 0)
+  $transient_job  = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
+  # raw_response, in the job conf.json can either be:
+  # - a Boolean (true or false)
+  # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
+  $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
+  $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
+  $beaneater     = Beaneater.new "#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
+  if $cluster_config[:db]
+    $cluster_config[:db][:conn_str] = pg_conn_str($cluster_config[:db])
+    $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $cluster_config[:db], multithreaded: $multithreading)
+    if $verbose_log
+      $pg.exec("SET log_min_duration_statement TO 0;")
+    end
+  end
 
-#### TODO else classical config
+  $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
+else
+  # Classical configuration (clusterless)
 
-$redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-$transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
-# raw_response, in the job conf.json can either be:
-# - a Boolean (true or false)
-# - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
-$raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
-$verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
-$beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-if $config[:postgres] && $config[:postgres][:conn_str]
-  $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
-  if $verbose_log
-    $pg.exec("SET log_min_duration_statement TO 0;")
+  $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+  $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
+  # raw_response, in the job conf.json can either be:
+  # - a Boolean (true or false)
+  # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
+  $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
+  $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
+  $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+  if $config[:postgres] && $config[:postgres][:conn_str]
+    $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
+    if $verbose_log
+      $pg.exec("SET log_min_duration_statement TO 0;")
+    end
+  end
+
+  $beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+end
+
+$min_progress = $config[:options] && $config[:options][:min_progress] || 3
+
+#
+# Sanity check we only support multithreading on JRUBY
+#
+if $config[:options] && $config[:options][:threads].to_i > 1
+  raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
+  $redis_mutex = Mutex.new
+  $roolbar_mutex = Mutex.new
+  $multithreading = true
+else
+  $redis_mutex = nil
+  $roolbar_mutex = ::SP::Job::FauxMutex.new
+  $multithreading = false
+end
+
+#
+# Configure rollbar
+#
+unless $config[:rollbar].nil?
+
+  if $config[:rollbar][:enabled] == 'false'
+    $rollbar = false
+  else
+    $rollbar = true
+  end
+
+  Rollbar.configure do |config|
+    config.access_token = $config[:rollbar][:token] if $config[:rollbar][:token]
+    config.environment  = $config[:rollbar][:environment] if $config[:rollbar] && $config[:rollbar][:environment]
+  end
+end
+
+Backburner.configure do |config|
+
+  config.beanstalk_url = $beanstalk_url
+  config.on_error      = lambda { |e|
+    td = thread_data
+
+    # ensure currently open ( if any ) transaction rollback
+    $pg.rollback unless ! $pg
+
+    if td.exception_reported == false
+      td.exception_reported = true
+      if e.instance_of? Beaneater::DeadlineSoonError
+        logger.warn "got a deadline warning".red
+      else
+        begin
+          if $config[:options] && $config[:options][:source] == 'broker'
+            send_response(InternalBrokerException.translate_to_response(e:e))
+          else
+            if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
+              raise_error(message: e)
+            else
+              raise_error(message: 'i18n_unexpected_server_error')
+            end
+          end
+        rescue
+          # Do not retrow!!!!
+        end
+      end
+    end
+    # Report exception to rollbar
+    $roolbar_mutex.synchronize {
+      if $rollbar
+        if e.instance_of? ::SP::Job::JobException
+          e.job[:password] = '<redacted>'
+          Rollbar.error(e, e.message, { job: e.job, args: e.args})
+        elsif e.is_a?(::SP::Job::JSONAPI::Error)
+          Rollbar.error(e, e.body)
+        else
+          Rollbar.error(e)
+        end
+      end
+    }
+
+    # Signal job termination
+    td.job_id = nil
+
+    # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
+    case e
+    when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
+      logger.fatal "Lost connection to database exiting now"
+      exit
+    when Redis::CannotConnectError
+      logger.fatal "Can't connect to redis exiting now"
+      exit
+    end
+  }
+  config.max_job_retries  = ($config[:options] && $config[:options][:max_job_retries]) ? $config[:options][:max_job_retries] : 0
+  config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
+  config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
+  config.respond_timeout  = 120
+  config.default_worker   = $config[:options] && $config[:options][:threads].to_i > 1 ? SP::Job::WorkerThread : SP::Job::Worker
+  config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
+  config.logger.formatter = proc do |severity, datetime, progname, msg|
+    date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
+    "[#{date_format}] #{severity}: #{msg}\n"
+  end
+
+  logger.info "Log file ...... #{$args[:log_file]}"
+  logger.info "PID ........... #{Process.pid}"
+
+  if $args[:log_level].nil?
+    config.logger.level = Logger::INFO
+  else
+    case $args[:log_level].upcase
+    when 'DEBUG'
+      config.logger.level = Logger::DEBUG
+    when 'INFO'
+      config.logger.level = Logger::INFO
+    when 'WARN'
+      config.logger.level = Logger::WARN
+    when 'ERROR'
+      config.logger.level = Logger::ERROR
+    when 'FATAL'
+      config.logger.level = Logger::FATAL
+    else
+      config.logger.level = Logger::INFO
+    end
+  end
+  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S"
+  config.primary_queue          = $args[:program_name]
+  config.reserve_timeout        = nil
+  config.job_parser_proc        = lambda { |body|
+    rv = Hash.new
+    rv[:args] = [JSON.parse(body, :symbolize_names => true)]
+    rv[:class] = rv[:args][0][:tube] || $args[:program_name]
+    rv
+  }
+end
+
+if $config[:mail] && $config[:mail][:enabled]
+  Mail.defaults do
+    delivery_method :smtp, {
+      :address => $config[:mail][:smtp][:address],
+      :port => $config[:mail][:smtp][:port].to_i,
+      :domain =>  $config[:mail][:smtp][:domain],
+      :user_name => $config[:mail][:smtp][:user_name],
+      :password => $config[:mail][:smtp][:password],
+      :authentication => $config[:mail][:smtp][:authentication],
+      :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
+    }
   end
 end
 
@@ -719,7 +788,9 @@ Signal.trap('SIGUSR2') {
 #
 $cancel_thread = Thread.new {
   begin
-    $subscription_redis = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
+    host = $cluster_config && $cluster_config[:redis][:casper][:host] || $config[:redis][:host]
+    port = $cluster_config && $cluster_config[:redis][:casper][:port] || $config[:redis][:port]
+    $subscription_redis = Redis.new(:host => host, :port => port, :db => 0)
     $subscription_redis.subscribe($config[:service_id] + ':job-signal') do |on|
       on.message do |channel, msg|
         begin

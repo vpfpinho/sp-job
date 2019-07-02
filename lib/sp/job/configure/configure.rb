@@ -543,7 +543,11 @@ def self.run_configure (args)
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
+      @unified_config  = false
+
       if job
+        @unified_config = job.unified || false
+
         if job.args
           job.args.to_h.each do | k, v |
             @job_args += "-#{k} #{v}"
@@ -559,9 +563,13 @@ def self.run_configure (args)
           @job_environment = "#{job.environment}"
         end
         @job_threads = job.threads
+
+        if @unified_config
+          @job_args += "-c #{@config.prefix}/etc/jobs/main.conf.json"
+        end
       end
       puts "  #{name}:"
-      if File.exists? "#{@job_dir}/conf.json.erb"
+      if File.exists?("#{@job_dir}/conf.json.erb") && !@unified_config
         template = "#{@job_dir}/conf.json.erb"
       else
         template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
@@ -572,13 +580,21 @@ def self.run_configure (args)
       if OS.mac?
         create_directory("/usr/local/var/lock/#{@job_name}/")
       end
-      create_directory "#{@config.prefix}/etc/#{@job_name}"
-      create_directory "#{@config.prefix}/var/log/#{@job_name}"
-      diff_and_write(contents: expand_template(template, pretty_json: true),
-                     path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
-                     diff: diff_before_copy,
-                     dry_run: dry_run
-      )
+
+      create_directory "#{@config.prefix}/etc/jobs"
+      if @unified_config
+        diff_and_write(contents: expand_template(template, pretty_json: true),
+                       path: "#{@config.prefix}/etc/jobs/main.conf.json",
+                       diff: diff_before_copy,
+                       dry_run: dry_run
+        )
+      else
+        diff_and_write(contents: expand_template(template, pretty_json: true),
+                       path: "#{@config.prefix}/etc/jobs/#{@job_name}.conf.json",
+                       diff: diff_before_copy,
+                       dry_run: dry_run
+        )
+      end
 
       if File.exists? "#{@job_dir}/service.erb"
         template = "#{@job_dir}/service.erb"
