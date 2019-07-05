@@ -220,11 +220,66 @@ module SP
       end
 
       #
+      # Send a file from the webservers to a permanent location in the file server by http
+      #
+      # @param file_name
+      # @param src_file
+      # @param content_type
+      # @param access
+      # @param company_id
+      # @param user_id      
+      #
+      def send_to_file_server(file_name:, src_file:, content_type:, access:, company_id: nil, user_id: nil)
+
+        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+
+        headers = {
+          'Content-Type' => "#{content_type}",
+          'X-CASPER-ACCESS' => "#{access}",
+          'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
+        }
+
+        if !company_id.nil? && user_id.nil?
+          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
+        elsif company_id.nil? && !user_id.nil?
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        else
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        end
+
+        file = File.open(src_file, "rb")
+        contents = file.read
+        file.close
+
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: headers,
+          body: contents,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/vnd.api+json;charset=utf-8'
+            }
+          }
+        )
+
+        if 200 != response[:code]
+          raise "#{response[:code]}"
+        end
+
+        JSON.parse(response[:body])        
+
+      end
+
+      #
       # Move a file from uploads/tmp to a permanent location in the file server
       #
       # @param tmp_file
       # @param final_file
       # @param content_type
+      # @param access
       # @param user_id
       # @param company_id
       #
@@ -1059,6 +1114,43 @@ module SP
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
         file_identifier = send_to_upload_server(src_file: tmp_file, id: entity_id, extension: ".pdf")
         file_identifier
+      end
+
+      def print_and_archive_http (payload, entity_id, access)
+        payload[:ttr]            ||= 300
+        payload[:validity]       ||= 500
+        payload[:auto_printable] ||= false
+        payload[:documents]      ||= []
+
+        jwt = JWTHelper.jobify(
+          key: config[:nginx_broker_private_key],
+          tube: 'casper-print-queue',
+          payload: payload
+        )
+
+        pdf_response = HttpClient.get_klass.post(
+          url: get_cdn_public_url,
+          headers: {
+            'Content-Type' => 'application/text'
+          },
+          body: jwt,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/pdf'
+            }
+          },
+          conn_options: {
+            connection_timeout: payload[:ttr],
+            request_timeout: payload[:ttr]
+          }
+        )
+
+        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
+
+        response = send_to_file_server(file_name: payload[:name]+'.pdf', src_file: tmp_file, content_type: 'application/pdf', access: access, company_id: entity_id)
+        response
       end
 
       class Exception < StandardError
