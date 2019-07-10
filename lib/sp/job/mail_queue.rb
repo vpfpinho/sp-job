@@ -47,7 +47,13 @@ module SP
           cc:          job[:cc],
           reply_to:    job[:reply_to],
           subject:     job[:subject],
-          attachments: job[:attachments]
+          attachments: job[:attachments],
+          session: {
+            user_id: job[:user_id],
+            entity_id: job[:entity_id],
+            role_mask: job[:role_mask],
+            module_mask: job[:module_mask]
+          }
         )
         logger.info "mail - to: #{job[:to]} cc: #{job[:cc]} subject: #{job[:subject]}"
       end

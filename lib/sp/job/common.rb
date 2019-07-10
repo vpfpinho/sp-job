@@ -229,7 +229,7 @@ module SP
       # @param company_id
       # @param user_id      
       #
-      def send_to_file_server(file_name:, src_file:, content_type:, access:, company_id: nil, user_id: nil)
+      def send_to_file_server(file_name: '', src_file:, content_type:, access:, company_id: nil, user_id: nil)
 
         raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
 
@@ -239,6 +239,7 @@ module SP
           'Content-Type' => "#{content_type}",
           'X-CASPER-ACCESS' => "#{access}",
           'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
+          'X-CASPER-ARCHIVED-BY' => 'sp-job'
         }
 
         if !company_id.nil? && user_id.nil?
@@ -283,7 +284,7 @@ module SP
       # @param user_id
       # @param company_id
       #
-      def move_to_file_server(tmp_file:, final_file:, content_type:, access:, user_id: nil, company_id: nil)
+      def move_to_file_server(tmp_file:, final_file: '', content_type:, access:, user_id: nil, company_id: nil)
 
         raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
 
@@ -293,7 +294,8 @@ module SP
           'Content-Type' => "#{content_type}",
           'X-CASPER-ACCESS' => "#{access}",
           'X-CASPER-MOVES-URI' => "#{tmp_file}",
-          'X-CASPER-FILENAME' => "#{final_file}"
+          'X-CASPER-FILENAME' => "#{final_file}",
+          'X-CASPER-ARCHIVED-BY' => 'sp-job'
         }
 
         if !company_id.nil? && user_id.nil?
@@ -320,7 +322,7 @@ module SP
           raise "#{response[:code]}"
         end
 
-        response[:body]
+        JSON.parse(response[:body])
 
       end
 
@@ -343,7 +345,8 @@ module SP
           'X-CASPER-USER-ID' => "#{user_id}",
           'X-CASPER-ENTITY-ID' => "#{entity_id}",
           'X-CASPER-ROLE-MASK' => "#{role_mask}",
-          'X-CASPER-MODULE-MASK' => "#{module_mask}"
+          'X-CASPER-MODULE-MASK' => "#{module_mask}",
+          'USER-AGENT' => 'sp-job'
         }
 
         response = HttpClient.get_klass.delete(
@@ -1002,11 +1005,22 @@ module SP
 
         if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
-            uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
-            uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
-
+            
+            uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}/#{attach[:id]}"
+            
             attach_uri = URI.escape(uri)
-            attach_http_call = Curl::Easy.http_get(attach_uri)
+            if false == args[:session][:role_mask].nil?
+              attach_http_call = Curl::Easy.http_get(attach_uri) do |http|
+                http.headers['X-CASPER-USER-ID'] = args[:session][:user_id]
+                http.headers['X-CASPER-ENTITY-ID'] = args[:session][:entity_id]
+                http.headers['X-CASPER-ROLE-MASK'] = args[:session][:role_mask]
+                http.headers['X-CASPER-MODULE-MASK'] = args[:session][:module_mask]
+                http.headers['User-Agent'] = "curb/mail-queue"
+              end
+            else
+              attach_http_call = Curl::Easy.http_get(attach_uri)
+            end
+
             if attach_http_call.response_code == 200
               attributes = {}
 
@@ -1116,7 +1130,7 @@ module SP
         file_identifier
       end
 
-      def print_and_archive_http (payload, entity_id, access)
+      def print_and_archive_http (payload, entity_id, access, file_name = '')
         payload[:ttr]            ||= 300
         payload[:validity]       ||= 500
         payload[:auto_printable] ||= false
@@ -1149,7 +1163,7 @@ module SP
         tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
 
-        response = send_to_file_server(file_name: payload[:name]+'.pdf', src_file: tmp_file, content_type: 'application/pdf', access: access, company_id: entity_id)
+        response = send_to_file_server(file_name: file_name, src_file: tmp_file, content_type: 'application/pdf', access: access, company_id: entity_id)
         response
       end
 
