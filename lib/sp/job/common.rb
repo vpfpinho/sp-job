@@ -219,19 +219,6 @@ module SP
         end
       end
 
-      def get_public_uploads(file:, tmp_dir:)
-        response = HttpClient.get_klass.get(url: "#{config[:uploads_public][:protocol]}://#{config[:uploads_public][:server]}:#{config[:uploads_public][:port]}/#{file}")
-        if tmp_dir
-          uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
-          File.open(uri, 'wb') {
-             |f| f.write(response[:body])
-          }
-          uri
-        else
-          response[:body]
-        end
-      end
-
       #
       # Send a file from the webservers to a permanent location in the file server by http
       #
@@ -242,7 +229,7 @@ module SP
       # @param company_id
       # @param user_id      
       #
-      def send_to_file_server(file_name: '', src_file:, content_type:, access:, company_id: nil, user_id: nil)
+      def send_to_file_server(file_name: '', src_file:, content_type:, access:, billing_type:, billing_id:, company_id: nil, user_id: nil)
 
         raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
 
@@ -252,7 +239,9 @@ module SP
           'Content-Type' => "#{content_type}",
           'X-CASPER-ACCESS' => "#{access}",
           'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
-          'X-CASPER-ARCHIVED-BY' => 'sp-job'
+          'X-CASPER-ARCHIVED-BY' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
+          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
         }
 
         if !company_id.nil? && user_id.nil?
@@ -297,7 +286,7 @@ module SP
       # @param user_id
       # @param company_id
       #
-      def move_to_file_server(tmp_file:, final_file: '', content_type:, access:, user_id: nil, company_id: nil)
+      def move_to_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
 
         raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
 
@@ -308,7 +297,9 @@ module SP
           'X-CASPER-ACCESS' => "#{access}",
           'X-CASPER-MOVES-URI' => "#{tmp_file}",
           'X-CASPER-FILENAME' => "#{final_file.force_encoding('ISO-8859-1')}",
-          'X-CASPER-ARCHIVED-BY' => 'sp-job'
+          'X-CASPER-ARCHIVED-BY' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
+          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
         }
 
         if !company_id.nil? && user_id.nil?
@@ -348,7 +339,7 @@ module SP
       # @param role_mask
       # @param module_mask
       #
-      def delete_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:)
+      def delete_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:, billing_type:, billing_id:)
 
         raise 'missing file_identifier' if file_identifier.nil?
 
@@ -359,7 +350,9 @@ module SP
           'X-CASPER-ENTITY-ID' => "#{entity_id}",
           'X-CASPER-ROLE-MASK' => "#{role_mask}",
           'X-CASPER-MODULE-MASK' => "#{module_mask}",
-          'USER-AGENT' => 'sp-job'
+          'USER-AGENT' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
+          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
         }
 
         response = HttpClient.get_klass.delete(
@@ -1143,7 +1136,8 @@ module SP
         file_identifier
       end
 
-      def print_and_archive_http (payload, entity_id, access, file_name = '')
+      #TODO: change this!!
+      def print_and_archive_http (payload, entity_id, access, file_name, billing_type)
         payload[:ttr]            ||= 300
         payload[:validity]       ||= 500
         payload[:auto_printable] ||= false
@@ -1176,7 +1170,7 @@ module SP
         tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
 
-        response = send_to_file_server(file_name: file_name, src_file: tmp_file, content_type: 'application/pdf', access: access, company_id: entity_id)
+        response = send_to_file_server(file_name: file_name, src_file: tmp_file, content_type: 'application/pdf', access: access,  billing_type: billing_type, billing_id: entity_id, company_id: entity_id)
         response
       end
 
