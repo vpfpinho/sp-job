@@ -219,6 +219,19 @@ module SP
         end
       end
 
+      def get_public_uploads(file:, tmp_dir:)
+        response = HttpClient.get_klass.get(url: "#{config[:uploads_public][:protocol]}://#{config[:uploads_public][:server]}:#{config[:uploads_public][:port]}/#{file}")
+        if tmp_dir
+          uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+          File.open(uri, 'wb') {
+             |f| f.write(response[:body])
+          }
+          uri
+        else
+          response[:body]
+        end
+      end
+
       #
       # Send a file from the webservers to a permanent location in the file server by http
       #
