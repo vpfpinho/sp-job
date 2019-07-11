@@ -307,7 +307,7 @@ module SP
           'Content-Type' => "#{content_type}",
           'X-CASPER-ACCESS' => "#{access}",
           'X-CASPER-MOVES-URI' => "#{tmp_file}",
-          'X-CASPER-FILENAME' => "#{final_file}",
+          'X-CASPER-FILENAME' => "#{final_file.force_encoding('ISO-8859-1')}",
           'X-CASPER-ARCHIVED-BY' => 'sp-job'
         }
 
