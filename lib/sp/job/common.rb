@@ -236,12 +236,12 @@ module SP
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
         headers = {
-          'Content-Type' => "#{content_type}",
-          'X-CASPER-ACCESS' => "#{access}",
+          'Content-Type' => content_type.to_s,
+          'X-CASPER-ACCESS' => access.to_s,
           'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
           'X-CASPER-ARCHIVED-BY' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
-          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
         }
 
         if !company_id.nil? && user_id.nil?
@@ -293,13 +293,13 @@ module SP
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
         headers = {
-          'Content-Type' => "#{content_type}",
-          'X-CASPER-ACCESS' => "#{access}",
-          'X-CASPER-MOVES-URI' => "#{tmp_file}",
+          'Content-Type' => content_type.to_s,
+          'X-CASPER-ACCESS' => access.to_s,
+          'X-CASPER-MOVES-URI' => tmp_file.to_s,
           'X-CASPER-FILENAME' => "#{final_file.force_encoding('ISO-8859-1')}",
           'X-CASPER-ARCHIVED-BY' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
-          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
         }
 
         if !company_id.nil? && user_id.nil?
@@ -346,13 +346,13 @@ module SP
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}/#{file_identifier}"
 
         headers = {          
-          'X-CASPER-USER-ID' => "#{user_id}",
-          'X-CASPER-ENTITY-ID' => "#{entity_id}",
-          'X-CASPER-ROLE-MASK' => "#{role_mask}",
-          'X-CASPER-MODULE-MASK' => "#{module_mask}",
+          'X-CASPER-USER-ID' => user_id.to_s,
+          'X-CASPER-ENTITY-ID' => entity_id.to_s,
+          'X-CASPER-ROLE-MASK' => role_mask.to_s,
+          'X-CASPER-MODULE-MASK' => module_mask.to_s,
           'USER-AGENT' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => "#{billing_type}",
-          'X-CASPER-BILLING-ID' => "#{billing_id.to_s}"
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
         }
 
         response = HttpClient.get_klass.delete(
@@ -383,6 +383,22 @@ module SP
           }
         )
         response
+      end
+
+      def get_role_mask (role_names)
+        roles = db.exec(%Q[
+          SELECT name, mask
+            FROM public.roles
+        ])
+        roles = roles.inject({}){|n_hash, db_hash| n_hash.merge({db_hash['name'] => db_hash['mask']}) }
+
+        res = roles[role_names[0]].to_i
+        role_names.shift
+        role_names.each do |name|
+          res = (res | roles[name].to_i)
+        end
+
+        "0x#{sprintf("%04x", res)}"
       end
 
       #
@@ -1136,8 +1152,7 @@ module SP
         file_identifier
       end
 
-      #TODO: change this!!
-      def print_and_archive_http (payload, entity_id, access, file_name, billing_type)
+      def print_and_archive_http (payload:, entity_id:, access:, file_name: '', billing_type:)
         payload[:ttr]            ||= 300
         payload[:validity]       ||= 500
         payload[:auto_printable] ||= false
@@ -1170,7 +1185,13 @@ module SP
         tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
 
-        response = send_to_file_server(file_name: file_name, src_file: tmp_file, content_type: 'application/pdf', access: access,  billing_type: billing_type, billing_id: entity_id, company_id: entity_id)
+        response = send_to_file_server(file_name: file_name, 
+                                       src_file: tmp_file, 
+                                       content_type: 'application/pdf', 
+                                       access: access,  
+                                       billing_type: billing_type, 
+                                       billing_id: entity_id, 
+                                       company_id: entity_id)
         response
       end
 
