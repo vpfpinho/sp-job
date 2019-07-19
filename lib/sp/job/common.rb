@@ -385,6 +385,9 @@ module SP
         response
       end
 
+      #
+      # Create a role mask given an array of roles
+      #
       def get_role_mask (role_names)
         roles = db.exec(%Q[
           SELECT name, mask
