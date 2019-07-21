@@ -35,7 +35,7 @@ module SP
 
         ### INSTANCE METHOD(S) ###
 
-        def initialize (a_curb_request)
+        def initialize(a_curb_request)
           http_response, *http_headers = a_curb_request.header_str.split(/[\r\n]+/).map(&:strip)
           @code    = a_curb_request.response_code
           @headers = Response.symbolize_keys(Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }])
@@ -267,12 +267,13 @@ module SP
       # @param a_uri
       # @param a_content_type
       #
-      def do_http_get (a_uri, a_content_type = 'application/vnd.api+json')
+      def do_http_get(a_uri, a_content_type = 'application/vnd.api+json')
         http_request = Curl::Easy.http_get(a_uri) do |curl|
           if nil != a_content_type
             curl.headers['Content-Type']  = a_content_type
           end
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
+          curl.headers['User-Agent']    = "SP-JOB/BrokerHTTPClient"
         end
         Response.new(http_request)
       end
@@ -284,10 +285,11 @@ module SP
       # @param a_body
       # @param a_content_type
       #
-      def do_http_post (a_uri, a_body, a_content_type = 'application/vnd.api+json')
+      def do_http_post(a_uri, a_body, a_content_type = 'application/vnd.api+json')
         http_request = Curl::Easy.http_post(a_uri, a_body) do |curl|
           curl.headers['Content-Type']  = a_content_type;
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
+          curl.headers['User-Agent']    = "SP-JOB/BrokerHTTPClient"
         end
         Response.new(http_request)
       end
@@ -299,10 +301,11 @@ module SP
       # @param a_body
       # @param a_content_type
       #
-      def do_http_patch (a_uri, a_body, a_content_type = 'application/vnd.api+json')
+      def do_http_patch(a_uri, a_body, a_content_type = 'application/vnd.api+json')
         http_request = Curl.http(:PATCH, a_uri, a_body) do |curl|
           curl.headers['Content-Type']  = a_content_type;
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
+          curl.headers['User-Agent']    = "SP-JOB/BrokerHTTPClient"
         end
         Response.new(http_request)
       end
@@ -314,10 +317,11 @@ module SP
       # @param a_body
       # @param a_content_type
       #
-      def do_http_delete (a_uri, a_body = nil, a_content_type = 'application/vnd.api+json')
+      def do_http_delete(a_uri, a_body = nil, a_content_type = 'application/vnd.api+json')
         http_request = Curl::Easy.http_delete(a_uri) do |curl|
           curl.headers['Content-Type']   = a_content_type;
           curl.headers['Authorization'] = "Bearer #{@session.access_token}"
+          curl.headers['User-Agent']    = "SP-JOB/BrokerHTTPClient"
         end
         Response.new(http_request)
       end
