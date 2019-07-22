@@ -378,7 +378,7 @@ def self.run_configure (args)
   #
   if @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.paths
     @config.nginx_broker.nginx.paths.each do |path|
-      if OS.mac? && @config.nginx_broker.nginx.suffix
+      if @config.nginx_broker.nginx.suffix
         path = path.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
       end
       create_directory "#{@config.prefix}#{path}"
@@ -386,7 +386,7 @@ def self.run_configure (args)
   end
   if @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.paths
     @config.nginx_epaper.nginx.paths.each do |path|
-      if OS.mac? && @config.nginx_epaper.nginx.suffix
+      if @config.nginx_epaper.nginx.suffix
         path = path.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
       create_directory "#{@config.prefix}#{path}"
@@ -432,16 +432,14 @@ def self.run_configure (args)
       end
 
       # developer exception
-      if OS.mac?
-        if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
-        end
-        if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
-        end
-        if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
-          dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
-        end
+      if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
+        dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
+      end
+      if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
+        dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+      if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
+        dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
 
       # Nginx Locations must be filtered, only handle locations that are used
