@@ -404,6 +404,22 @@ def self.run_configure (args)
   end
 
   #
+  # Copy /usr/share/ files to suffix directory
+  #
+  OS.mac? ? local_dir = '/local' : local_dir = ''
+  if @config.nginx_broker && @config.nginx_broker.nginx.suffix
+    create_directory("/usr#{local_dir}/share/nginx-broker#{@config.nginx_broker.nginx.suffix}")
+    safesudo("cp /usr#{local_dir}/share/nginx-broker/i18.json /usr#{local_dir}/share/nginx-broker#{@config.nginx_broker.nginx.suffix}/")
+    puts "here 1"
+  end
+
+  if @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
+    create_directory("/usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
+    safesudo("cp -v -f /usr#{local_dir}/share/nginx-epaper/fonts/ttf/dejavu/* /usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
+    puts "here 2"
+  end
+
+  #
   # Configure system, projects and user files
   #
   hostname = %x[hostname -s].strip
