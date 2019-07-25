@@ -1,3 +1,4 @@
+# coding: utf-8
 #
 # Copyright (c) 2011-2016 Cloudware S.A. All rights reserved.
 #
@@ -1030,12 +1031,10 @@ module SP
 
         if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
-            
-            uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}/#{attach[:id]}"
-            
-            attach_uri = URI.escape(uri)
-            if false == args[:session][:role_mask].nil?
-              attach_http_call = Curl::Easy.http_get(attach_uri) do |http|
+            uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
+            if false == args[:session].nil? && false == args[:session][:role_mask].nil?
+              uri += "/#{attach[:id]}"
+              attach_http_call = Curl::Easy.http_get(URI.escape(uri)) do |http|
                 http.headers['X-CASPER-USER-ID'] = args[:session][:user_id]
                 http.headers['X-CASPER-ENTITY-ID'] = args[:session][:entity_id]
                 http.headers['X-CASPER-ROLE-MASK'] = args[:session][:role_mask]
@@ -1043,12 +1042,11 @@ module SP
                 http.headers['User-Agent'] = "curb/mail-queue"
               end
             else
-              attach_http_call = Curl::Easy.http_get(attach_uri)
+              uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
+              attach_http_call = Curl::Easy.http_get(URI.escape(uri))
             end
-
             if attach_http_call.response_code == 200
               attributes = {}
-
               if attach.has_key?(:filename)
                 attributes[:filename] = attach[:filename]
                 attributes[:mime_type] = attach[:mime_type]
@@ -1058,8 +1056,9 @@ module SP
                 end
                 attributes[:mime_type] = attach_http_call.content_type
               end
-
               m.attachments[attributes[:filename].force_encoding('UTF-8').gsub('±', ' ')] = { mime_type: attributes[:mime_type], content: attach_http_call.body_str }
+            else
+              raise "synchronous_send_email: #{attach_http_call.response_code} - #{uri}"
             end
           end
         end
