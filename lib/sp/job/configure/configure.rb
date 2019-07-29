@@ -446,13 +446,13 @@ def self.run_configure (args)
       end
 
       # developer exception
-      if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
+      if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
       end
-      if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
+      if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.suffix
         dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
       end
-      if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
+      if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.suffix
         dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
 
