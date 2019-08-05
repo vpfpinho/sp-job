@@ -1,0 +1,25 @@
+[Unit]
+Description=<%= @job_description %>, queue %i.
+PartOf=<%= @project_name %>jobs@%i.service
+After=<%= @project_name %>jobs@%i.service
+
+[Service]
+<% if @job_environment -%>
+Environment="<%= "#{@job_environment}" %>"
+<% end -%>
+Type=simple
+User=<%= @config.user %>
+Group=<%= @config.group %>
+WorkingDirectory=<%= @job_working_dir %>
+PIDFile=<%= "#{@config.prefix}/var/run/jobs/#{@job_name}"  %>.%i.pid
+ExecStart=<%= "#{@job_exec} do bundle exec #{@config.paths.working_directory}/jobs/#{@job_name}/#{@job_name}" %> --index=%i <%= @job_args %>
+ExecStop=/bin/kill -s TERM $MAINPID
+ExecReload=/bin/kill -s USR2 $MAINPID
+TimeoutStopSec=5
+LimitCORE=2000000000
+Restart=always
+RestartSec=5
+SuccessExitStatus=1 SIGUSR2
+
+[Install]
+WantedBy=<%= @project_name %>jobs@%i.service

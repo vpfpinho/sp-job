@@ -34,7 +34,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'backburner'
   spec.add_dependency 'pg'            unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'jruby-pg'      if     RUBY_ENGINE == 'jruby'
-  spec.add_dependency 'manticore'     if     RUBY_ENGINE == 'jruby'
   spec.add_dependency 'curb'          unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'oauth2'        unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'oauth2-client' unless RUBY_ENGINE == 'jruby'
@@ -50,4 +49,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.14'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
+
+  spec.add_development_dependency 'rake-compiler' if     RUBY_ENGINE == 'jruby'
 end

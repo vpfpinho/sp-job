@@ -54,6 +54,17 @@ module SP
       end
 
       #
+      # Helper class that defined an 'Not Found' error.
+      #
+      class NotFound < Error
+
+        def initialize (i18n:, internal:)
+          super(i18n: i18n, code: 404, internal: internal)
+        end
+
+      end
+
+      #
       # Helper class that defined an 'Bard Request' error.
       #
       class BadRequest < Error
@@ -406,7 +417,7 @@ module SP
 
       end
 
-    end # end class 'Broker'
+    end # end class 'Job'
 
   end # module Job
 end# module SP

@@ -27,6 +27,8 @@ require 'fileutils'
 require 'tempfile'
 require 'etc'
 
+require 'byebug'
+
 puts "Running configure poison".red
 
  # Monkey patch for configuration deep merge
@@ -225,6 +227,10 @@ end
 
 def self.pg_conn_string (db)
   "host=#{db.host} port=#{db.port} dbname=#{db.dbname} user=#{db.user}#{db.password != nil && db.password.size != 0 ? ' password='+ db.password : '' }"
+end
+
+def self.pg_conn_str (db:, application:)
+  "host=#{db.host} port=#{db.port} dbname=#{db.dbname} user=#{db.user}#{db.password != nil && db.password.size != 0 ? ' password='+ db.password : '' } application_name=#{application}"
 end
 
 def self.expand_template (template, pretty_json: false)
@@ -554,6 +560,9 @@ def self.run_configure (args)
   end
 
   #
+  templates_fallback_dir = File.expand_path(File.join(File.dirname(__FILE__), '../../../../', 'jobs'))
+
+  #
   # Configure JOBS
   #
   if action == 'dry-run' || action == 'overwrite'
@@ -610,7 +619,11 @@ def self.run_configure (args)
         template = "#{@config.paths.working_directory}/jobs/default.service.erb"
       end
       unless File.exists? template
-        throw "Missing service file for #{@job_name}"
+        # last attempt - try sp-job/job/default.service.erb
+        template = "#{templates_fallback_dir}/default.service.erb"
+        if ! File.exists? template
+          throw "Missing service file for #{@job_name} ( #{template} )"
+        end
       end
 
       diff_and_write(contents: expand_template(template),
@@ -624,6 +637,10 @@ def self.run_configure (args)
         template = "#{@job_dir}/logrotate.erb"
       else
         template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
+        if ! File.exists? template
+          # last attempt - try sp-job/job/default.service.erb
+          template = "#{templates_fallback_dir}/default.logrotate.erb"
+        end
       end
       if File.exists? template
         diff_and_write(contents: expand_template(template),

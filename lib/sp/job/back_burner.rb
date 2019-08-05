@@ -23,7 +23,7 @@ require 'sp/job/session'
 require 'sp/job/broker'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
-require 'sp/job/broker_oauth2_client' unless RUBY_ENGINE == 'jruby' # ::SP::Job::BrokerOAuth2Client::InvalidToken
+require 'sp/job/internal_broker_exception'
 require 'roadie'
 require 'thread'
 
@@ -249,85 +249,6 @@ end
 #
 # Configure backburner queue
 #
-
-class InternalBrokerException
-
-  def self.handle(task:, exception:, hooks:, callback:)
-
-    response = InternalBrokerException.translate_to_response(e: exception)
-    job_id   = task.id
-    job_body = JSON.parse(task.body, symbolize_names: true)
-
-    job_options = hooks[:var].invoke_hook_events(hooks[:klass], :on_raise_response_was_sent, job_id, job_body, response)
-    if nil == job_options || false == job_options.is_a?(Array) || 1 != job_options.size || false == job_options[0].is_a?(Hash)
-      rv = { response: response }
-    else
-      job_options = job_options[0]
-      # rollbar it
-      if true == job_options.include?(:rollbar) && true == job_options[:rollbar]
-        InternalBrokerException.rollbar(job_id: job_id, job_body: job_body, exception: exception)
-      end
-      #
-      rv = { bury: job_options[:bury] , raise: job_options[:raise], response: job_options[:response] || response }
-    end
-
-    # send response
-    callback.call(rv.delete(:response))
-
-    # done
-    rv
-
-  end
-
-  def self.translate_to_response(e:)
-    args = {}
-    args[:status] = 'error'
-    args[:action] = 'response'
-    if e.is_a?(::SP::Job::JSONAPI::Error)
-      args[:status_code]  = e.status_code
-      args[:content_type] = e.content_type
-      args[:response]     = e.body
-    elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
-      args[:status_code]  = 401
-      args[:content_type] = ''
-      args[:response]     = ''
-    else
-      e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
-      args[:status_code]  = e.status_code
-      args[:content_type] = e.content_type
-      args[:response]     = e.body
-    end
-    args
-  end
-
-  #
-  # Report exception to rollbar
-  #
-  # @param j Job ID
-  # @param a Job Body
-  # @param e Exception
-  #
-  def self.rollbar(job_id:, job_body:, exception:)
-    $roolbar_mutex.synchronize {
-      if $rollbar
-        if exception.instance_of? ::SP::Job::JobException
-          exception.job[:password] = '<redacted>'
-          Rollbar.error(exception, exception.message, { job: exception.job, args: exception.args})
-        elsif exception.is_a?(::SP::Job::JSONAPI::Error)
-          [:access_token, :refresh_token, :password].each do | s |
-            if job_body.has_key?(s)
-              job_body[s] = '<redacted>'
-            end
-          end
-          Rollbar.error(exception, exception.message, { job: job_id, args: job_body, response: exception.body })
-        else
-          Rollbar.error(exception)
-        end
-      end
-    }
-  end
-
-end
 
 Backburner.configure do |config|
 
