@@ -383,7 +383,7 @@ def self.run_configure (args)
   #
   if @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.paths
     @config.nginx_broker.nginx.paths.each do |path|
-      if OS.mac? && @config.nginx_broker.nginx.suffix
+      if @config.nginx_broker.nginx.suffix
         path = path.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
       end
       create_directory "#{@config.prefix}#{path}"
@@ -391,7 +391,7 @@ def self.run_configure (args)
   end
   if @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.paths
     @config.nginx_epaper.nginx.paths.each do |path|
-      if OS.mac? && @config.nginx_epaper.nginx.suffix
+      if @config.nginx_epaper.nginx.suffix
         path = path.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
       create_directory "#{@config.prefix}#{path}"
@@ -406,6 +406,20 @@ def self.run_configure (args)
         end
       end
     end
+  end
+
+  #
+  # Copy /usr/share/ files to suffix directory
+  #
+  OS.mac? ? local_dir = '/local' : local_dir = ''
+  if @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.suffix
+    create_directory("/usr#{local_dir}/share/nginx-broker#{@config.nginx_broker.nginx.suffix}")
+    safesudo("cp /usr#{local_dir}/share/nginx-broker/i18.json /usr#{local_dir}/share/nginx-broker#{@config.nginx_broker.nginx.suffix}/")
+  end
+
+  if @config.nginx_epaper &&  @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.suffix
+    create_directory("/usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
+    safesudo("cp -v -f /usr#{local_dir}/share/nginx-epaper/fonts/ttf/dejavu/* /usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
   end
 
   #
@@ -437,16 +451,14 @@ def self.run_configure (args)
       end
 
       # developer exception
-      if OS.mac?
-        if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
-        end
-        if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx.suffix
-          dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
-        end
-        if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx.suffix
-          dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
-        end
+      if dst_file.include?('nb-xattr') && @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.suffix
+        dst_file = dst_file.sub('nb-xattr', "nb-xattr#{@config.nginx_broker.nginx.suffix}")
+      end
+      if dst_file.include?('nginx-broker') && @config.nginx_broker && @config.nginx_broker.nginx && @config.nginx_broker.nginx.suffix
+        dst_file = dst_file.sub('nginx-broker', "nginx-broker#{@config.nginx_broker.nginx.suffix}")
+      end
+      if dst_file.include?('nginx-epaper') && @config.nginx_epaper && @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.suffix
+        dst_file = dst_file.sub('nginx-epaper', "nginx-epaper#{@config.nginx_epaper.nginx.suffix}")
       end
 
       # Nginx Locations must be filtered, only handle locations that are used
@@ -456,9 +468,8 @@ def self.run_configure (args)
         next
       end
 
-
       # Filter nginx vhosts that do not have and entry, only install the vhosts that have an entry in nginx-xxxxx
-      m = /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
+      m = /.*(nginx-broker|nginx-epaper)[^\/]*?\/conf.d\/(.*)\.conf$/.match(dst_file)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil? or !conf[key_l1].key?(m[2])
@@ -467,7 +478,7 @@ def self.run_configure (args)
         end
       end
       # do not touch config files on top folder if that nginx is not requested
-      m =  /.*(nginx-broker|nginx-epaper)\/(.*)$/.match(dst_file)
+      m =  /.*(nginx-broker|nginx-epaper)[^\/]*?\/(.*)$/.match(dst_file)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil?
@@ -496,7 +507,20 @@ def self.run_configure (args)
       # Now expand the template
       file_contents = expand_template(template)
 
-      if /.*(nginx-broker|nginx-epaper)\/conf\.d\/(.*)\.conf$/.match(dst_file)
+      m = /.*(nginx-broker|nginx-epaper)[^\/]*?\/conf.d\/(.*)\.conf$/.match(dst_file)
+      if m && m.size == 3
+        # override destination path
+        nginx_name  = m[1].gsub('-', '_')
+        module_name = m[2].gsub('-', '_')
+        if conf[nginx_name] && conf[nginx_name]['nginx'] && conf[nginx_name]['nginx']['alt_conf_dir_per_module']
+          alt_conf_dir_per_module = conf[nginx_name]['nginx']['alt_conf_dir_per_module'][module_name]
+          if alt_conf_dir_per_module
+            dst_file = "#{@config.prefix}#{alt_conf_dir_per_module}/#{File.basename(dst_file)}"
+          end
+        end
+
+
+        # included locations
         includes = file_contents.scan(/^\s*include\s+conf\.d\/(.*)\.location\;/)
         includes.each do |loc|
           used_locations << loc[0]

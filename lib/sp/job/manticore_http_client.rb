@@ -58,6 +58,11 @@ module SP
         self.normalize_response(response: client.get(url))
       end
 
+      def self.delete(url:, headers:)
+        client = ::Manticore::Client.new
+        self.normalize_response(response: client.delete(url, headers: headers))
+      end
+
       private
 
       def self.normalize_response(response:)

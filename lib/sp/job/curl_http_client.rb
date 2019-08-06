@@ -63,6 +63,11 @@ module SP
         self.normalize_response(curb_r: response)
       end
 
+      def self.delete(url:, headers:)
+        response = Curl::Easy.http_delete(url, headers)
+        self.normalize_response(curb_r: response)
+      end
+
       private
 
       def self.normalize_response(curb_r:)

@@ -42,6 +42,10 @@ module SP
         get_klass.get(url: url)
       end
 
+      def self.delete(url:, headers:)
+        get_klass.delete(url: url, headers: headers)
+      end
+
     end
   end
 end

@@ -1,3 +1,4 @@
+# coding: utf-8
 #
 # Copyright (c) 2011-2016 Cloudware S.A. All rights reserved.
 #
@@ -220,6 +221,152 @@ module SP
       end
 
       #
+      # Send a file from the webservers to a permanent location in the file server by http
+      #
+      # @param file_name
+      # @param src_file
+      # @param content_type
+      # @param access
+      # @param company_id
+      # @param user_id      
+      #
+      def send_to_file_server(file_name: '', src_file:, content_type:, access:, billing_type:, billing_id:, company_id: nil, user_id: nil)
+
+        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+
+        headers = {
+          'Content-Type' => content_type.to_s,
+          'X-CASPER-ACCESS' => access.to_s,
+          'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
+          'X-CASPER-ARCHIVED-BY' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
+        }
+
+        if !company_id.nil? && user_id.nil?
+          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
+        elsif company_id.nil? && !user_id.nil?
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        else
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        end
+
+        file = File.open(src_file, "rb")
+        contents = file.read
+        file.close
+
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: headers,
+          body: contents,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/vnd.api+json;charset=utf-8'
+            }
+          }
+        )
+
+        if 200 != response[:code]
+          raise "#{response[:code]}"
+        end
+
+        JSON.parse(response[:body])        
+
+      end
+
+      #
+      # Move a file from uploads/tmp to a permanent location in the file server
+      #
+      # @param tmp_file
+      # @param final_file
+      # @param content_type
+      # @param access
+      # @param user_id
+      # @param company_id
+      #
+      def move_to_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
+
+        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+
+        headers = {
+          'Content-Type' => content_type.to_s,
+          'X-CASPER-ACCESS' => access.to_s,
+          'X-CASPER-MOVES-URI' => tmp_file.to_s,
+          'X-CASPER-FILENAME' => "#{final_file.force_encoding('ISO-8859-1')}",
+          'X-CASPER-ARCHIVED-BY' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
+        }
+
+        if !company_id.nil? && user_id.nil?
+          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
+        elsif company_id.nil? && !user_id.nil?
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        else
+          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
+        end
+
+        response = HttpClient.get_klass.post(
+          url: url,
+          headers: headers,
+          body: '',
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/vnd.api+json;charset=utf-8'
+            }
+          }
+        )
+
+        if 200 != response[:code]
+          raise "#{response[:code]}"
+        end
+
+        JSON.parse(response[:body])
+
+      end
+
+      #
+      # Delete a file in the file server
+      #
+      # @param file_identifier
+      # @param user_id
+      # @param entity_id
+      # @param role_mask
+      # @param module_mask
+      #
+      def delete_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:, billing_type:, billing_id:)
+
+        raise 'missing file_identifier' if file_identifier.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}/#{file_identifier}"
+
+        headers = {          
+          'X-CASPER-USER-ID' => user_id.to_s,
+          'X-CASPER-ENTITY-ID' => entity_id.to_s,
+          'X-CASPER-ROLE-MASK' => role_mask.to_s,
+          'X-CASPER-MODULE-MASK' => module_mask.to_s,
+          'USER-AGENT' => 'sp-job',
+          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+          'X-CASPER-BILLING-ID' => billing_id.to_s
+        }
+
+        response = HttpClient.get_klass.delete(
+          url: url,
+          headers: headers          
+        )
+
+        if 204 != response[:code]
+          raise "#{response[:code]}"
+        end
+      end
+
+      #
       # Submit jwt
       #
       def submit_jwt (url, jwt)
@@ -237,6 +384,25 @@ module SP
           }
         )
         response
+      end
+
+      #
+      # Create a role mask given an array of roles
+      #
+      def get_role_mask (role_names)
+        roles = db.exec(%Q[
+          SELECT name, mask
+            FROM public.roles
+        ])
+        roles = roles.inject({}){|n_hash, db_hash| n_hash.merge({db_hash['name'] => db_hash['mask']}) }
+
+        res = roles[role_names[0]].to_i
+        role_names.shift
+        role_names.each do |name|
+          res = (res | roles[name].to_i)
+        end
+
+        "0x#{sprintf("%04x", res)}"
       end
 
       #
@@ -866,13 +1032,21 @@ module SP
         if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
             uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
-            uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
-
-            attach_uri = URI.escape(uri)
-            attach_http_call = Curl::Easy.http_get(attach_uri)
+            if false == args[:session].nil? && false == args[:session][:role_mask].nil?
+              uri += "/#{attach[:id]}"
+              attach_http_call = Curl::Easy.http_get(URI.escape(uri)) do |http|
+                http.headers['X-CASPER-USER-ID'] = args[:session][:user_id]
+                http.headers['X-CASPER-ENTITY-ID'] = args[:session][:entity_id]
+                http.headers['X-CASPER-ROLE-MASK'] = args[:session][:role_mask]
+                http.headers['X-CASPER-MODULE-MASK'] = args[:session][:module_mask]
+                http.headers['User-Agent'] = "curb/mail-queue"
+              end
+            else
+              uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
+              attach_http_call = Curl::Easy.http_get(URI.escape(uri))
+            end
             if attach_http_call.response_code == 200
               attributes = {}
-
               if attach.has_key?(:filename)
                 attributes[:filename] = attach[:filename]
                 attributes[:mime_type] = attach[:mime_type]
@@ -882,8 +1056,9 @@ module SP
                 end
                 attributes[:mime_type] = attach_http_call.content_type
               end
-
               m.attachments[attributes[:filename].force_encoding('UTF-8').gsub('±', ' ')] = { mime_type: attributes[:mime_type], content: attach_http_call.body_str }
+            else
+              raise "synchronous_send_email: #{attach_http_call.response_code} - #{uri}"
             end
           end
         end
@@ -977,6 +1152,49 @@ module SP
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
         file_identifier = send_to_upload_server(src_file: tmp_file, id: entity_id, extension: ".pdf")
         file_identifier
+      end
+
+      def print_and_archive_http (payload:, entity_id:, access:, file_name: '', billing_type:)
+        payload[:ttr]            ||= 300
+        payload[:validity]       ||= 500
+        payload[:auto_printable] ||= false
+        payload[:documents]      ||= []
+
+        jwt = JWTHelper.jobify(
+          key: config[:nginx_broker_private_key],
+          tube: 'casper-print-queue',
+          payload: payload
+        )
+
+        pdf_response = HttpClient.get_klass.post(
+          url: get_cdn_public_url,
+          headers: {
+            'Content-Type' => 'application/text'
+          },
+          body: jwt,
+          expect: {
+            code: 200,
+            content: {
+              type: 'application/pdf'
+            }
+          },
+          conn_options: {
+            connection_timeout: payload[:ttr],
+            request_timeout: payload[:ttr]
+          }
+        )
+
+        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
+
+        response = send_to_file_server(file_name: file_name, 
+                                       src_file: tmp_file, 
+                                       content_type: 'application/pdf', 
+                                       access: access,  
+                                       billing_type: billing_type, 
+                                       billing_id: entity_id, 
+                                       company_id: entity_id)
+        response
       end
 
       class Exception < StandardError
