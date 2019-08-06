@@ -1,0 +1,10 @@
+<%= "#{@config.prefix}/var/log/jobs/#{@job_name}" %>.log {
+        weekly
+        missingok
+        rotate 12
+        copytruncate
+        compress
+        delaycompress
+        notifempty
+        create 0664 <%= @config.user %> <%= @config.group %>
+}

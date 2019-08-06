@@ -27,49 +27,187 @@ require 'curb'
 require_relative 'easy_http_client'
 require_relative 'jsonapi_error'
 
+module Curl
+  class Easy
+    class << self
+      def http_patch(*args)
+        url = args.shift
+        c = Curl::Easy.new url
+        yield c if block_given?
+        body = args.shift
+        if nil != body
+          c.headers["Content-Length"] = body.length
+          c.put_data = body
+        end
+        c.http(:PATCH)
+        c
+      end
+    end
+  end
+end
+
 module SP
   module Job
+
     class CurlHTTPClient < EasyHttpClient
-      def self.post(url:, headers:, body:, expect:, conn_options: {})
-        # since we're not auto-renew tokens, we can use a simple CURL request
+      
+
+      #
+      # Perform an HTTP HEAD request
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.head(url:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'HEAD', url: url) do
+          r = Curl::Easy.http_head(url) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
+      end # method 'get'
+
+      #
+      # Perform an HTTP GET request
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.get(url:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'GET', url: url) do
+          r = Curl::Easy.http_get(url) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
+      end # method 'get'
+
+      #
+      # Perform an HTTP POST request
+      #
+      # @param url
+      # @param headers
+      # @param body
+      # @param expect
+      # @param conn_options
+      #
+      def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         conn_options[:connection_timeout] ||= 10
         conn_options[:request_timeout] ||= 60
-        r = Curl::Easy.http_post(url, body) do |handle|
-          handle.connect_timeout = conn_options[:connection_timeout]
-          handle.timeout = conn_options[:request_timeout]
-          headers.each do |k,v|
-            handle.headers[k] = v
+        response = call(method: 'POST', url: url) do
+          r = Curl::Easy.http_post(url, body) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
         end
-        nr = self.normalize_response(curb_r: r)
-        # compare status code
-        if nr[:code] != expect[:code]
-          if 401 == nr[:code]
-            raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'A01', detail: nil)
-          else
-            raise ::SP::Job::JSONAPI::Error.new(status: nr[:code], code: 'B01', detail: nil)
+      end # method 'post'
+
+      #
+      # Perform an HTTP PUT request
+      #
+      # @param url
+      # @param headers
+      # @param body
+      # @param expect
+      # @param conn_options
+      #
+      def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        response = call(method: 'PUT', url: url) do
+          r = Curl::Easy.http_put(url, body) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
         end
-        # compare content-type
-        if nr[:content][:type] != expect[:content][:type]
-          raise ::SP::Job::JSONAPI::Error.new(status: 500, code: 'I01', detail: "Unexpected 'Content-Type': #{nr[:content][:type]}, expected #{expect[:content][:type]}!")
+      end # method 'put'
+
+      #
+      # Perform an HTTP PATCH request
+      #
+      # @param url
+      # @param headers
+      # @param body
+      # @param expect
+      # @param conn_options
+      #
+      def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        response = call(method: 'PATCH', url: url) do
+          r = Curl::Easy.http_patch(url, body) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
         end
-        # done
-        nr
-      end
+      end # method 'patch'
+      
+      #
+      # Perform an HTTP DELETE request
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'DELETE', url: url) do
+          r = Curl::Easy.http_delete(url) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
+      end # method 'delete'
 
-      def self.get(url:)
-        response = Curl::Easy.http_get(url)
-        self.normalize_response(curb_r: response)
-      end
-
-      def self.delete(url:, headers:)
-        response = Curl::Easy.http_delete(url, headers)
-        self.normalize_response(curb_r: response)
+      #
+      # Perform an HTTP POST request to send a file
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'POST', url: to) do
+          File.open(uri, 'rb') do | f |
+            r = Curl::Easy.http_post(to, f.read) do | h |
+              set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+            end
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
       end
 
       private
+ 
+      #
+      # Set a CURL handle properties
+      #
+      # @param handle
+      # @param headers
+      # @param conn_options
+      #
+      def self.set_handle_properties(handle:, headers:, conn_options:)
+        # connection timeout
+        conn_options = conn_options || {}
+        if conn_options[:connection_timeout]
+          handle.connect_timeout = conn_options[:connection_timeout]
+        end
+        # request timeout
+        if conn_options[:request_timeout]
+          handle.timeout = conn_options[:request_timeout]
+        end
+        # set other headers
+        { 'User-Agent': 'SP-JOB/CurlHTTPClient' }.merge(headers || {}).each do |k,v|
+          handle.headers[k] = v
+        end
+      end
 
+      #
+      # Normalize CURL response
+      #
+      # @param curb_r
+      #
       def self.normalize_response(curb_r:)
         http_response, *http_headers = curb_r.header_str.split(/[\r\n]+/).map(&:strip)
         o = {
@@ -94,7 +232,29 @@ module SP
         o
       end
 
+      #
+      # Call a method and catch interesting error
+      #
+      def self.call(method:, url:, &block)
+        begin
+          response = yield
+        rescue Curl::Err::ConnectionFailedError => connection_error
+          raise ::SP::Job::EasyHttpClient::CouldNotNonnect.new(method: method, url: url)
+        rescue Errno::ENOENT => not_found
+          raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url)
+        rescue Curl::Easy::Error => curl_error
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error)
+        rescue StandardError => se
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: se)
+        rescue RuntimeError => rte
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: rte)
+        rescue Exception => e
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: e)
+        end
+        response
+      end
 
-    end
-  end
-end
+    end # class 'CurlHTTPClient'
+
+  end # module 'Job'
+end # module 'SP'

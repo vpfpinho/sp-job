@@ -23,7 +23,7 @@ require 'sp/job/session'
 require 'sp/job/broker'
 require 'sp/job/job_db_adapter'
 require 'sp/job/jsonapi_error'
-require 'sp/job/broker_oauth2_client' unless RUBY_ENGINE == 'jruby' # ::SP::Job::BrokerOAuth2Client::InvalidToken
+require 'sp/job/internal_broker_exception'
 require 'roadie'
 require 'thread'
 
@@ -261,83 +261,113 @@ $config = JSON.parse(File.read(File.expand_path($args[:config_file])), symbolize
 # Configure backburner queue
 #
 
-class InternalBrokerException
+Backburner.configure do |config|
 
-  def self.handle(task:, exception:, hooks:, callback:)
+  config.beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+  config.on_error      = lambda { |e|
+    td = thread_data
 
-    response = InternalBrokerException.translate_to_response(e: exception)
-    job_id   = task.id
-    job_body = JSON.parse(task.body, symbolize_names: true)
+    # ensure currently open ( if any ) transaction rollback
+    $pg.rollback unless ! $pg
 
-    job_options = hooks[:var].invoke_hook_events(hooks[:klass], :on_raise_response_was_sent, job_id, job_body, response)
-    if nil == job_options || false == job_options.is_a?(Array) || 1 != job_options.size || false == job_options[0].is_a?(Hash)
-      rv = { response: response }
-    else
-      job_options = job_options[0]
-      # rollbar it
-      if true == job_options.include?(:rollbar) && true == job_options[:rollbar]
-        InternalBrokerException.rollbar(job_id: job_id, job_body: job_body, exception: exception)
-      end
-      #
-      rv = { bury: job_options[:bury] , raise: job_options[:raise], response: job_options[:response] || response }
-    end
-
-    # send response
-    callback.call(rv.delete(:response))
-
-    # done
-    rv
-
-  end
-
-  def self.translate_to_response(e:)
-    args = {}
-    args[:status] = 'error'
-    args[:action] = 'response'
-    if e.is_a?(::SP::Job::JSONAPI::Error)
-      args[:status_code]  = e.status_code
-      args[:content_type] = e.content_type
-      args[:response]     = e.body
-    elsif e.is_a?(::SP::Job::BrokerOAuth2Client::InvalidToken)
-      args[:status_code]  = 401
-      args[:content_type] = ''
-      args[:response]     = ''
-    else
-      e = ::SP::Job::JSONAPI::Error.new(status: 500, code: '999', detail: e.message)
-      args[:status_code]  = e.status_code
-      args[:content_type] = e.content_type
-      args[:response]     = e.body
-    end
-    args
-  end
-
-  #
-  # Report exception to rollbar
-  #
-  # @param j Job ID
-  # @param a Job Body
-  # @param e Exception
-  #
-  def self.rollbar(job_id:, job_body:, exception:)
-    $roolbar_mutex.synchronize {
-      if $rollbar
-        if exception.instance_of? ::SP::Job::JobException
-          exception.job[:password] = '<redacted>'
-          Rollbar.error(exception, exception.message, { job: exception.job, args: exception.args})
-        elsif exception.is_a?(::SP::Job::JSONAPI::Error)
-          [:access_token, :refresh_token, :password].each do | s |
-            if job_body.has_key?(s)
-              job_body[s] = '<redacted>'
+    if td.exception_reported == false
+      td.exception_reported = true
+      if e.instance_of? Beaneater::DeadlineSoonError
+        logger.warn "got a deadline warning".red
+      else
+        begin
+          if $config[:options] && $config[:options][:source] == 'broker'
+            send_response(InternalBrokerException.translate_to_response(e:e))
+          else
+            if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
+              raise_error(message: e)
+            else
+              raise_error(message: 'i18n_unexpected_server_error')
             end
           end
-          Rollbar.error(exception, exception.message, { job: job_id, args: job_body, response: exception.body })
+        rescue
+          # Do not retrow!!!!
+        end
+      end
+    end
+    # Report exception to rollbar
+    $roolbar_mutex.synchronize {
+      if $rollbar
+        if e.instance_of? ::SP::Job::JobException
+          e.job[:password] = '<redacted>'
+          Rollbar.error(e, e.message, { job: e.job, args: e.args})
+        elsif e.is_a?(::SP::Job::JSONAPI::Error)
+          Rollbar.error(e, e.body)
         else
-          Rollbar.error(exception)
+          Rollbar.error(e)
         end
       end
     }
-  end
 
+    # Signal job termination
+    td.job_id = nil
+
+    # Catch fatal exception that must be handled with a restarts (systemctl will restart us)
+    case e
+    when PG::UnableToSend, PG::AdminShutdown, PG::ConnectionBad
+      logger.fatal "Lost connection to database exiting now"
+      exit
+    when Redis::CannotConnectError
+      logger.fatal "Can't connect to redis exiting now"
+      exit
+    end
+  }
+  config.max_job_retries  = ($config[:options] && $config[:options][:max_job_retries]) ? $config[:options][:max_job_retries] : 0
+  config.retry_delay      = ($config[:options] && $config[:options][:retry_delay])     ? $config[:options][:retry_delay]     : 5
+  config.retry_delay_proc = lambda { |min_retry_delay, num_retries| min_retry_delay + (num_retries ** 3) }
+  config.respond_timeout  = 120
+  config.default_worker   = $config[:options] && $config[:options][:threads].to_i > 1 ? SP::Job::WorkerThread : SP::Job::Worker
+  config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
+  config.logger.formatter = proc do |severity, datetime, progname, msg|
+    date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
+    "[#{date_format}] #{severity}: #{msg}\n"
+  end
+  if $args[:log_level].nil?
+    config.logger.level = Logger::INFO
+  else
+    case $args[:log_level].upcase
+    when 'DEBUG'
+      config.logger.level = Logger::DEBUG
+    when 'INFO'
+      config.logger.level = Logger::INFO
+    when 'WARN'
+      config.logger.level = Logger::WARN
+    when 'ERROR'
+      config.logger.level = Logger::ERROR
+    when 'FATAL'
+      config.logger.level = Logger::FATAL
+    else
+      config.logger.level = Logger::INFO
+    end
+  end
+  config.logger.datetime_format = "%Y-%m-%d %H:%M:%S"
+  config.primary_queue          = $args[:program_name]
+  config.reserve_timeout        = nil
+  config.job_parser_proc        = lambda { |body|
+    rv = Hash.new
+    rv[:args] = [JSON.parse(body, :symbolize_names => true)]
+    rv[:class] = rv[:args][0][:tube] || $args[:program_name]
+    rv
+  }
+end
+
+if $config[:mail]
+  Mail.defaults do
+    delivery_method :smtp, {
+      :address => $config[:mail][:smtp][:address],
+      :port => $config[:mail][:smtp][:port].to_i,
+      :domain =>  $config[:mail][:smtp][:domain],
+      :user_name => $config[:mail][:smtp][:user_name],
+      :password => $config[:mail][:smtp][:password],
+      :authentication => $config[:mail][:smtp][:authentication],
+      :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
+    }
+  end
 end
 
 #

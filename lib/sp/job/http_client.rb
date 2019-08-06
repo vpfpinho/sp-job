@@ -23,27 +23,251 @@
 # A helper class to do HTTP request without session management.
 #
 
-require_relative 'curl_http_client'      unless RUBY_ENGINE == 'jruby'
-require_relative 'manticore_http_client' if RUBY_ENGINE == 'jruby'
+require_relative 'curl_http_client' unless 'jruby' == RUBY_ENGINE
+require_relative 'java_http_client' if     'jruby' == RUBY_ENGINE
+
+require 'awesome_print'
 
 module SP
   module Job
     class HttpClient < EasyHttpClient
 
-      def self.get_klass
-        RUBY_ENGINE == 'jruby' ? ManticoreHTTPClient : CurlHTTPClient
+      attr_accessor :user_agent
+
+      private
+
+        @headers = nil
+
+      public
+
+      def initialize(owner:)
+        @headers = { 
+          'User-Agent': "#{HttpClient.get_klass.name()}/#{owner || 'unknown'}"
+        }
       end
 
-      def self.post(url:, headers:, body:, expect:, conn_options: {})
+      def head(url:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.head(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+      end
+
+      def get(url:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.get(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+      end
+
+      def post(url:, headers: nil, body:, expect:, conn_options: nil)
+        HttpClient.post(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def put(url:, headers: nil, body:, expect:, conn_options: nil)
+        HttpClient.put(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def patch(url:, headers: nil, body:, expect:, conn_options: nil)
+        HttpClient.patch(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def delete(url:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.delete(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+      end
+
+      def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      private
+
+      def merge_headers(headers)
+        r = @headers.merge( headers || {} )
+      end
+
+      private
+
+      def self.get_klass
+        'jruby' == RUBY_ENGINE ? JavaHTTPClient : CurlHTTPClient
+      end
+
+      def self.head(url:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.head(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.get(url:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.get(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.post(url:, headers: nil, body:, expect:, conn_options: nil)
         get_klass.post(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
       end
 
-      def self.get(url:)
-        get_klass.get(url: url)
+      def self.put(url:, headers: nil, body:, expect:, conn_options: nil)
+        get_klass.put(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
       end
 
-      def self.delete(url:, headers:)
-        get_klass.delete(url: url, headers: headers)
+      def self.patch(url:, headers: nil, body:, expect:, conn_options: nil)
+        get_klass.patch(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.delete(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.test (owner:, output:)
+
+        http = SP::Job::HttpClient.new(owner: owner)
+
+        puts "--- --- --- --- --- --- --- --- --- ---"
+        puts "#{get_klass.name()} ~~ RUNNING ~~".purple
+        puts "--- --- --- --- --- --- --- --- --- ---"
+
+        error_count = 0
+
+        conn_options = {}
+       
+        error_count+= self.run_test(verb: "HEAD", output: output) do
+          http.head(url: 'https://httpbin.org',
+            headers: {
+                'Accept': 'text/html'
+            },
+            expect: {
+                code: 200,
+                content: {
+                  type: 'text/html; charset=utf-8'
+                }
+            },
+            conn_options: conn_options
+          )
+        end
+
+        error_count+= self.run_test(verb: "GET", output: output) do
+          http.get(url: 'https://httpbin.org/get',
+            headers: {
+                'Accept': 'application/json'
+            },
+            expect: {
+                code: 200,
+                content: {
+                  type: 'application/json'
+                }
+            },
+            conn_options: conn_options
+          )
+        end
+      
+        error_count+= self.run_test(verb: "POST", output: output) do
+          http.post(url: 'https://httpbin.org/post',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/text'
+            },
+            body: '<insert POST body here>',
+            expect: {
+                code: 200,
+                content: {
+                  type: 'application/json'
+                }
+            },
+            conn_options: conn_options
+          )
+        end
+
+        error_count+= self.run_test(verb: "PUT", output: output) do
+          http.put(url: 'https://httpbin.org/put',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/text'
+            },
+            body: '<insert PUT body here>',
+            expect: {
+                code: 200,
+                content: {
+                  type: 'application/json'
+                }
+            },
+            conn_options: conn_options
+          )
+        end
+
+        error_count+= self.run_test(verb: "PATCH", output: output) do
+          http.patch(url: 'https://httpbin.org/patch',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/text'
+            },
+            body: '<insert PATCH body here>',
+            expect: {
+              code: 200,
+              content: {
+                type: 'application/json'
+              }
+            },
+            conn_options: conn_options
+          )
+        end
+
+        error_count+= self.run_test(verb: "DELETE", output: output) do
+          http.delete(url: 'https://httpbin.org/delete',
+            headers: {
+              'Accept': 'application/json'
+            },
+            expect: {
+              code: 200,
+              content: {
+                type: 'application/json'
+              }
+            },
+            conn_options: conn_options
+          )
+        end
+
+        puts "--- --- --- --- --- --- --- --- --- ---"
+        print "#{get_klass.name()}".purple
+        print " ~~ %s ~~" % [error_count > 0 ? 'FAILED'.red : 'PASS'.green]
+        print "\n"
+        puts "--- --- --- --- --- --- --- --- --- ---"
+
+      end
+
+      private
+      
+      def self.run_test(verb:, output:, &callback)
+
+        print "%-8s - ...".cyan % [verb]
+        begin
+          response = yield
+          print "\r"
+          $stdout.flush
+          print "%-8s - PASS\n".green % [verb]
+        rescue Exception => e
+          response = e
+          print "\r"
+          $stdout.flush
+          print "%-8s - FAILED\n".red % [verb]
+        end
+
+        # output response?
+        if false == response.is_a?(Hash)
+          if true == ( output[:on_failure] || true )
+            puts "#{response.message}".red
+            ap response.backtrace
+          end
+          return 1
+        elsif true == ( output[:on_success] || false )
+          ap response.except(:body)
+          if response[:body]
+            begin
+              ap JSON.parse(response[:body], symbolize_keys: true)
+            rescue
+              ap response[:body]
+            end
+          end
+        end
+
+        # done
+        return 0
+
       end
 
     end

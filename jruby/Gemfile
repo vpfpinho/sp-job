@@ -1,0 +1,11 @@
+# Copyright (c) 2019 Cloudware S.A. - All rights reserved.
+
+source 'https://rubygems.org'
+
+gem 'awesome_print'
+gem 'colorize'
+
+group :development do
+  gem 'pry'
+  gem 'ruby-debug'
+end

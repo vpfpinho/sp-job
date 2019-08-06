@@ -22,6 +22,55 @@
 module SP
   module Job
     class EasyHttpClient
+
+      class Error < StandardError
+
+        attr_accessor :method
+        attr_accessor :url
+
+        attr_accessor :code
+        attr_accessor :status
+        attr_accessor :message
+        attr_accessor :detail
+
+        def initialize(method:, url:, code:, message:, detail: nil)
+          @method  = method
+          @url     = url
+          @code    = code
+          @status  = EasyHttpClient.http_reason(code: code)
+          @message = message
+          @detail  = detail
+        end
+
+      end
+
+      class InternalError < Error
+
+        attr_accessor :object
+
+        def initialize(method:, url:, code: 500, message: nil, object: nil)
+          super(method: method, url: url, code: code, message: message)
+          @object = object
+        end
+
+      end
+
+      class CouldNotNonnect < Error
+        
+        def initialize(method:, url:, code: 500, message: nil)
+          super(method: method, url: url, code: code, message: message || "Unable to establish connection to #{url}!")
+        end
+
+      end
+
+      class SourceFileNotFound < Error
+
+        def initialize(method:, url:, file:, code: 500, message: nil)
+          super(method: method, url: url, code: code, message: message || "Source file #{file} not found!")
+        end
+
+      end
+
       @@REASONS = {
         100 => 'Continue',
         101 => 'Switching Protocols',
@@ -82,13 +131,66 @@ module SP
         return @@REASONS[code]
       end
 
-      def self.post(url:, headers:, body:, expect:)
+      def self.head(url:, headers: nil, expect: nil, conn_options: nil)
         raise NotImplementedError
       end
 
-      def self.get(url:)
+      def self.get(url:, headers: nil, expect: nil, conn_options: nil)
         raise NotImplementedError
       end
-    end
-  end
-end
+
+      def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplementedError
+      end
+
+      def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplementedError
+      end
+
+      def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplementedError
+      end
+
+      def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplementedError
+      end
+
+      def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplementedError
+      end
+
+    protected
+
+
+      #
+      # Test some of response fields agains expected ones
+      #
+      # @param response
+      # @param expect
+      #
+      def self.raise_if_not_expected(response:, expect:)
+        # if 'expect' is no provided
+        if nil == expect
+          # done
+          return response
+        end
+        # compare status code
+        if response[:code] != expect[:code]
+          if 401 == response[:code]
+            raise ::SP::Job::JSONAPI::Error.new(status: response[:code], code: 'A01', detail: nil)
+          else
+            raise ::SP::Job::JSONAPI::Error.new(status: response[:code], code: 'B01', detail: nil)
+          end
+        end
+        # compare content-type
+        if response[:content][:type] != expect[:content][:type]
+          raise ::SP::Job::JSONAPI::Error.new(status: 500, code: 'I01', detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!")
+        end
+        # done
+        response
+      end # function 'raise_if_not_expected'
+
+    end # class 'EasyHttpClient'
+
+  end # module 'Job'
+end # module 'SP'
