@@ -21,8 +21,6 @@
 require 'sp/job/pg_connection'
 require 'sp/job/session'
 require 'sp/job/broker'
-require 'sp/job/job_db_adapter'
-require 'sp/job/jsonapi_error'
 require 'sp/job/internal_broker_exception'
 require 'roadie'
 require 'thread'
@@ -478,10 +476,14 @@ extend SP::Job::Common
 #
 $connected     = false
 
-#### TODO read config direct from cluster that will allow unification of jobs configs
 if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:unified]
   # Unified configuration
-  $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
+  if $config[:jobs][$args[:program_name].to_sym][:runs_on]
+    $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
+  else
+    $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
+  end
+
   $config.config_merge($config[:jobs][$args[:program_name].to_sym]) if !$config[:jobs][$args[:program_name].to_sym].nil?
 
   # Get current member database configuration
@@ -683,7 +685,7 @@ if config[:cluster]
   end
 end
 
-$excluded_members = $config[:cluster].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
+$excluded_members = $config[:cluster].nil? || $config[:cluster][:members].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
 
 #
 # Global data for mutex and sync
