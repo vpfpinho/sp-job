@@ -25,8 +25,7 @@
 
 require 'java'
 
-#TODO AJDGOMES
-require '/Users/ajdgomes/Work/cldware/cloudware-file-server/jruby/lib/sp-job.jar'
+require_relative '../../../jruby/lib/sp-job.jar'
 
 require_relative 'easy_http_client'
 
@@ -47,7 +46,7 @@ module SP
     #
     def self.head(url:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(response: normalize_response(response:
-            ::Java::pt.cloudware.sp.job.HTTPClient.new().head(url, headers, 
+            ::Java::pt.cloudware.sp.job.HTTPClient.new().head(url, headers,
                 expect_hash_to_object(expect: expect),
                 connection_hash_to_object(options: conn_options)
             )
@@ -65,7 +64,7 @@ module SP
     #
     def self.get(url:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(response: normalize_response(response:
-                ::Java::pt.cloudware.sp.job.HTTPClient.new().get(url, headers, 
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().get(url, headers,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
                 )
@@ -84,8 +83,8 @@ module SP
     # @param conn_options
     #
     def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response: 
-              ::Java::pt.cloudware.sp.job.HTTPClient.new().post(url, headers, body, 
+        raise_if_not_expected(response: normalize_response(response:
+              ::Java::pt.cloudware.sp.job.HTTPClient.new().post(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
                 )
@@ -104,8 +103,8 @@ module SP
     # @param conn_options
     #
     def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response: 
-                ::Java::pt.cloudware.sp.job.HTTPClient.new().put(url, headers, body, 
+        raise_if_not_expected(response: normalize_response(response:
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().put(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
                 )
@@ -124,8 +123,8 @@ module SP
     # @param conn_options
     #
     def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response: 
-                ::Java::pt.cloudware.sp.job.HTTPClient.new().patch(url, headers, body, 
+        raise_if_not_expected(response: normalize_response(response:
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().patch(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
                 )
@@ -133,7 +132,7 @@ module SP
             expect: expect
         )
     end # method 'patch'
-    
+
     #
     # Perform an HTTP DELETE request
     #
@@ -143,7 +142,7 @@ module SP
     # @param conn_options
     #
     def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response: 
+        raise_if_not_expected(response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().delete(url, headers,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
@@ -155,7 +154,7 @@ module SP
 
     private
 
-    def self.expect_hash_to_object(expect:)            
+    def self.expect_hash_to_object(expect:)
         if nil == expect
             return nil
         end
@@ -198,7 +197,7 @@ module SP
                 type: response.content.type,
                 length: response.content.length
             }
-        }            
+        }
     end
 
     end # class 'JavaHTTPClient'
