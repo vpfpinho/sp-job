@@ -23,6 +23,9 @@ module SP
   module Job
     class EasyHttpClient
 
+      class MissingRequiredHeadersError < StandardError
+      end
+
       class Error < StandardError
 
         attr_accessor :method
@@ -56,7 +59,7 @@ module SP
       end
 
       class CouldNotNonnect < Error
-        
+
         def initialize(method:, url:, code: 500, message: nil)
           super(method: method, url: url, code: code, message: message || "Unable to establish connection to #{url}!")
         end

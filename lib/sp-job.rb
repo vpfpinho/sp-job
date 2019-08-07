@@ -49,6 +49,7 @@ require 'sp/job/http_client'
 require 'sp/job/query_params'
 require 'sp/job/broker_http_client'    unless RUBY_ENGINE == 'jruby'
 require 'sp/job/broker_oauth2_client'  unless RUBY_ENGINE == 'jruby'
+require 'sp/job/int_api_client'
 
 # JSONAPI library classes
 require 'sp/jsonapi'

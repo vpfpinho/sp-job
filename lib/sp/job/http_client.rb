@@ -32,7 +32,7 @@ module SP
   module Job
     class HttpClient < EasyHttpClient
 
-      attr_accessor :user_agent
+      attr_accessor :user_agent, :mandatory_headers
 
       private
 
@@ -40,47 +40,54 @@ module SP
 
       public
 
-      def initialize(owner:)
+      def initialize(owner:, headers:, mandatory_headers: nil)
         @headers = {
           'User-Agent' => "#{HttpClient.get_klass.name()}/#{owner || 'unknown'}"
-        }
+        }.merge(headers)
+
+        @mandatory_headers = mandatory_headers
       end
 
       def head(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.head(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+        HttpClient.head(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def get(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.get(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+        HttpClient.get(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def post(url:, headers: nil, body:, expect:, conn_options: nil)
-        HttpClient.post(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+        HttpClient.post(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def put(url:, headers: nil, body:, expect:, conn_options: nil)
-        HttpClient.put(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+        HttpClient.put(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def patch(url:, headers: nil, body:, expect:, conn_options: nil)
-        HttpClient.patch(url: url, headers: merge_headers(headers), body: body, expect: expect, conn_options: conn_options)
+        HttpClient.patch(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def delete(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.delete(url: url, headers: merge_headers(headers), expect: expect, conn_options: conn_options)
+        HttpClient.delete(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+        HttpClient.post_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       private
 
-      def merge_headers(headers)
-        r = @headers.merge( headers || {} )
-      end
+      def ensure_headers(headers:)
+        merged_headers = @headers.merge( headers || {} )
+        missing_headers = @mandatory_headers.map { |header| merged_headers.keys.include?(header) ? nil : header }.compact
 
-      private
+        if !missing_headers.empty?
+          raise MissingRequiredHeadersError.new("The following headers are mandatory #{missing_headers.join(', ')}")
+        end
+
+        return merged_headers
+      end
 
       def self.get_klass
         'jruby' == RUBY_ENGINE ? JavaHTTPClient : CurlHTTPClient
