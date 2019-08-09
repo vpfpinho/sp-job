@@ -577,7 +577,7 @@ def self.run_configure (args)
       @job_description = @job_name
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
       @job_args        = ''
-      @job_exec        = @config.bundle_exec || 'rvm default'
+      @job_exec        = @config.bundle_exec || "#{%x[which rvm].strip} default"
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
