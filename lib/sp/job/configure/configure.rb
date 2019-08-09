@@ -330,7 +330,7 @@ def self.get_config (args)
       brands = YAML.load_file(brand_file)
     end
     conf['brands'] = brands['brands']
-  
+
     application_file = "#{@project}/configure/products/#{conf['product']}/application.yml"
     if File.exists?(application_file)
       conf['application'] = YAML.load_file(application_file)
@@ -577,7 +577,7 @@ def self.run_configure (args)
       @job_description = @job_name
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
       @job_args        = ''
-      @job_exec        = @config.bundle_exec
+      @job_exec        = @config.bundle_exec || 'rvm default'
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
