@@ -228,7 +228,7 @@ module SP
       # @param content_type
       # @param access
       # @param company_id
-      # @param user_id      
+      # @param user_id
       #
       def send_to_file_server(file_name: '', src_file:, content_type:, access:, billing_type:, billing_id:, company_id: nil, user_id: nil)
 
@@ -273,7 +273,7 @@ module SP
           raise "#{response[:code]}"
         end
 
-        JSON.parse(response[:body])        
+        JSON.parse(response[:body])
 
       end
 
@@ -346,7 +346,7 @@ module SP
 
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}/#{file_identifier}"
 
-        headers = {          
+        headers = {
           'X-CASPER-USER-ID' => user_id.to_s,
           'X-CASPER-ENTITY-ID' => entity_id.to_s,
           'X-CASPER-ROLE-MASK' => role_mask.to_s,
@@ -358,7 +358,7 @@ module SP
 
         response = HttpClient.get_klass.delete(
           url: url,
-          headers: headers          
+          headers: headers
         )
 
         if 204 != response[:code]
@@ -577,7 +577,7 @@ module SP
               content: p_options && p_options[:message] || td.job_notification[:message]
             }
 
-            if td.current_job[:notification_options] 
+            if td.current_job[:notification_options]
               message.merge!({
                 wizard: td.current_job[:notification_options][:wizard],
                 wizard_options: td.current_job[:notification_options][:wizard_options]
@@ -684,7 +684,7 @@ module SP
         rescue => e
           logger.error "**** FAILURE ALL JOBS **** #{e}"
         end
-        
+
       end
 
       def after_perform_lock_cleanup (*args)
@@ -864,7 +864,7 @@ module SP
           response_object = notification
 
           job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
-          
+
           job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
 
           unless job_exists
@@ -966,13 +966,15 @@ module SP
         end
 
         submit_job(
+            'mail-queue-tube': 'c4-mail-queue',
             tube: args[:'mail-queue-tube'] || 'mail-queue',
             job: {
               to:       args[:to],
               subject:  args[:subject],
               reply_to: args[:reply_to],
               body:     email_body,
-              ___internal: ___internal
+              ___internal: ___internal,
+              attachments: args[:attachments]
             }
           )
       end
@@ -1187,12 +1189,12 @@ module SP
         tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
         File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
 
-        response = send_to_file_server(file_name: file_name, 
-                                       src_file: tmp_file, 
-                                       content_type: 'application/pdf', 
-                                       access: access,  
-                                       billing_type: billing_type, 
-                                       billing_id: entity_id, 
+        response = send_to_file_server(file_name: file_name,
+                                       src_file: tmp_file,
+                                       content_type: 'application/pdf',
+                                       access: access,
+                                       billing_type: billing_type,
+                                       billing_id: entity_id,
                                        company_id: entity_id)
         response
       end
