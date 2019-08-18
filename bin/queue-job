@@ -36,7 +36,7 @@ begin
   $args[:beanstalkd]   = '127.0.0.1:11300'
   $args[:validity]     = 7200
   $args[:ttr]          = 3600
-  
+
   #
   # Parse command line arguments
   #
@@ -52,7 +52,7 @@ begin
     opts.on('-d', '--debug'               , "developer mode: log to stdout and print job")                                   { $args[:debug]            = true                }
   end
   $option_parser.parse!
-  
+
   raise "Tube must be specified with --tube!!!" if $args[:tube].nil?
   raise "Service id must be specified with --sid!!!" if $config[:service_id].nil?
 
@@ -61,7 +61,15 @@ begin
   job = { }
   ARGV.each do |arg|
     key, value = arg.to_s.split('=')
-    job[key.to_sym] = value
+    if job.has_key? (key.to_sym)
+      if job[key.to_sym].kind_of?(Array)
+        job[key.to_sym] << value
+      else
+        job[key.to_sym] = [ job[key.to_sym], value ]
+      end
+    else
+      job[key.to_sym] = value
+    end
   end
   submit_job(job: job, tube: $args[:tube], ttr: $args[:ttr], validity: $args[:validity])
 rescue => e
