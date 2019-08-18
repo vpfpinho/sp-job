@@ -29,8 +29,6 @@ require 'etc'
 
 require 'byebug'
 
-puts "Running configure poison".red
-
  # Monkey patch for configuration deep merge
 class ::Hash
 
