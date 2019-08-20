@@ -687,13 +687,13 @@ end
 
 # Check if the user DB is on a different database
 if config[:cluster]
-  if config[:cluster][:user_db].instance_of? Hash
-    config[:cluster][:user_db][:conn_str] = pg_conn_str(config[:cluster][:user_db])
-    $user_db = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:user_db], multithreaded: $multithreading)
-    logger.info "Central DB .... #{$user_db.config[:host]}:#{$user_db.config[:port]}(#{$user_db.config[:dbname]})"
+  if config[:cluster][:cdb].instance_of? Hash
+    config[:cluster][:cdb][:conn_str] = pg_conn_str(config[:cluster][:cdb])
+    $cdb = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:cdb], multithreaded: $multithreading)
+    logger.info "Central DB .... #{$cdb.config[:host]}:#{$cdb.config[:port]}(#{$cdb.config[:dbname]})"
   else
-    $user_db = nil # Will be grabbed from $cluster_members
-    logger.info "Central DB .... embedded in cluster #{config[:cluster][:user_db]}"
+    $cdb = nil # Will be grabbed from $cluster_members
+    logger.info "Central DB .... embedded in cluster #{config[:cluster][:cdb]}"
   end
 end
 
