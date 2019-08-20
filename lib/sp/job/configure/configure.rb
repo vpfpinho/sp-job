@@ -442,7 +442,7 @@ def self.run_configure (args)
 
     # List all .erb files in hidden and visible folders
     erblist = Dir.glob("#{@project}/configure/#{src}/.**/*.erb") +
-              Dir.glob("#{@project}/configure/#{src}/**/*.erb")
+              Dir.glob("#{@project}/configure/#{src}/**/*.erb", File::FNM_DOTMATCH)
 
     erblist.each do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
