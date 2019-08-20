@@ -83,11 +83,12 @@ module SP
         $pg
       end
 
+      # Warning this method will be deprecated!!!!
       def user_db
-        if $user_db.nil?
-          $user_db = $cluster_members[config[:cluster][:user_db]].db
+        if $cdb.nil?
+          $cdb = $cluster_members[config[:cluster][:cdb]].db
         end
-        $user_db
+        $cdb
       end
 
       def main_bo_db
