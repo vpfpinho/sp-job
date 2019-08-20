@@ -967,7 +967,6 @@ module SP
         end
 
         submit_job(
-            'mail-queue-tube': 'c4-mail-queue',
             tube: args[:'mail-queue-tube'] || 'mail-queue',
             job: {
               to:       args[:to],
