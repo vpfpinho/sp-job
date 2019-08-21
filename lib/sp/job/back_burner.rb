@@ -132,6 +132,7 @@ module SP
       def initialize
         self.job_status = {}
         if $config[:jsonapi] && $config[:jsonapi][:prefix]
+          require 'sp/job/job_db_adapter'
           if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
             self.jsonapi = SP::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
           else
