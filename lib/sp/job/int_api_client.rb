@@ -26,12 +26,12 @@ module SP
     class IntApiClient < HttpClient
       attr_accessor :url
 
-      def initialize(owner:, url:, x_casper_values: {})
-        headers = {}
-
+      def initialize(owner:, url:, headers: {}, x_casper_values: {})
+        __headers = headers
         x_casper_values.each do | k, v |
-          headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
+          __headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
         end
+
 
         mandatory_headers = [
           'X-CASPER-ENTITY-ID',
@@ -42,8 +42,8 @@ module SP
 
         super(
           owner: owner,
-          headers: headers,
-          mandatory_headers: (mandatory_headers + headers.keys).uniq
+          headers: __headers,
+          mandatory_headers: (mandatory_headers + __headers.keys).uniq
         )
 
         @url = url
