@@ -41,7 +41,7 @@ public class HTTPClient
         connection = a_connection;
         request    = a_request;
       }
-  
+
     };
 
     public final Timeouts timeouts;
@@ -68,7 +68,7 @@ public class HTTPClient
 
     public final int     code;
     public final Content content;
-    
+
     public Expect (final int a_code, final Content a_content)
     {
         code    = a_code;
@@ -151,6 +151,7 @@ public class HTTPClient
     HttpURLConnection connection = null;
     Response          response   = null;
     Exception         exception  = null;
+    StringBuilder     content    = new StringBuilder();
 
     if ( true == DEBUG ) {
       System.out.println("[JAVA][DEBUG] ~> " + a_method);
@@ -182,22 +183,22 @@ public class HTTPClient
           field.set(object, "PATCH");
         } catch (Exception ex) {
           // ... just for throwing expected 'not supported' exception ...
-          connection.setRequestMethod(a_method);  
+          connection.setRequestMethod(a_method);
         }
       } else {
         connection.setRequestMethod(a_method);
       }
 
       // ... set headers ...
-      connection.setRequestProperty("User-Agent", "SP-JOB/JAVA/HTTP-CLIENT");  
+      connection.setRequestProperty("User-Agent", "SP-JOB/JAVA/HTTP-CLIENT");
       for ( java.util.Iterator keySetIterator = a_headers.keySet().iterator(); keySetIterator.hasNext(); ) {
         final Object key   = keySetIterator.next();
         final Object value = a_headers.get(key);
         connection.setRequestProperty(String.valueOf(key), String.valueOf(value));
       }
-  
+
       // ... if it's a POST, PUT or PATCH ...
-      if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {        
+      if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {
         // ... we'll write data if we have a body set
         if ( null != a_body ) {
           connection.setDoOutput(true);
@@ -207,19 +208,23 @@ public class HTTPClient
 
       // ... read body ...
       BufferedReader in      = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-      StringBuilder  content = new StringBuilder();
       String line;
       while ( null != ( line = in.readLine() ) ) {
         content.append(line);
       }
 
       // ... set response ...
-      response = new Response(connection.getResponseCode(), content.toString(), 
+      response = new Response(connection.getResponseCode(), content.toString(),
         new Response.Content(
           connection.getContentType(), connection.getContentLengthLong()
         )
       );
-      
+    } catch (java.io.FileNotFoundException a_not_found_exception) {
+      response = new Response(connection.getResponseCode(), content.toString(),
+        new Response.Content(
+          connection.getContentType(), connection.getContentLengthLong()
+        )
+      );
     } catch (Exception a_exception) {
       exception = a_exception;
     } finally {
