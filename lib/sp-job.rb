@@ -17,7 +17,7 @@
 # along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#require 'byebug'
+# require 'byebug'
 require 'awesome_print'
 require 'rollbar'
 require 'redis'
