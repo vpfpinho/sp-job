@@ -567,6 +567,13 @@ if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:job
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
   $config.config_merge($config[:jobs][$args[:program_name].to_sym]) if !$config[:jobs][$args[:program_name].to_sym].nil?
 
+  if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
+    key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
+    key_name ||= 'nginx-broker'
+
+    $config[:nginx_broker_private_key] = "#{$config[:paths][:private_key]}/#{key_name}"
+  end
+
   # Get current member database configuration
   $redis          = Redis.new(:host => $cluster_config[:redis][:casper][:host], :port => $cluster_config[:redis][:casper][:port], :db => 0)
   $transient_job  = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
