@@ -508,7 +508,7 @@ module SP
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom].include? key
+            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom, :simple_message].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
@@ -532,6 +532,7 @@ module SP
         td.job_status[:link]        = args[:link] if args[:link]
         td.job_status[:status_code] = args[:status_code] if args[:status_code]
         td.job_status[:message]     = message unless message.nil?
+        td.job_status[:custom]      = args[:custom] if args[:custom]
 
         if args.has_key? :response
           td.job_status[:response]     = args[:response]
@@ -545,7 +546,7 @@ module SP
         td.job_notification[:message]     = message unless message.nil?
         td.job_notification[:index]       = p_index unless p_index.nil?
         td.job_notification[:status]      = status.nil? ? 'in-progress' : status
-        [:status_code, :custom, :link].each do |key|
+        [:status_code, :custom, :link, :simple_message].each do |key|
           td.job_notification[key] = args[key] if args[key]
         end
         if args.has_key? :response
@@ -561,6 +562,10 @@ module SP
             notification_link   = p_options && p_options[:link] || td.current_job[:notification_options] && td.current_job[:notification_options][:link] ||  ""
             notification_remote = p_options && p_options[:remote] || td.current_job[:notification_options] && td.current_job[:notification_options][:remote] || false
             notification_title  = notification_title || p_options && p_options[:title] || td.current_job[:notification_options] && td.current_job[:notification_options][:title] || td.current_job[:notification_title] ||  "Notification title"
+
+            if td.job_notification[:custom] && td.job_notification[:simple_message]
+              td.job_notification[:message] = td.job_notification[:simple_message]
+            end
 
             message = {
               dismiss: ['completed', 'error', 'follow-up', 'cancelled', 'imported'].include?(status),
