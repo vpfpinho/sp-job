@@ -51,11 +51,11 @@ module SP
       end
 
       def post (path, body)
-        return __parse(SP::Job::IntApiClient.post(url: @url + path, body: body.to_json, headers: @headers))
+        return __parse(SP::Job::IntApiClient.post(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def put (path, body)
-        return __parse(SP::Job::IntApiClient.put(url: @url + path, body: body.to_json, headers: @headers))
+        return __parse(SP::Job::IntApiClient.put(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def patch (path, body)
@@ -63,7 +63,7 @@ module SP
       end
 
       def delete (path)
-        return __parse(SP::Job::IntApiClient.delete(url: @url + path, headers: @headers))
+        return __parse(SP::Job::IntApiClient.delete(url: @url + path, headers: @headers, expect: nil))
       end
 
       private
