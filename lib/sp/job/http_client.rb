@@ -41,8 +41,8 @@ module SP
       public
 
       def initialize(owner:)
-        @headers = { 
-          'User-Agent': "#{HttpClient.get_klass.name()}/#{owner || 'unknown'}"
+        @headers = {
+          'User-Agent' => "#{HttpClient.get_klass.name()}/#{owner || 'unknown'}"
         }
       end
 
@@ -141,11 +141,11 @@ module SP
         error_count = 0
 
         conn_options = {}
-       
+
         error_count+= self.run_test(verb: "HEAD", output: output) do
           http.head(url: 'https://httpbin.org',
             headers: {
-                'Accept': 'text/html'
+                'Accept' => 'text/html'
             },
             expect: {
                 code: 200,
@@ -160,7 +160,7 @@ module SP
         error_count+= self.run_test(verb: "GET", output: output) do
           http.get(url: 'https://httpbin.org/get',
             headers: {
-                'Accept': 'application/json'
+                'Accept' => 'application/json'
             },
             expect: {
                 code: 200,
@@ -171,12 +171,12 @@ module SP
             conn_options: conn_options
           )
         end
-      
+
         error_count+= self.run_test(verb: "POST", output: output) do
           http.post(url: 'https://httpbin.org/post',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/text'
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/text'
             },
             body: '<insert POST body here>',
             expect: {
@@ -192,8 +192,8 @@ module SP
         error_count+= self.run_test(verb: "PUT", output: output) do
           http.put(url: 'https://httpbin.org/put',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/text'
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/text'
             },
             body: '<insert PUT body here>',
             expect: {
@@ -209,8 +209,8 @@ module SP
         error_count+= self.run_test(verb: "PATCH", output: output) do
           http.patch(url: 'https://httpbin.org/patch',
             headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/text'
+              'Accept' => 'application/json',
+              'Content-Type' => 'application/text'
             },
             body: '<insert PATCH body here>',
             expect: {
@@ -226,7 +226,7 @@ module SP
         error_count+= self.run_test(verb: "DELETE", output: output) do
           http.delete(url: 'https://httpbin.org/delete',
             headers: {
-              'Accept': 'application/json'
+              'Accept' => 'application/json'
             },
             expect: {
               code: 200,
@@ -247,7 +247,7 @@ module SP
       end
 
       private
-      
+
       def self.run_test(verb:, output:, &callback)
 
         print "%-8s - ...".cyan % [verb]

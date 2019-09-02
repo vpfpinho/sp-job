@@ -50,7 +50,7 @@ module SP
   module Job
 
     class CurlHTTPClient < EasyHttpClient
-      
+
 
       #
       # Perform an HTTP HEAD request
@@ -141,7 +141,7 @@ module SP
           raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'patch'
-      
+
       #
       # Perform an HTTP DELETE request
       #
@@ -221,7 +221,7 @@ module SP
       end
 
       private
- 
+
       #
       # Set a CURL handle properties
       #
@@ -240,7 +240,7 @@ module SP
           handle.timeout = conn_options[:request_timeout]
         end
         # set other headers
-        { 'User-Agent': 'SP-JOB/CurlHTTPClient' }.merge(headers || {}).each do |k,v|
+        { 'User-Agent' => 'SP-JOB/CurlHTTPClient' }.merge(headers || {}).each do |k,v|
           handle.headers[k] = v
         end
       end
