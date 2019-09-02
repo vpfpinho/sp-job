@@ -601,7 +601,7 @@ def self.run_configure (args)
         @job_threads = job.threads
 
         if @unified_config
-          @job_args += "-c #{@config.prefix}/etc/jobs/main.conf.json"
+          @job_args += "-c #{@config.prefix}/etc/#{@config.project ? @config.project + '/' : '' }jobs/main.conf.json"
         end
       end
       puts "  #{name}:"
@@ -620,7 +620,7 @@ def self.run_configure (args)
       create_directory "#{@config.prefix}/etc/jobs"
       if @unified_config
         diff_and_write(contents: expand_template(template, pretty_json: true),
-                       path: "#{@config.prefix}/etc/jobs/main.conf.json",
+                       path: "#{@config.prefix}/etc/#{@config.project ? @config.project + '/' : '' }jobs/main.conf.json",
                        diff: diff_before_copy,
                        dry_run: dry_run
         )
