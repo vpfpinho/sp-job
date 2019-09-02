@@ -152,6 +152,7 @@ module SP
       #
       def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'DELETE', url: url) do
+          r = nil
           r = Curl::Easy.http_delete(url) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
@@ -168,9 +169,50 @@ module SP
       # @param conn_options
       #
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        response = call(method: 'POST', url: to) do
+        response = call(method: 'POST', url: to, local_file_uri: uri) do
+          r = nil
           File.open(uri, 'rb') do | f |
             r = Curl::Easy.http_post(to, f.read) do | h |
+              set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+            end
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
+      end
+      
+      #
+      # Perform an HTTP POST request to send a file
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'PUT', url: to, local_file_uri: uri) do
+          r = nil
+          File.open(uri, 'rb') do | f |
+            r = Curl::Easy.http_put(to, f.read) do | h |
+              set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+            end
+          end
+          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+        end
+      end
+
+      #
+      # Perform an HTTP PATCH request to send a file
+      #
+      # @param url
+      # @param headers
+      # @param expect
+      # @param conn_options
+      #
+      def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        response = call(method: 'PATCH', url: to, local_file_uri: uri) do
+          r = nil
+          File.open(uri, 'rb') do | f |
+            r = Curl::Easy.http_patch(to, f.read) do | h |
               set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
             end
           end
@@ -235,13 +277,13 @@ module SP
       #
       # Call a method and catch interesting error
       #
-      def self.call(method:, url:, &block)
+      def self.call(method:, url:, local_file_uri: nil, &block)
         begin
           response = yield
         rescue Curl::Err::ConnectionFailedError => connection_error
           raise ::SP::Job::EasyHttpClient::CouldNotNonnect.new(method: method, url: url)
         rescue Errno::ENOENT => not_found
-          raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url)
+          raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url, local_file_uri: local_file_uri)
         rescue Curl::Easy::Error => curl_error
           raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error)
         rescue StandardError => se

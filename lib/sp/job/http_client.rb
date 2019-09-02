@@ -76,6 +76,14 @@ module SP
         HttpClient.post_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
+      def put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.put_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        HttpClient.patch_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+    
       private
 
       def ensure_headers(headers:)
@@ -119,6 +127,14 @@ module SP
 
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         get_klass.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.put_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        get_klass.patch_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
       end
 
       def self.test (owner:, output:)
