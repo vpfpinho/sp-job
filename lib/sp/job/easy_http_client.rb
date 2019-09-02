@@ -48,12 +48,28 @@ module SP
 
         attr_accessor :object
 
-        def initialize(method:, url:, code: 500, message: nil, object: nil)
-          super(method: method, url: url, code: code, message: message)
+        def initialize(method:, url:, message: nil, detail: nil, object: nil)
+          super(method: method, url: url, code: 500, message: message, detail: detail)
           @object = object
+          if nil != object
+            if nil == message
+              @message = object.class.name()
+            end
+            if nil == detail
+              @detail = object.message
+            end
+          end
         end
 
       end
+
+      class NotImplemented < Error
+        
+        def initialize(method:, url:, message: nil, detail: nil)
+          super(method: method, url: url, code: 501, message: message, detail: detail)
+        end
+
+      end # class 'NotImplemented'
 
       class CouldNotNonnect < Error
         
@@ -65,8 +81,8 @@ module SP
 
       class SourceFileNotFound < Error
 
-        def initialize(method:, url:, file:, code: 500, message: nil)
-          super(method: method, url: url, code: code, message: message || "Source file #{file} not found!")
+        def initialize(method:, url:, local_file_uri:, code: 404, message: nil)
+          super(method: method, url: url, code: code, message: message || "Source file #{local_file_uri} not found!")
         end
 
       end
@@ -132,31 +148,39 @@ module SP
       end
 
       def self.head(url:, headers: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'HEAD', url: url)
       end
 
       def self.get(url:, headers: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'GET', url: url)
       end
 
       def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'POST', url: url)
       end
 
       def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'PUT', url: url)
       end
 
       def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'PATCH', url: url)
       end
 
       def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'DELETE', url: url)
       end
 
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        raise NotImplementedError
+        raise NotImplemented.new(method: 'POST', url: to)
+      end
+
+      def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PUT', url: to)
+      end
+
+      def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PATCH', url: to)
       end
 
     protected
