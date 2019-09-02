@@ -24,6 +24,8 @@ require 'sp/job/int_api_client'
 module SP
   module Job
 
+    SP::Job::ROLE_IS_JOB = 0x40000000
+
     class CentralApiClient < SP::Job::IntApiClient
 
       def initialize(owner:, url:, job:)
@@ -33,7 +35,7 @@ module SP
           headers: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
           x_casper_values: {
             entity_id:  job[:entity_id],
-            role_mask:  job[:role_mask],
+            role_mask: (job[:role_mask].to_i | SP::Job::ROLE_IS_JOB),
             user_id:    job[:user_id],
             user_email: job[:user_email],
           }
