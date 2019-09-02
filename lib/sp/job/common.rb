@@ -1233,12 +1233,12 @@ module SP
       end
 
       def get_cdn_public_url
-        cdn_public_url = "#{config[:broker][:cdn][:protocol]}://#{config[:broker][:cdn][:host]}"
-        if config[:broker][:cdn][:port] && 80 != config[:broker][:cdn][:port]
-        	cdn_public_url += ":#{config[:broker][:cdn][:port]}"
+        cdn_public_url = "#{config[:cdn][:public_link][:protocol]}://#{config[:cdn][:public_link][:host]}"
+        if config[:cdn][:public_link][:port] && 80 != config[:cdn][:public_link][:port]
+        	cdn_public_url += ":#{config[:cdn][:public_link][:port]}"
         end
-        if config[:broker][:cdn][:path]
-        	cdn_public_url += "/#{config[:broker][:cdn][:path]}"
+        if config[:cdn][:public_link][:path]
+        	cdn_public_url += "/#{config[:cdn][:public_link][:path]}"
         end
         cdn_public_url
       end
