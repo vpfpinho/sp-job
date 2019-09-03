@@ -56,15 +56,15 @@ module SP
         HttpClient.get(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
-      def post(url:, headers: nil, body:, expect:, conn_options: nil)
+      def post(url:, headers: nil, body:, expect: nil, conn_options: nil)
         HttpClient.post(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
-      def put(url:, headers: nil, body:, expect:, conn_options: nil)
+      def put(url:, headers: nil, body:, expect: nil, conn_options: nil)
         HttpClient.put(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
-      def patch(url:, headers: nil, body:, expect:, conn_options: nil)
+      def patch(url:, headers: nil, body:, expect: nil, conn_options: nil)
         HttpClient.patch(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
@@ -139,7 +139,7 @@ module SP
 
       def self.test (owner:, output:)
 
-        http = SP::Job::HttpClient.new(owner: owner)
+        http = SP::Job::HttpClient.new(owner: owner, headers:{}, mandatory_headers:[])
 
         puts "--- --- --- --- --- --- --- --- --- ---"
         puts "#{get_klass.name()} ~~ RUNNING ~~".purple
@@ -273,7 +273,9 @@ module SP
         # output response?
         if false == response.is_a?(Hash)
           if true == ( output[:on_failure] || true )
-            puts "#{response.message}".red
+            if response.message
+              puts "#{response.message}".red
+            end
             ap response.backtrace
           end
           return 1

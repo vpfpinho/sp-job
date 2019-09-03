@@ -65,7 +65,7 @@ module SP
           r = Curl::Easy.http_head(url) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'HEAD', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'get'
 
@@ -82,7 +82,7 @@ module SP
           r = Curl::Easy.http_get(url) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'GET', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'get'
 
@@ -102,7 +102,7 @@ module SP
           r = Curl::Easy.http_post(url, body) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'POST', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'post'
 
@@ -120,7 +120,7 @@ module SP
           r = Curl::Easy.http_put(url, body) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'PUT', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'put'
 
@@ -138,7 +138,7 @@ module SP
           r = Curl::Easy.http_patch(url, body) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'PATCH', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'patch'
 
@@ -156,7 +156,7 @@ module SP
           r = Curl::Easy.http_delete(url) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'DELETE', url: url, response: normalize_response(curb_r: r), expect: expect)
         end
       end # method 'delete'
 
@@ -176,7 +176,7 @@ module SP
               set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
             end
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'POST', url: to, response: normalize_response(curb_r: r), expect: expect)
         end
       end
       
@@ -196,7 +196,7 @@ module SP
               set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
             end
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'PUT', url: to, response: normalize_response(curb_r: r), expect: expect)
         end
       end
 
@@ -216,7 +216,7 @@ module SP
               set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
             end
           end
-          raise_if_not_expected(response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'PATCH', url: to, response: normalize_response(curb_r: r), expect: expect)
         end
       end
 
@@ -285,13 +285,13 @@ module SP
         rescue Errno::ENOENT => not_found
           raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url, local_file_uri: local_file_uri)
         rescue Curl::Easy::Error => curl_error
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error)
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error, response: response)
         rescue StandardError => se
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: se)
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: se, response: response)
         rescue RuntimeError => rte
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: rte)
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: rte, response: response)
         rescue Exception => e
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: e)
+          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: e, response: response)
         end
         response
       end

@@ -45,7 +45,7 @@ module SP
     # @param conn_options
     #
     def self.head(url:, headers: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'HEAD', url: url, response: normalize_response(response:
             ::Java::pt.cloudware.sp.job.HTTPClient.new().head(url, headers,
                 expect_hash_to_object(expect: expect),
                 connection_hash_to_object(options: conn_options)
@@ -63,7 +63,7 @@ module SP
     # @param conn_options
     #
     def self.get(url:, headers: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'GET', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().get(url, headers,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
@@ -83,7 +83,7 @@ module SP
     # @param conn_options
     #
     def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'POST', url: url, response: normalize_response(response:
               ::Java::pt.cloudware.sp.job.HTTPClient.new().post(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
@@ -103,7 +103,7 @@ module SP
     # @param conn_options
     #
     def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'PUT', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().put(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
@@ -123,7 +123,7 @@ module SP
     # @param conn_options
     #
     def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'PATCH', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().patch(url, headers, body,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)
@@ -142,7 +142,7 @@ module SP
     # @param conn_options
     #
     def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
-        raise_if_not_expected(response: normalize_response(response:
+        raise_if_not_expected(method: 'DELETE', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().delete(url, headers,
                     expect_hash_to_object(expect: expect),
                     connection_hash_to_object(options: conn_options)

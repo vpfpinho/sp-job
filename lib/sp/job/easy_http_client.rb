@@ -36,40 +36,42 @@ module SP
         attr_accessor :message
         attr_accessor :detail
 
-        def initialize(method:, url:, code:, message:, detail: nil)
-          @method  = method
-          @url     = url
-          @code    = code
-          @status  = EasyHttpClient.http_reason(code: code)
-          @message = message
-          @detail  = detail
-        end
+        attr_accessor :object
+        attr_accessor :response
 
-      end
+        def initialize(method:, url:, code:, message:, detail: nil, object: nil, response: nil)
+          @method   = method
+          @url      = url
+          @code     = code
+          @status   = EasyHttpClient.http_reason(code: code)
+          @message  = message
+          @detail   = detail
+          @object   = object
+          @response = response
+          if nil != response
+            if nil == message
+              @message = response.class.name()
+            end
+            if nil == detail
+              @detail = response.message
+            end
+          end
+        end # initialize
+
+      end # class 'Error'
 
       class InternalError < Error
 
-        attr_accessor :object
-
-        def initialize(method:, url:, message: nil, detail: nil, object: nil)
-          super(method: method, url: url, code: 500, message: message, detail: detail)
-          @object = object
-          if nil != object
-            if nil == message
-              @message = object.class.name()
-            end
-            if nil == detail
-              @detail = object.message
-            end
-          end
+        def initialize(method:, url:, message: nil, detail: nil, object: nil, response: nil)
+          super(method: method, url: url, code: 500, message: message, detail: detail, response: response)
         end
 
-      end
+      end # class 'InternalError'
 
       class NotImplemented < Error
         
-        def initialize(method:, url:, message: nil, detail: nil)
-          super(method: method, url: url, code: 501, message: message, detail: detail)
+        def initialize(method:, url:, message: nil, detail: nil, response: nil)
+          super(method: method, url: url, code: 501, message: message, detail: detail, response: response)
         end
 
       end # class 'NotImplemented'
@@ -80,7 +82,7 @@ module SP
           super(method: method, url: url, code: code, message: message || "Unable to establish connection to #{url}!")
         end
 
-      end
+      end # class 'CouldNotNonnect'
 
       class SourceFileNotFound < Error
 
@@ -88,7 +90,15 @@ module SP
           super(method: method, url: url, code: code, message: message || "Source file #{local_file_uri} not found!")
         end
 
-      end
+      end # class 'SourceFileNotFound'
+
+      class Unauthorized < Error
+
+        def initialize(method:, url:, message: nil, response: nil)
+          super(method: method, url: url, code: code, message: message, response: response)
+        end
+
+      end # class 'Unauthorized'
 
       @@REASONS = {
         100 => 'Continue',
@@ -192,29 +202,37 @@ module SP
       #
       # Test some of response fields agains expected ones
       #
-      # @param response
-      # @param expect
+      # @param method   [REQUIRED] One of GET, POST, PUT, PATCH, DELETE.
+      # @param url      [REQUIRED] Request URL.
+      # @param response [REQUIRED] Normalized response object, see normalize_response method on HTTP Client ( curl or java ) implementation.
+      # @param expect   [OPTIONAL] Expected normalized response first level check, ex: { code: 200, content: { type: 'application/text' } }
       #
-      def self.raise_if_not_expected(response:, expect:)
+      def self.raise_if_not_expected(method:, url:, response:, expect:)
         # if 'expect' is no provided
         if nil == expect
-          # done
+          # nothing to do
           return response
         end
         # compare status code
         if response[:code] != expect[:code]
-          if 401 == response[:code]
-            raise ::SP::Job::JSONAPI::Error.new(status: response[:code], code: 'A01', detail: nil)
+          case response[:code]
+          when 401
+            raise EasyHttpClient::Unauthorized.new(method: method, url: url, response: response)
           else
-            raise ::SP::Job::JSONAPI::Error.new(status: response[:code], code: 'B01', detail: nil)
+            raise EasyHttpClient::Error(method: method, url: url, code: response[:code], message: nil, detail: nil, object: nil, response: response)
           end
         end
         # compare content-type
-        if response[:content][:type] != expect[:content][:type]
-          raise ::SP::Job::JSONAPI::Error.new(status: 500, code: 'I01', detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!")
+        if nil != expect[:content]
+          if response[:content][:type] != expect[:content][:type]
+            raise EasyHttpClient::Error(method: method, url: url, code: 500,
+                    detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!", 
+                    response: response
+            )
+          end
         end
         # done
-        response
+        return response
       end # function 'raise_if_not_expected'
 
     end # class 'EasyHttpClient'
