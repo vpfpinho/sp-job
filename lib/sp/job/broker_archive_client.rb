@@ -22,6 +22,8 @@
 
 require 'sp/job/http_client'
 
+require 'fileutils'
+
 module SP
     module Job
   
@@ -197,7 +199,7 @@ module SP
         #     "type": <string>
         # }
         #
-        # WHERE 'id' is newly created archive ID.
+        # WHERE 'id' is newly 'created' archive ID.
         #
         def create(entity:, billing:, permissions:, uri:, content_type:, filename: nil)
             # set this request specific headers
@@ -239,7 +241,7 @@ module SP
         #     "type": <string>
         # }
         #
-        # WHERE 'id' is the newly updated archive ID.
+        # WHERE 'id' is the newly 'updated' archive ID.
         #
         def update(id:, uri:, content_type:)
             # set this request specific headers
@@ -278,7 +280,7 @@ module SP
         #     "type": <string>
         # }
         #
-        # WHERE 'id' is the newly patched archive ID.
+        # WHERE 'id' is the newly 'patched' archive ID.
         #
         def patch(id:, permissions: nil, filename: nil)
             # set this request specific headers
@@ -321,6 +323,58 @@ module SP
             nil
         end
 
+        #
+        # Perform an HTTP POST request to 'Move' a previously uploaded archive.
+        #
+        # @param entity       [REQUIRED] Entity info.
+        #                                See \link Entity \link.
+        # @param billing      [REQUIRED] Billing info.
+        #                                See \link Billing \link.
+        # @param permissions  [REQUIRED] Permissions human readable expression.
+        # @param uri          [REQUIRED] Partial URI YYYY-MM-DDDD/aBBcccccc[.ext].
+        # @param content_type [REQUIRED] Content-Type header value.
+        # @param filename     [OPTIONAL] Alternative filename ( used when calling GET with Content-Disposition as attachment ).
+        #
+        # @return
+        #
+        # {
+        #     "attributes": {
+        #         "content-length": <uint64_t>,
+        #         "content-type": <string>,
+        #         "md5": <string>,
+        #         "name": <string> - OPTIONAL,
+        #         "permissions": <string> - OPTIONAL
+        #     },
+        #     "id": <string>,
+        #     "type": <string>
+        # }
+        #
+        # WHERE 'id' is the newly 'moved' archive ID.
+        #
+        def move(entity:, billing:, permissions:, uri:, content_type:, filename: nil)
+            # set this request specific headers
+            headers = {
+                'Content-Type': content_type,
+                'X-CASPER-ACCESS': permissions ,
+                'X-CASPER-MOVES-URI': uri 
+            }
+            headers.merge!(billing.headers())
+            if nil != filename
+                headers.merge!({"X-CASPER-FILENAME": filename})
+            end
+            # make request
+            response = @http.post(url: @url, headers: make_request_headers(entity: entity, headers: headers), body: nil,
+                expect: {
+                    code: 200,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+            # return body only
+            JSON.parse(response[:body], symbolize_names: true)
+        end
+
       private
 
         #
@@ -358,10 +412,11 @@ module SP
         #
         # @param owner Client's owner - usually tube name - used for 'User-Agent' header.
         # @param url   Base URL
+        # @param tmp   Temporary path.
         # @param job   At least must contain entity_id, user_id, role_mask and module_mask attributes.
         # @param output reserved
         #
-        def self.test (owner:, url:, job:, output:)
+        def self.test (owner:, url:, tmp:, job:, output:)
 
             error_count = 0
             conn_options = {}
@@ -383,21 +438,30 @@ module SP
                     uri: "/tmp/#{self.name()}-update.txt",
                     content: "{\"data\":\"#{self.name()} updated file content!\"}",
                     :'content-type' => "application/json"
+                },
+                move: {
+                    uri: "#{tmp}/#{Time.now.strftime("%Y-%m-%d")}/cccccc.ul",
+                    content: "Temporary uploaded file.",
+                    :'content-type' => "application/txt"
                 }
             }
+            # create 'fake' temporary uploaded file - not this class responsability to upload files
+            FileUtils.mkdir_p(File.dirname(files[:move][:uri]))
+
             files.each do | k, v | 
                 File.open(v[:uri], "w") { |file| file.puts "#{v[:content]}"}
             end
             # 
+            entity  = BrokerArchiveClient::Entity.new(id: job[:user_id], type: :user)
+            billing = BrokerArchiveClient::Billing.new(id: job[:entity_id], type: 'archive')
+            #
             responses = {}
             # test CREATE method
             error_count+= ::SP::Job::HttpClient.run_test(verb: "CREATE", output: output) do
-                responses[:create] = client.create(entity: BrokerArchiveClient::Entity.new(id: job[:user_id], type: :user),
-                                                   billing: BrokerArchiveClient::Billing.new(id: job[:entity_id], type: 'archive'),
-                                                   permissions: "rw = user_id == #{job[:user_id]};", 
+                responses[:create] = client.create(entity: entity, billing: billing, permissions: "rw = user_id == #{job[:user_id]};",
                                                    uri: files[:create][:uri],
                                                    content_type: files[:create][:'content-type'],
-                                                   filename: nil                
+                                                   filename: nil
                 )
             end
             # test GET method
@@ -421,6 +485,20 @@ module SP
                 responses[:delete] = client.delete(id: responses[:patch][:id])
                 # if reached here, response is No Content
                 { code: 204, body: '' }
+            end
+            # test MOVE method
+            error_count+= ::SP::Job::HttpClient.run_test(verb: "MOVE", output: output) do
+                responses[:move] = client.move(entity: entity, billing: billing, permissions: "drw = user_id == #{job[:user_id]};",
+                                               uri: files[:move][:uri].gsub("#{tmp}/", ''), content_type:files[:move][:'content-type'],
+                                               filename: nil
+                )
+                responses[:move]
+            end
+            # test GET method
+            error_count+= ::SP::Job::HttpClient.run_test(verb: "GET", output: output) do
+                responses[:get] = client.get(id: responses[:move])
+                # if reached here, response is OK
+                { code: 200, body: responses[:get] }
             end
 
             puts "--- --- --- --- --- --- --- --- --- --- ---"

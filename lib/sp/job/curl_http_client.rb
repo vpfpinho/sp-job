@@ -96,8 +96,6 @@ module SP
       # @param conn_options
       #
       def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
-        conn_options[:connection_timeout] ||= 10
-        conn_options[:request_timeout] ||= 60
         response = call(method: 'POST', url: url) do
           r = Curl::Easy.http_post(url, body) do | h |
             set_handle_properties(handle: h, headers: headers, conn_options: conn_options)

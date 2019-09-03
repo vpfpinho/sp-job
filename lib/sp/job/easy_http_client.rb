@@ -219,13 +219,16 @@ module SP
           when 401
             raise EasyHttpClient::Unauthorized.new(method: method, url: url, response: response)
           else
-            raise EasyHttpClient::Error(method: method, url: url, code: response[:code], message: nil, detail: nil, object: nil, response: response)
+            raise EasyHttpClient::Error.new(method: method, url: url, code: response[:code], message: nil,
+                  detail: nil, object: nil,
+                  response: response
+            )
           end
         end
         # compare content-type
         if nil != expect[:content]
           if response[:content][:type] != expect[:content][:type]
-            raise EasyHttpClient::Error(method: method, url: url, code: 500,
+            raise EasyHttpClient::Error.new(method: method, url: url, code: 500,
                     detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!", 
                     response: response
             )
