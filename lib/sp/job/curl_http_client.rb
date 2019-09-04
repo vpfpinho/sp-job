@@ -159,6 +159,34 @@ module SP
       end # method 'delete'
 
       #
+      # Perform an HTTP POST request to upload some data.
+      #
+      # @param origin
+      # @param url
+      # @param headers
+      # @param body
+      # @param expect
+      # @param conn_options
+      #
+      def self.upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
+        if ( nil == headers )
+          headers = {}        
+        end
+        headers.merge!({ 
+            'Content-Type' => 'application/octet-stream', 
+            'Origin' => origin,
+            'Content-Disposition' => 'attachment'
+            }
+        )
+        response = call(method: 'POST', url: url) do
+          r = Curl::Easy.http_post(url, body) do | h |
+            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          end
+          raise_if_not_expected(method: 'POST', url: url, response: normalize_response(curb_r: r), expect: expect)
+        end
+      end # method 'upload'
+
+      #
       # Perform an HTTP POST request to send a file
       #
       # @param url
@@ -284,6 +312,8 @@ module SP
           raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url, local_file_uri: local_file_uri)
         rescue Curl::Easy::Error => curl_error
           raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error, response: response)
+        rescue ::SP::Job::EasyHttpClient::Error => ece
+          raise ece
         rescue StandardError => se
           raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: se, response: response)
         rescue RuntimeError => rte

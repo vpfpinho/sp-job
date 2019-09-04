@@ -152,6 +152,39 @@ module SP
         )
     end # method 'delete'
 
+    def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise_if_not_expected(method: 'POST', url: to, response: normalize_response(response:
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().post_file(uri, to, headers,
+                    expect_hash_to_object(expect: expect),
+                    connection_hash_to_object(options: conn_options)
+                )
+            ),
+            expect: expect
+        )
+    end
+
+    def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise_if_not_expected(method: 'PUT', url: to, response: normalize_response(response:
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().put_file(uri, to, headers,
+                    expect_hash_to_object(expect: expect),
+                    connection_hash_to_object(options: conn_options)
+                )
+            ),
+            expect: expect
+        )
+    end
+
+    def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise_if_not_expected(method: 'PATCH', url: to, response: normalize_response(response:
+                ::Java::pt.cloudware.sp.job.HTTPClient.new().patch_file(uri, to, headers,
+                    expect_hash_to_object(expect: expect),
+                    connection_hash_to_object(options: conn_options)
+                )
+            ),
+            expect: expect
+        )
+    end
+
     private
 
     def self.expect_hash_to_object(expect:)

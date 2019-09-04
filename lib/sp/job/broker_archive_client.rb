@@ -22,6 +22,8 @@
 
 require 'sp/job/http_client'
 
+require 'sp/job/broker_upload_client'
+
 require 'fileutils'
 
 module SP
@@ -405,18 +407,18 @@ module SP
             end
             # done
             _headers
-        end
+        end       
 
         #
         # Helper method to test this client.
         #
-        # @param owner Client's owner - usually tube name - used for 'User-Agent' header.
-        # @param url   Base URL
-        # @param tmp   Temporary path.
-        # @param job   At least must contain entity_id, user_id, role_mask and module_mask attributes.
-        # @param output reserved
+        # @param owner  [REQUIRED] Client's owner - usually tube name - used for 'User-Agent' header.
+        # @param urls   [REQUIRED] { archive: <string>, upload: <string> }
+        # @param tmp    [REQUIRED] Temporary path.
+        # @param job    [REQUIRED] At least must contain entity_id, user_id, role_mask and module_mask attributes.
+        # @param output [REQUIRED] Reserved.
         #
-        def self.test (owner:, url:, tmp:, job:, output:)
+        def self.test(owner:, urls:, tmp:, job:, output:)
 
             error_count = 0
             conn_options = {}
@@ -426,28 +428,20 @@ module SP
             puts "--- --- --- --- --- --- --- --- --- --- ---"
     
             # create client
-            client = BrokerArchiveClient.new(owner: self.name(), url: url, job: job)
+            client = BrokerArchiveClient.new(owner: self.name(), url: urls[:archive], job: job)
             # create temporary test files
             files = {
                 create: {
-                    uri: "/tmp/#{self.name()}-create.txt",
-                    content: "#{self.name()} initial file content!",
+                    uri: "/tmp/broker-archive-client-test-file-create.txt",
+                    content: "broker-archive-client-test-file create file content!",
                     :'content-type' => "application/text"
                 },
                 update: {
-                    uri: "/tmp/#{self.name()}-update.txt",
-                    content: "{\"data\":\"#{self.name()} updated file content!\"}",
+                    uri: "/tmp/broker-archive-client-test-file-update.txt",
+                    content: "{\"data\":\"broker-archive-client-test-file updated file content!\"}",
                     :'content-type' => "application/json"
-                },
-                move: {
-                    uri: "#{tmp}/#{Time.now.strftime("%Y-%m-%d")}/cccccc.ul",
-                    content: "Temporary uploaded file.",
-                    :'content-type' => "application/txt"
                 }
             }
-            # create 'fake' temporary uploaded file - not this class responsability to upload files
-            FileUtils.mkdir_p(File.dirname(files[:move][:uri]))
-
             files.each do | k, v | 
                 File.open(v[:uri], "w") { |file| file.puts "#{v[:content]}"}
             end
@@ -486,19 +480,26 @@ module SP
                 # if reached here, response is No Content
                 { code: 204, body: '' }
             end
-            # test MOVE method
-            error_count+= ::SP::Job::HttpClient.run_test(verb: "MOVE", output: output) do
-                responses[:move] = client.move(entity: entity, billing: billing, permissions: "drw = user_id == #{job[:user_id]};",
-                                               uri: files[:move][:uri].gsub("#{tmp}/", ''), content_type:files[:move][:'content-type'],
-                                               filename: nil
-                )
-                responses[:move]
-            end
-            # test GET method
-            error_count+= ::SP::Job::HttpClient.run_test(verb: "GET", output: output) do
-                responses[:get] = client.get(id: responses[:move])
-                # if reached here, response is OK
-                { code: 200, body: responses[:get] }
+            if 'jruby' != RUBY_ENGINE 
+                # test UPLOAD internal method
+                error_count+= ::SP::Job::HttpClient.run_test(verb: "UPLOAD", output: output) do
+                    responses[:upload] = ::SP::Job::BrokerUploadClient.new(owner: self.name(), url: urls[:upload]).upload(body: 'UPLOADED TEST DATA')
+                    responses[:upload]
+                end
+                # test MOVE method
+                error_count+= ::SP::Job::HttpClient.run_test(verb: "MOVE", output: output) do
+                    responses[:move] = client.move(entity: entity, billing: billing, permissions: "drw = user_id == #{job[:user_id]};",
+                                                   uri: responses[:upload][:file], content_type: 'application/octet-stream',
+                                                   filename: nil
+                    )
+                    responses[:move]
+                end
+                # test GET 'moved' file
+                error_count+= ::SP::Job::HttpClient.run_test(verb: "GET", output: output) do
+                    responses[:get] = client.get(id: responses[:move])
+                    # if reached here, response is OK
+                    { code: 200, body: responses[:get] }
+                end
             end
 
             puts "--- --- --- --- --- --- --- --- --- --- ---"

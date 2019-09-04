@@ -72,6 +72,10 @@ module SP
         HttpClient.delete(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
+      def upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
+        HttpClient.upload(origin: origin, url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+      end
+
       def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         HttpClient.post_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
@@ -123,6 +127,10 @@ module SP
 
       def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
         get_klass.delete(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def self.upload(origin:, url:, headers: nil, body:, expect:, conn_options: nil)
+        get_klass.upload(origin: origin, url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
       end
 
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)

@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 
 gem 'awesome_print'
 gem 'colorize'
+gem 'rake-compiler'
 
 group :development do
   gem 'pry'

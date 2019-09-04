@@ -1,6 +1,8 @@
 require "bundler/gem_tasks"
 require "rspec/core/rake_task" unless RUBY_ENGINE == 'jruby'
 
+require 'rake/javaextensiontask' if 'jruby' == RUBY_ENGINE
+
 if RUBY_ENGINE == 'jruby'
 
     require 'rake/javaextensiontask'

@@ -48,12 +48,12 @@ module SP
           @detail   = detail
           @object   = object
           @response = response
-          if nil != response
+          if nil != object
             if nil == message
-              @message = response.class.name()
+              @message = object.class.name()
             end
             if nil == detail
-              @detail = response.message
+              @detail = object.message
             end
           end
         end # initialize
@@ -95,10 +95,26 @@ module SP
       class Unauthorized < Error
 
         def initialize(method:, url:, message: nil, response: nil)
-          super(method: method, url: url, code: code, message: message, response: response)
+          super(method: method, url: url, code: 401, message: message, response: response)
         end
 
       end # class 'Unauthorized'
+
+      class Forbidden < Error
+
+        def initialize(method:, url:, message: nil, response: nil)
+          super(method: method, url: url, code: 403, message: message, response: response)
+        end
+
+      end # class 'Forbidden'
+
+      class BadRequest < Error
+
+        def initialize(method:, url:, message: nil, response: nil)
+          super(method: method, url: url, code: 400, message: message, response: response)
+        end
+
+      end # class 'BadRequest'      
 
       @@REASONS = {
         100 => 'Continue',
@@ -184,6 +200,10 @@ module SP
         raise NotImplemented.new(method: 'DELETE', url: url)
       end
 
+      def self.upload(origin:, url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'UPLOAD', url: url)
+      end
+
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         raise NotImplemented.new(method: 'POST', url: to)
       end
@@ -216,8 +236,14 @@ module SP
         # compare status code
         if response[:code] != expect[:code]
           case response[:code]
+          when 400
+            ap response
+            raise EasyHttpClient::BadRequest.new(method: method, url: url, response: response)
           when 401
             raise EasyHttpClient::Unauthorized.new(method: method, url: url, response: response)
+          when 403
+            ap response
+            raise EasyHttpClient::Forbidden.new(method: method, url: url, response: response)
           else
             raise EasyHttpClient::Error.new(method: method, url: url, code: response[:code], message: nil,
                   detail: nil, object: nil,
