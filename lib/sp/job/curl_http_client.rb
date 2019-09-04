@@ -55,10 +55,10 @@ module SP
       #
       # Perform an HTTP HEAD request
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.head(url:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'HEAD', url: url) do
@@ -72,10 +72,10 @@ module SP
       #
       # Perform an HTTP GET request
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.get(url:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'GET', url: url) do
@@ -89,11 +89,11 @@ module SP
       #
       # Perform an HTTP POST request
       #
-      # @param url
-      # @param headers
-      # @param body
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [OPTIONAL] Data to send.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         response = call(method: 'POST', url: url) do
@@ -107,11 +107,11 @@ module SP
       #
       # Perform an HTTP PUT request
       #
-      # @param url
-      # @param headers
-      # @param body
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [OPTIONAL] Data to send.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         response = call(method: 'PUT', url: url) do
@@ -125,11 +125,11 @@ module SP
       #
       # Perform an HTTP PATCH request
       #
-      # @param url
-      # @param headers
-      # @param body
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [OPTIONAL] Data to send.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         response = call(method: 'PATCH', url: url) do
@@ -143,10 +143,10 @@ module SP
       #
       # Perform an HTTP DELETE request
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'DELETE', url: url) do
@@ -161,12 +161,14 @@ module SP
       #
       # Perform an HTTP POST request to upload some data.
       #
-      # @param origin
-      # @param url
-      # @param headers
-      # @param body
-      # @param expect
-      # @param conn_options
+      # [ WARNING - USAGE INTENDED ONLY FOR DEBUG / TESTING PROPOSES - WORKS ONLY WITH CURB ]
+      #
+      # @oaram origin       [REQUIRED] HTTP Origin header value.
+      # @param url          [REQUIRED] Request URL.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [REQUIRED] Data to send.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
         if ( nil == headers )
@@ -189,10 +191,12 @@ module SP
       #
       # Perform an HTTP POST request to send a file
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param uri          [REQUIRED] Local file URI.
+      # @param to           [REQUIRED] URI.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [OPTIONAL] Data to send.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'POST', url: to, local_file_uri: uri) do
@@ -209,10 +213,11 @@ module SP
       #
       # Perform an HTTP POST request to send a file
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param uri          [REQUIRED] Local file URI.
+      # @param to           [REQUIRED] URI.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'PUT', url: to, local_file_uri: uri) do
@@ -229,10 +234,11 @@ module SP
       #
       # Perform an HTTP PATCH request to send a file
       #
-      # @param url
-      # @param headers
-      # @param expect
-      # @param conn_options
+      # @param uri          [REQUIRED] Local file URI.
+      # @param to           [REQUIRED] URI.
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
       #
       def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'PATCH', url: to, local_file_uri: uri) do
@@ -301,7 +307,12 @@ module SP
       end
 
       #
-      # Call a method and catch interesting error
+      # Call a method and catch / translate error(s)
+      #
+      # @param method
+      # @param url
+      # @param localfile_uri
+      # @param block
       #
       def self.call(method:, url:, local_file_uri: nil, &block)
         begin

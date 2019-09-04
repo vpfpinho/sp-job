@@ -28,7 +28,7 @@ module SP
     module Job
   
       #
-      # nginx-broker 'upload' module client
+      # nginx-broker 'upload' module client - [ WARNING - USAGE INTENDED ONLY FOR DEBUG / TESTING PROPOSES - WORKS ONLY WITH CURB ]
       #
       class BrokerUploadClient
 

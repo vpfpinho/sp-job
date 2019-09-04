@@ -37,12 +37,7 @@ module SP
     class JavaHTTPClient < EasyHttpClient
 
     #
-    # Perform an HTTP GET request
-    #
-    # @param url
-    # @param headers
-    # @param expect
-    # @param conn_options
+    # Perform an HTTP HEAD request
     #
     def self.head(url:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'HEAD', url: url, response: normalize_response(response:
@@ -56,11 +51,6 @@ module SP
     end # method 'get'
     #
     # Perform an HTTP GET request
-    #
-    # @param url
-    # @param headers
-    # @param expect
-    # @param conn_options
     #
     def self.get(url:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'GET', url: url, response: normalize_response(response:
@@ -76,12 +66,6 @@ module SP
     #
     # Perform an HTTP POST request
     #
-    # @param url
-    # @param headers
-    # @param body
-    # @param expect
-    # @param conn_options
-    #
     def self.post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'POST', url: url, response: normalize_response(response:
               ::Java::pt.cloudware.sp.job.HTTPClient.new().post(url, headers, body,
@@ -95,12 +79,6 @@ module SP
 
     #
     # Perform an HTTP PUT request
-    #
-    # @param url
-    # @param headers
-    # @param body
-    # @param expect
-    # @param conn_options
     #
     def self.put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'PUT', url: url, response: normalize_response(response:
@@ -116,12 +94,6 @@ module SP
     #
     # Perform an HTTP PATCH request
     #
-    # @param url
-    # @param headers
-    # @param body
-    # @param expect
-    # @param conn_options
-    #
     def self.patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'PATCH', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().patch(url, headers, body,
@@ -136,11 +108,6 @@ module SP
     #
     # Perform an HTTP DELETE request
     #
-    # @param url
-    # @param headers
-    # @param expect
-    # @param conn_options
-    #
     def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'DELETE', url: url, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().delete(url, headers,
@@ -152,6 +119,9 @@ module SP
         )
     end # method 'delete'
 
+    #
+    # Perform an HTTP POST request to send a file
+    #
     def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'POST', url: to, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().post_file(uri, to, headers,
@@ -163,6 +133,9 @@ module SP
         )
     end
 
+    #
+    # Perform an HTTP PUT request to send a file
+    #
     def self.put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'PUT', url: to, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().put_file(uri, to, headers,
@@ -174,6 +147,9 @@ module SP
         )
     end
 
+    #
+    # Perform an HTTP PATCH request to send a file
+    #
     def self.patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         raise_if_not_expected(method: 'PATCH', url: to, response: normalize_response(response:
                 ::Java::pt.cloudware.sp.job.HTTPClient.new().patch_file(uri, to, headers,
@@ -187,6 +163,9 @@ module SP
 
     private
 
+    #
+    #
+    #
     def self.expect_hash_to_object(expect:)
         if nil == expect
             return nil
@@ -204,6 +183,9 @@ module SP
         )
     end
 
+    #
+    #
+    #
     def self.connection_hash_to_object(options:)
         if nil != options
             ::Java::pt.cloudware.sp.job.HTTPClient::Connection.new(
