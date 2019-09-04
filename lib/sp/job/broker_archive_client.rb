@@ -28,7 +28,7 @@ require 'fileutils'
 
 module SP
     module Job
-  
+
       #
       # nginx-broker 'archive' module client
       #
@@ -115,7 +115,7 @@ module SP
             # @return { 'X-CASPER-BILLING-ID': <value>, 'X-CASPER-BILLING-TYPE': <value> }
             #
             def headers()
-                { 'X-CASPER-BILLING-ID': @id, 'X-CASPER-BILLING-TYPE': @type }
+                { 'X-CASPER-BILLING-ID' => @id, 'X-CASPER-BILLING-TYPE' => @type }
             end
 
         end # class 'Billing'
@@ -147,8 +147,8 @@ module SP
         # @param owner [REQUIRED]Client's owner - usually tube name - used for 'User-Agent' header.
         # @param url   [REQUIRED] Base URL
         # @param job   [REQUIRED] At least must contain entity_id, user_id, role_mask and module_mask attributes.
-        #            
-        def initialize(owner:, url:, job:) 
+        #
+        def initialize(owner:, url:, job:)
             @url = url
             @headers = {}
             x_casper_values = {
@@ -158,9 +158,12 @@ module SP
                 module_mask: job[:module_mask],
             }
             x_casper_values.each do | k, v |
-                @headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
+                if nil !=  v
+                    @headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
+                end
             end
-            @http = ::SP::Job::HttpClient.new(owner: owner, headers: {}, mandatory_headers: {})
+            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {}, mandatory_headers: {})
+            @owner =  owner
         end
 
         #
@@ -171,7 +174,7 @@ module SP
         # @return Archive body.
         #
         def get(id:)
-            # make request    
+            # make request
             response = @http.get(url: "#{@url}/#{id}", headers: make_request_headers())
             # return body only
             return response[:body]
@@ -205,14 +208,14 @@ module SP
         #
         def create(entity:, billing:, permissions:, uri:, content_type:, filename: nil)
             # set this request specific headers
-            headers = {"X-CASPER-ACCESS": permissions}
+            headers = { 'X-CASPER-ACCESS' => permissions, 'X-CASPER-ARCHIVED-BY' => @owner }
             headers.merge!(billing.headers())
-            headers.merge!({"Content-Type": content_type})
+            headers.merge!({'Content-Type' => content_type})
             if nil != filename
-                headers.merge!({"X-CASPER-FILENAME": filename})
+                headers.merge!({'X-CASPER-FILENAME' => filename})
             end
             # make request
-            response = @http.post_file(uri: uri, to: @url, headers: make_request_headers(entity: entity, headers: headers), 
+            response = @http.post_file(uri: uri, to: @url, headers: make_request_headers(entity: entity, headers: headers),
                 expect: {
                     code: 200,
                     content: {
@@ -220,7 +223,7 @@ module SP
                     }
                 }
             )
-            # return body only 
+            # return body only
             JSON.parse(response[:body], symbolize_names: true)
         end
 
@@ -247,7 +250,7 @@ module SP
         #
         def update(id:, uri:, content_type:)
             # set this request specific headers
-            headers = { "Content-Type": content_type }
+            headers = { 'Content-Type' => content_type }
             # make request
             response = @http.put_file(uri: uri, to: "#{@url}/#{id}", headers: make_request_headers(headers: headers),
                 expect: {
@@ -257,7 +260,7 @@ module SP
                     }
                 }
             )
-            # return body only 
+            # return body only
             JSON.parse(response[:body], symbolize_names: true)
         end
 
@@ -288,10 +291,10 @@ module SP
             # set this request specific headers
             headers = {}
             if nil != permissions
-                headers.merge!({ "X-CASPER-ACCESS": permissions })
+                headers.merge!({'X-CASPER-ACCESS' => permissions})
             end
             if nil != filename
-                headers.merge!({"X-CASPER-FILENAME": filename})
+                headers.merge!({'X-CASPER-FILENAME' => filename})
             end
             if 0 == headers.count
                 raise "Invalid call to 'patch' method - no data to patch!"
@@ -305,7 +308,7 @@ module SP
                     }
                 }
             )
-            # return body only 
+            # return body only
             JSON.parse(response[:body], symbolize_names: true)
         end
 
@@ -356,13 +359,13 @@ module SP
         def move(entity:, billing:, permissions:, uri:, content_type:, filename: nil)
             # set this request specific headers
             headers = {
-                'Content-Type': content_type,
-                'X-CASPER-ACCESS': permissions ,
-                'X-CASPER-MOVES-URI': uri 
+                'Content-Type' => content_type,
+                'X-CASPER-ACCESS' => permissions ,
+                'X-CASPER-MOVES-URI' => uri
             }
             headers.merge!(billing.headers())
             if nil != filename
-                headers.merge!({"X-CASPER-FILENAME": filename})
+                headers.merge!({'X-CASPER-FILENAME' => filename})
             end
             # make request
             response = @http.post(url: @url, headers: make_request_headers(entity: entity, headers: headers), body: nil,
@@ -381,7 +384,7 @@ module SP
 
         #
         # Merge headers for a request.
-        #        
+        #
         # @param entity [OPTIONAL] See \link Entity \link.
         #
         # @return Filtered headers by entity ( if any )
@@ -400,14 +403,16 @@ module SP
             # remove unwanted headers
             if nil != entity
                 if entity.type == :user
+                    _headers.merge!({'X-CASPER-USER-ID' => entity.id})
                     _headers.delete('X-CASPER-ENTITY-ID')
                 elsif entity.type == :company
+                    _headers.merge!({'X-CASPER-ENTITY-ID' => entity.id})
                     _headers.delete('X-CASPER-USER-ID')
                 end
             end
             # done
             _headers
-        end       
+        end
 
         #
         # Helper method to test this client.
@@ -426,7 +431,7 @@ module SP
             puts "--- --- --- --- --- --- --- --- --- --- ---"
             puts "#{self.name()} ~~ RUNNING ~~".purple
             puts "--- --- --- --- --- --- --- --- --- --- ---"
-    
+
             # create client
             client = BrokerArchiveClient.new(owner: self.name(), url: urls[:archive], job: job)
             # create temporary test files
@@ -442,10 +447,10 @@ module SP
                     :'content-type' => "application/json"
                 }
             }
-            files.each do | k, v | 
+            files.each do | k, v |
                 File.open(v[:uri], "w") { |file| file.puts "#{v[:content]}"}
             end
-            # 
+            #
             entity  = BrokerArchiveClient::Entity.new(id: job[:user_id], type: :user)
             billing = BrokerArchiveClient::Billing.new(id: job[:entity_id], type: 'archive')
             #
@@ -480,7 +485,7 @@ module SP
                 # if reached here, response is No Content
                 { code: 204, body: '' }
             end
-            if 'jruby' != RUBY_ENGINE 
+            if 'jruby' != RUBY_ENGINE
                 # test UPLOAD internal method
                 error_count+= ::SP::Job::HttpClient.run_test(verb: "UPLOAD", output: output) do
                     responses[:upload] = ::SP::Job::BrokerUploadClient.new(owner: self.name(), url: urls[:upload]).upload(body: 'UPLOADED TEST DATA')
@@ -507,11 +512,10 @@ module SP
             print " ~~ %s ~~" % [error_count > 0 ? 'FAILED'.red : 'PASS'.green]
             print "\n"
             puts "--- --- --- --- --- --- --- --- --- --- ---"
-    
+
         end # self.test
 
-      end # class 'BrokerArchiveClient'      
+      end # class 'BrokerArchiveClient'
 
     end # module Job
 end #module SP
-    

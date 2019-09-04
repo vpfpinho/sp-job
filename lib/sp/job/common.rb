@@ -233,48 +233,21 @@ module SP
       #
       def send_to_file_server(file_name: '', src_file:, content_type:, access:, billing_type:, billing_id:, company_id: nil, user_id: nil)
 
-        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
-
+        if !company_id.nil? && user_id.nil?
+          entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: company_id.to_i, type: :company)
+        elsif company_id.nil? && !user_id.nil?
+          entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: user_id.to_i, type: :user)
+        else
+          raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+        end
+        billing = ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type)
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
-        headers = {
-          'Content-Type' => content_type.to_s,
-          'X-CASPER-ACCESS' => access.to_s,
-          'X-CASPER-FILENAME' => "#{file_name.force_encoding('ISO-8859-1')}",
-          'X-CASPER-ARCHIVED-BY' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-          'X-CASPER-BILLING-ID' => billing_id.to_s
-        }
-
-        if !company_id.nil? && user_id.nil?
-          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
-        elsif company_id.nil? && !user_id.nil?
-          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
-        else
-          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
-        end
-
-        file = File.open(src_file, "rb")
-        contents = file.read
-        file.close
-
-        response = HttpClient.get_klass.post(
-          url: url,
-          headers: headers,
-          body: contents,
-          expect: {
-            code: 200,
-            content: {
-              type: 'application/vnd.api+json;charset=utf-8'
-            }
-          }
+        # returning response
+        ::SP::Job::BrokerArchiveClient.new(owner: 'todo job name', url: url, job: {})
+            .create(entity: entity, billing: billing, permissions: access.to_s,
+                    uri: src_file, content_type: content_type.to_s, filename: file_name
         )
-
-        if 200 != response[:code]
-          raise "#{response[:code]}"
-        end
-
-        JSON.parse(response[:body])
 
       end
 
