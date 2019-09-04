@@ -199,10 +199,12 @@ public class HTTPClient
       } else if ( null != uri ) {
         final BufferedOutputStream output = new BufferedOutputStream(a_connection.getOutputStream());
         final BufferedInputStream  input  = new BufferedInputStream(new FileInputStream(uri.getPath()));
-			  int i;
-  			while ( ( i = input.read() ) > 0 ) {
-				  output.write(i);
-			  }
+
+        byte[] buff = new byte[1073741824];
+        int len;
+        while ( ( len = input.read(buff)) > 0 ) {
+          output.write(buff, 0, len);
+        }
         input.close();
         output.flush();
 			  output.close();
@@ -247,9 +249,9 @@ public class HTTPClient
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
     if ( true == DEBUG ) {
-      System.out.println("[JAVA][DEBUG] ~> " + a_method + " - BODY IS FILE: " + a_uri);
+      System.out.println("[JAVA][DEBUG] ~> " + a_method + " - BODY IS FILE AT: " + a_uri);
     }
-    return _do_http(a_method, a_to, a_headers, /* a_stream */ new Stream("file://" + a_uri), a_expect, a_connection);
+    return _do_http(a_method, a_to, a_headers, /* a_stream */ new Stream(new URI("file://" + a_uri.getPath())), a_expect, a_connection);
   }
 
   /*         */
