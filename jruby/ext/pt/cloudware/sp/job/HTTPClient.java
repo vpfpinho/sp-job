@@ -200,7 +200,7 @@ public class HTTPClient
         final BufferedOutputStream output = new BufferedOutputStream(a_connection.getOutputStream());
         final BufferedInputStream  input  = new BufferedInputStream(new FileInputStream(uri.getPath()));
 
-        byte[] buff = new byte[1073741824];
+        byte[] buff = new byte[1024*1024];
         int len;
         while ( ( len = input.read(buff)) > 0 ) {
           output.write(buff, 0, len);
