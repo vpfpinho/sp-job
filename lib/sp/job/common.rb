@@ -1061,7 +1061,7 @@ module SP
       end
 
 
-      def print_and_archive_http (payload:, entity_id:, access:, file_name: '', billing_type:)
+      def print_and_archive (payload:, entity_id:, access:, file_name: '', billing_type:)
         payload[:ttr]            ||= 300
         payload[:validity]       ||= 500
         payload[:auto_printable] ||= false
