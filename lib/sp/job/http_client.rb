@@ -26,6 +26,8 @@
 require_relative 'curl_http_client' unless 'jruby' == RUBY_ENGINE
 require_relative 'java_http_client' if     'jruby' == RUBY_ENGINE
 
+require 'fileutils'
+
 require 'awesome_print'
 
 module SP
@@ -74,6 +76,14 @@ module SP
 
       def upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
         HttpClient.upload(origin: origin, url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        HttpClient.get_to_file(url: url, headers: headers, to: to, expect: expect, conn_options: conn_options)
+      end
+
+      def post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        HttpClient.post_to_file(url: url, headers: headers, body: body, to: to, expect: expect, conn_options: conn_options)
       end
 
       def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
@@ -133,6 +143,14 @@ module SP
         get_klass.upload(origin: origin, url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
       end
 
+      def self.get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        get_klass.get_to_file(url: url, headers: headers, to: to, expect: expect, conn_options: conn_options)
+      end
+
+      def self.post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        get_klass.post_to_file(url: url, headers: headers, body: body, to: to, expect: expect, conn_options: conn_options)
+      end
+    
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         get_klass.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
       end
@@ -252,6 +270,52 @@ module SP
             conn_options: conn_options
           )
         end
+      
+        error_count+= self.run_test(verb: "GET-TO-FILE", output: output) do
+          FileUtils.touch('/tmp/get_to_file.tmp')
+          response = http.get_to_file(url: 'https://httpbin.org/get',
+            headers: {
+                'Accept' => 'application/json'
+            },
+            expect: {
+                code: 200,
+                content: {
+                  type: 'application/json'
+                }
+            },
+            conn_options: conn_options,
+            to: '/tmp/get_to_file.tmp'
+          )
+          f_size = File.size('/tmp/get_to_file.tmp')
+          if f_size != response[:content][:length]
+            raise "File size mismatch: got #{f_size}, expected #{response[:content][:length]}"
+          end
+          response
+        end
+
+        error_count+= self.run_test(verb: "POST-TO-FILE", output: output) do
+          FileUtils.touch('/tmp/post_to_file.tmp')
+          response = http.post_to_file(url: 'https://httpbin.org/post',
+            headers: {
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/text'
+            },
+            body: '<insert POST body here>',
+            expect: {
+                code: 200,
+                content: {
+                  type: 'application/json'
+                }
+            },
+            conn_options: conn_options,
+            to: '/tmp/post_to_file.tmp'
+          )
+          f_size = File.size('/tmp/post_to_file.tmp')
+          if f_size != response[:content][:length]
+            raise "File size mismatch: got #{f_size}, expected #{response[:content][:length]}"
+          end
+          response
+        end
 
         puts "--- --- --- --- --- --- --- --- --- ---"
         print "#{get_klass.name()}".purple
@@ -265,17 +329,17 @@ module SP
 
       def self.run_test(verb:, output:, &callback)
 
-        print "%-8s - ...".cyan % [verb]
+        print "%-12s - ...".cyan % [verb]
         begin
           response = yield
           print "\r"
           $stdout.flush
-          print "%-8s - PASS\n".green % [verb]
+          print "%-12s - PASS\n".green % [verb]
         rescue Exception => e
           response = e
           print "\r"
           $stdout.flush
-          print "%-8s - FAILED\n".red % [verb]
+          print "%-12s - FAILED\n".red % [verb]
         end
 
         # output response?

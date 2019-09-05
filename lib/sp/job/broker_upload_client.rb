@@ -28,7 +28,7 @@ module SP
     module Job
   
       #
-      # nginx-broker 'upload' module client - [ WARNING - USAGE INTENDED ONLY FOR DEBUG / TESTING PROPOSES - WORKS ONLY WITH CURB ]
+      # nginx-broker 'upload' module client
       #
       class BrokerUploadClient
 
@@ -46,6 +46,12 @@ module SP
 
         #
         # Perform an HTTP POST request to 'Move' a previously uploaded archive.
+        #
+        # ** WARNING **
+        #
+        # - [ WARNING - USAGE INTENDED ONLY FOR DEBUG / TESTING PROPOSES - WORKS ONLY WITH CURB ]
+        #
+        # ** WARNING **
         #
         # @param body Data to upload
         #

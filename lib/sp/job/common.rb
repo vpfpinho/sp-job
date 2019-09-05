@@ -157,68 +157,40 @@ module SP
         Backburner.configuration.logger
       end
 
-      #
-      # Uploads a local file to the resting location on the upload server via the internal network
-      #
-      # Note the upload server could be the same machine, in that case we just copy the file. When the
-      # server is a remote machine it must grant ssh access to this machine and have the program unique-file
-      # in the path of ssh user
-      #
-      # Also make sure the job using this method has the following configuration parameers
-      #   1. config[:scp_config][:local] true if this machine is also the upload server
-      #   2. config[:scp_config][:local] name of upload host with ssh access
-      #   3. config[:scp_config][:path] base path of for file uploads server on the local or remote machine
-      #
-      # @param src_file name of local file to upload
-      # @param id entity id user_id or company_id
-      # @param extension filename extension with the . use '.pdf' not 'pdf'
-      # @param entity can be either 'user' or 'company'
-      # @param folder two letter subfolder inside entity folder use '00' for temp files
-      #
-      def send_to_upload_server (src_file:, id:, extension:, entity: 'company', folder: nil)
-        folder ||= get_random_folder
-        remote_path = File.join(entity, id_to_path(id.to_i), folder)
-        if config[:scp_config][:local] == true
-          destination_file = ::SP::Job::Unique::File.create(File.join(config[:scp_config][:path], remote_path), extension)
-          FileUtils.cp(src_file, destination_file)
-        else
-          uploads_server = config[:scp_config][:server]
-          destination_file = %x[ssh #{uploads_server} unique-file -p #{File.join(config[:scp_config][:path], remote_path)} -e #{extension[1..-1]}].strip
-          if $?.exitstatus == 0
-            %x[scp #{src_file} #{uploads_server}:#{destination_file}]
-            raise_error(message: 'i18n_upload_to_server_failed') if $?.exitstatus != 0
-          else
-            raise_error(message: 'i18n_upload_to_server_failed')
-          end
-        end
-
-        return entity[0] + folder + destination_file[-(6+extension.length)..-1]
-      end
-
 
       #
-      # Retrieve a previously uploaded file.
+      # Retrieve a previously temporary uploaded file.
       #
       # @param file
       # @param tmp_dir
       #
       # @return When tmp_dir is set file URI otherwise file body.
       #
-      def get_from_upload_server(file:, tmp_dir:, alt_path: nil)
+      def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
+        
         path = alt_path.nil? ? config[:tmp_file_server][:path] + '/' : alt_path
-        response = HttpClient.get_klass.get(url: "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{path}#{file}")
+        url  = "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{path}#{file}"
+        uri  = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+
+        response = HttpClient.get_to_file(url: url, to: uri)
         if 200 != response[:code]
           raise "#{response[:code]}"
         end
-        if tmp_dir
-          uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
-          File.open(uri, 'wb') {
-             |f| f.write(response[:body])
-          }
-          uri
+
+        # if temporary dir was provided
+        if nil != tmp_dir
+          # return file URI
+          return uri
         else
-          response[:body]
+          # read from file
+          data = nil
+          File.open(uri, 'rb') {
+              | f | data = f.read
+          }
+          # return it's content
+          return data
         end
+
       end
 
       #
@@ -240,19 +212,28 @@ module SP
         else
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
-        billing = ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type)
+        
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
-        # returning response
-        ::SP::Job::BrokerArchiveClient.new(owner: 'todo job name', url: url, job: {})
-            .create(entity: entity, billing: billing, permissions: access.to_s,
-                    uri: src_file, content_type: content_type.to_s, filename: file_name
-        )
+        # returning 'normalized' response
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+            job: {},
+            headers: {
+              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+              'X-CASPER-BILLING-ID' => billing_id.to_s              
+            }
+          ).create(entity: entity, 
+                   billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+                    permissions: access.to_s,
+                    uri: src_file, 
+                    content_type: content_type.to_s, 
+                    filename: file_name
+          )
 
       end
 
       #
-      # Move a file from uploads/tmp to a permanent location in the file server
+      # Archive a file from uploads/tmp to a permanent location in the file server
       #
       # @param tmp_file
       # @param final_file
@@ -261,47 +242,32 @@ module SP
       # @param user_id
       # @param company_id
       #
-      def move_to_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
-
-        raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+      def archive_on_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
+        
+        if !company_id.nil? && user_id.nil?
+          entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: company_id.to_i, type: :company)
+        elsif company_id.nil? && !user_id.nil?
+          entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: user_id.to_i, type: :user)
+        else
+          raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
+        end
 
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
-        headers = {
-          'Content-Type' => content_type.to_s,
-          'X-CASPER-ACCESS' => access.to_s,
-          'X-CASPER-MOVES-URI' => tmp_file.to_s,
-          'X-CASPER-FILENAME' => "#{final_file.force_encoding('ISO-8859-1')}",
-          'X-CASPER-ARCHIVED-BY' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-          'X-CASPER-BILLING-ID' => billing_id.to_s
-        }
-
-        if !company_id.nil? && user_id.nil?
-          headers['X-CASPER-ENTITY-ID'] = "#{company_id.to_s}"
-        elsif company_id.nil? && !user_id.nil?
-          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
-        else
-          headers['X-CASPER-USER-ID'] = "#{user_id.to_s}"
-        end
-
-        response = HttpClient.get_klass.post(
-          url: url,
-          headers: headers,
-          body: '',
-          expect: {
-            code: 200,
-            content: {
-              type: 'application/vnd.api+json;charset=utf-8'
+        # returning 'normalized' response
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+            job: {},
+            headers: {
+              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+              'X-CASPER-BILLING-ID' => billing_id.to_s              
             }
-          }
+         ).create(entity: entity, 
+                  billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+                  permissions: access.to_s,
+                  uri: tmp_file.to_s, 
+                  content_type: content_type.to_s, 
+                  filename: final_file
         )
-
-        if 200 != response[:code]
-          raise "#{response[:code]}"
-        end
-
-        JSON.parse(response[:body])
 
       end
 
@@ -318,26 +284,22 @@ module SP
 
         raise 'missing file_identifier' if file_identifier.nil?
 
-        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}/#{file_identifier}"
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
-        headers = {
-          'X-CASPER-USER-ID' => user_id.to_s,
-          'X-CASPER-ENTITY-ID' => entity_id.to_s,
-          'X-CASPER-ROLE-MASK' => role_mask.to_s,
-          'X-CASPER-MODULE-MASK' => module_mask.to_s,
-          'USER-AGENT' => 'sp-job',
-          'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-          'X-CASPER-BILLING-ID' => billing_id.to_s
-        }
+        # returning 'normalized' response
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+            job: {
+              entity_id: entity_id.to_s,
+              user_id: user_id.to_s,
+              role_mask: role_mask.to_s,
+              module_mask: module_mask.to_s
+            },
+            headers: {
+              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+              'X-CASPER-BILLING-ID' => billing_id.to_s              
+            }
+        ).delete(id: file_identifier)
 
-        response = HttpClient.get_klass.delete(
-          url: url,
-          headers: headers
-        )
-
-        if 204 != response[:code]
-          raise "#{response[:code]}"
-        end
       end
 
       #
@@ -1098,41 +1060,6 @@ module SP
         $redis.expire(td.job_key, new_delay)
       end
 
-      def print_and_archive (payload, entity_id)
-        payload[:ttr]            ||= 300
-        payload[:validity]       ||= 500
-        payload[:auto_printable] ||= false
-        payload[:documents]      ||= []
-
-        jwt = JWTHelper.jobify(
-          key: config[:nginx_broker_private_key],
-          tube: 'casper-print-queue',
-          payload: payload
-        )
-
-        pdf_response = HttpClient.get_klass.post(
-          url: get_cdn_public_url,
-          headers: {
-            'Content-Type' => 'application/text'
-          },
-          body: jwt,
-          expect: {
-            code: 200,
-            content: {
-              type: 'application/pdf'
-            }
-          },
-          conn_options: {
-            connection_timeout: payload[:ttr],
-            request_timeout: payload[:ttr]
-          }
-        )
-
-        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
-        File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
-        file_identifier = send_to_upload_server(src_file: tmp_file, id: entity_id, extension: ".pdf")
-        file_identifier
-      end
 
       def print_and_archive_http (payload:, entity_id:, access:, file_name: '', billing_type:)
         payload[:ttr]            ||= 300
@@ -1146,7 +1073,9 @@ module SP
           payload: payload
         )
 
-        pdf_response = HttpClient.get_klass.post(
+        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        
+        pdf_response = HttpClient.post_to_file(
           url: get_cdn_public_url,
           headers: {
             'Content-Type' => 'application/text'
@@ -1161,11 +1090,9 @@ module SP
           conn_options: {
             connection_timeout: payload[:ttr],
             request_timeout: payload[:ttr]
-          }
+          },
+          to: tmp_file
         )
-
-        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
-        File.open(tmp_file, 'wb') { |f| f.write(pdf_response[:body]) }
 
         response = send_to_file_server(file_name: file_name,
                                        src_file: tmp_file,

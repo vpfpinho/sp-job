@@ -189,6 +189,55 @@ module SP
       end # method 'upload'
 
       #
+      # Perform an HTTP GET and write contents to a file
+      #
+      # @param url          [REQUIRED] URL
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param to           [REQUIRED] Local file URI.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
+      #
+      def self.get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        response = call(method: 'GET', url: url, local_file_uri: url) do
+          r = Curl::Easy.new
+          r.url = url
+          set_handle_properties(handle: r, headers: headers, conn_options: conn_options)
+          File.open(to, 'wb') do | f |
+            r.on_body { | data | f << data; data.size }
+            r.perform
+          end
+          raise_if_not_expected(method: 'GET', url: url, response: normalize_response(curb_r: r), expect: expect)
+        end
+      end
+
+      #
+      # Perform an HTTP GET and write response contents to a file
+      #
+      # @param url          [REQUIRED] URL
+      # @param headers      [OPTIONAL] Request specific headers.
+      # @param body         [OPTIONAL] Data to send.
+      # @param to           [REQUIRED] Local file URI.
+      # @param expect       [OPTIONAL] { code: <numeric>, content: { type: <string>} }
+      # @param conn_options [OPTIONAL] TODO
+      #
+      def self.post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        response = call(method: 'POST', url: url, local_file_uri: url) do
+          r = Curl::Easy.new
+          r.url = url
+          if nil != body
+            r.headers["Content-Length"] = body.length
+            r.put_data = body
+          end
+          set_handle_properties(handle: r, headers: headers, conn_options: conn_options)
+          File.open(to, 'wb') do | f |
+            r.on_body { | data | f << data; data.size }
+            r.http(:POST)
+          end
+          raise_if_not_expected(method: 'POST', url: url, response: normalize_response(curb_r: r), expect: expect)
+        end
+      end
+
+      #
       # Perform an HTTP POST request to send a file
       #
       # @param uri          [REQUIRED] Local file URI.
@@ -300,7 +349,7 @@ module SP
           end
           m = header.match("(^Content-Length){1}:\s\([0-9]+){1}")
           if nil != m && 3 == m.length
-            o[:content][:length] = m[2]
+            o[:content][:length] = m[2].to_i
           end
         end
         o
@@ -319,18 +368,10 @@ module SP
           response = yield
         rescue Curl::Err::ConnectionFailedError => connection_error
           raise ::SP::Job::EasyHttpClient::CouldNotNonnect.new(method: method, url: url)
-        rescue Errno::ENOENT => not_found
-          raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url, local_file_uri: local_file_uri)
         rescue Curl::Easy::Error => curl_error
           raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: curl_error, response: response)
-        rescue ::SP::Job::EasyHttpClient::Error => ece
-          raise ece
-        rescue StandardError => se
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: se, response: response)
-        rescue RuntimeError => rte
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: rte, response: response)
-        rescue Exception => e
-          raise ::SP::Job::EasyHttpClient::InternalError.new(method: method, url: url, object: e, response: response)
+        rescue Errno::ENOENT => not_found
+          raise ::SP::Job::EasyHttpClient::SourceFileNotFound.new(method: method, url: url, local_file_uri: local_file_uri)
         end
         response
       end

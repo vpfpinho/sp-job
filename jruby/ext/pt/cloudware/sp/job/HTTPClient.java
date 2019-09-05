@@ -14,20 +14,27 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 import java.io.DataOutputStream;
+import java.io.DataInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
-
+import java.io.FileOutputStream;
 import java.io.File;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
+import java.io.FileNotFoundException;
+
 import org.jruby.RubyHash;
+
+import java.util.List;
+import java.util.Map;
 
 public class HTTPClient
 {
@@ -90,10 +97,10 @@ public class HTTPClient
       public final String type;
       public final long   length;
 
-      public Content (final String a_type, final long a_length)
+      public Content (final String type, final long length)
       {
-        type   = a_type;
-        length = a_length;
+        this.type   = type;
+        this.length = length;
       }
 
     };
@@ -102,11 +109,11 @@ public class HTTPClient
     public final String  body;
     public final Content content;
 
-    public Response (final Integer a_code, final String a_body, final Content a_content)
+    public Response (final Integer code, final String body, final Content content)
     {
-      code = a_code;
-      body = a_body;
-      content = a_content;
+      this.code = code;
+      this.body = body;
+      this.content = content;
     }
 
   };
@@ -114,30 +121,30 @@ public class HTTPClient
   public Response head (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("HEAD", a_url, a_headers, /* a_body */ null, a_expect, a_connection);
+    return do_http("HEAD", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
   }
 
   public Response get (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("GET", a_url, a_headers, /* a_body */ null, a_expect, a_connection);
+    return do_http("GET", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
   }
 
   public Response delete (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("DELETE", a_url, a_headers, /* a_body */ null, a_expect, a_connection);
+    return do_http("DELETE", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
   }
 
   public Response post (final String a_url, final RubyHash a_headers, final String a_body,
-                                     final Expect a_expect, final Connection a_connection)
+                        final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
     return do_http("POST", a_url, a_headers, a_body, a_expect, a_connection);
   }
 
   public Response put (final String a_url, final RubyHash a_headers, final String a_body,
-                                     final Expect a_expect, final Connection a_connection)
+                       final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
     return do_http("PUT", a_url, a_headers, a_body, a_expect, a_connection);
@@ -149,54 +156,140 @@ public class HTTPClient
   {
     return do_http("PATCH", a_url, a_headers, a_body, a_expect, a_connection);
   }
+ 
+  /*         */
+  /* --- --- */
+  /*/        */
 
-  public Response post_file (final String a_uri, final String a_to, final RubyHash a_headers,
-                                     final Expect a_expect, final Connection a_connection)
-  throws MalformedURLException, ProtocolException, IOException, Exception
+  public Response get_to_file (final String a_url, final RubyHash a_headers, final String a_to,
+                               final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception, URISyntaxException
   {
-    return do_http("POST", new URI(a_uri), a_to, a_headers, a_expect, a_connection);
+    return do_http("GET", a_url, a_headers, /* a_from */ (URI)null, new URI(a_to), a_expect, a_connection);
   }
 
-  public Response put_file (final String a_uri, final String a_to, final RubyHash a_headers,
-                                     final Expect a_expect, final Connection a_connection)
-  throws MalformedURLException, ProtocolException, IOException, Exception
+  public Response post_to_file (final String a_url, final RubyHash a_headers, final String a_body, final String a_to,
+                                final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception, URISyntaxException
   {
-    return do_http("PUT", new URI(a_uri), a_to, a_headers, a_expect, a_connection);
+    return _do_http("POST", a_url, a_headers, /* a_stream */ new InputStream(a_body), new OutputStream(new URI("file://" + a_to)), a_expect, a_connection);
   }
 
-  public Response patch_file (final String a_uri, final String a_to, final RubyHash a_headers,
+
+  /*         */
+  /* --- --- */
+  /*/        */
+
+  /*
+   * Perform an HTTP POST request to send a local file ( a_from ) to an url ( a_to ). 
+   */
+  public Response post_file (final String a_from, final String a_to, final RubyHash a_headers,
+                             final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception
+  {
+    return do_http("POST", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
+  }
+
+  /*
+   * Perform an HTTP PUT request to send a local file ( a_from ) to an url ( a_to ). 
+   */
+  public Response put_file (final String a_from, final String a_to, final RubyHash a_headers,
                                      final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("PATCH", new URI(a_uri), a_to, a_headers, a_expect, a_connection);
+    return do_http("PUT", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
+  }
+
+  /*
+   * Perform an HTTP PATCH request to send a local file ( a_from ) to an url ( a_to ). 
+   */
+  public Response patch_file (final String a_from, final String a_to, final RubyHash a_headers,
+                                     final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception
+  {
+    return do_http("PATCH", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
   }
 
   /*         */
   /* --- --- */
   /*/        */
 
+  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final String a_body,
+                            final Expect a_expect, final Connection a_connection)
+    throws MalformedURLException, ProtocolException, IOException, Exception
+    {
+      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(a_body), new OutputStream(), a_expect, a_connection);
+  }
+
+  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final URI a_from,
+                            final Expect a_expect, final Connection a_connection)
+    throws MalformedURLException, ProtocolException, IOException, Exception
+    {
+      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(new URI("file://" + a_from.getPath())), new OutputStream(), a_expect, a_connection);
+  }
+  
+
+  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final URI a_from, final URI a_to,
+                            final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception
+  {
+    if ( null != a_from ) {
+      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(new URI("file://" + a_from.getPath())), new OutputStream(new URI("file://" + a_to.getPath())), a_expect, a_connection);
+    } else {
+      return _do_http(a_method, a_url, a_headers, /* a_stream */ (InputStream)null, new OutputStream(new URI("file://" + a_to.getPath())), a_expect, a_connection);
+    }
+  }
+
+  /*         */
+  /* --- --- */
+  /*         */ 
+
   private static class Stream 
   {
 
-    private String data = null;
-    private URI    uri  = null;
+    protected String data = null;
+    protected URI    uri  = null;
 
-    public Stream(final String a_data)
+    public Stream(final String data)
     {
-      data = a_data;
+      this.data = data;
+      this.uri  = null;
     }
 
-    public Stream(final URI a_uri)
+    public Stream(final URI uri)
     {
-      uri = a_uri;
+      this.data = null;
+      this.uri  = uri;
+    }
+
+    public final URI uri ()
+    {
+      return this.uri;
+    }
+
+  }
+
+  private static class InputStream extends Stream
+  {
+
+
+    public InputStream(final String data)
+    {
+      super(data);
+    }
+
+    public InputStream(final URI uri)
+    {
+      super(uri);
     }
 
     public void write (HttpURLConnection a_connection)
-      throws MalformedURLException, ProtocolException, IOException, Exception
+      throws MalformedURLException, ProtocolException, IOException, Exception, FileNotFoundException
     {
       if ( null != data ) {
         new DataOutputStream(a_connection.getOutputStream()).write(data.getBytes(StandardCharsets.UTF_8));
       } else if ( null != uri ) {
+
         final BufferedOutputStream output = new BufferedOutputStream(a_connection.getOutputStream());
         final BufferedInputStream  input  = new BufferedInputStream(new FileInputStream(uri.getPath()));
 
@@ -218,57 +311,88 @@ public class HTTPClient
         return (long)data.length();
       } else if ( null != uri ) {
         final File file = new File(uri);
+        if ( false == file.exists() ) {
+          throw new FileNotFoundException();
+        }
         return file.length();
       }
       return 0;
     }
-     
     
   };
 
   /*         */
   /* --- --- */
   /*/        */
-
-  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final String a_body,
-                            final Expect a_expect, final Connection a_connection)
-  throws MalformedURLException, ProtocolException, IOException, Exception
+  private static class OutputStream  extends Stream
   {
-    if ( true == DEBUG ) {
-      System.out.println("[JAVA][DEBUG] ~> " + a_method + " - BODY IS STRING");
-    }
-    return _do_http(a_method, a_url, a_headers, /* a_stream */ new Stream(a_body), a_expect, a_connection);
-  }
 
-   /*         */
-  /* --- --- */
-  /*/        */
+    private FileOutputStream stream = null;
 
-  private Response do_http (final String a_method, final URI a_uri, final String a_to, final RubyHash a_headers,
-                            final Expect a_expect, final Connection a_connection)
-  throws MalformedURLException, ProtocolException, IOException, Exception
-  {
-    if ( true == DEBUG ) {
-      System.out.println("[JAVA][DEBUG] ~> " + a_method + " - BODY IS FILE AT: " + a_uri);
+    public OutputStream()
+    {
+      super(new String());
+      this.stream = null;
     }
-    return _do_http(a_method, a_to, a_headers, /* a_stream */ new Stream(new URI("file://" + a_uri.getPath())), a_expect, a_connection);
-  }
+
+    public OutputStream(final URI uri) 
+      throws FileNotFoundException
+    {
+      super(uri);
+      this.stream = new FileOutputStream(uri.getPath());
+    }
+
+    public void write (final byte[] bytes, final int length, final String contentType)
+    throws Exception
+    {
+      if ( null != stream ) {
+        this.stream.write(bytes, 0, length);
+      } else {
+        if ( true == contentType.startsWith("application/json") || true == contentType.startsWith("application/vnd.api+json") ) {
+          this.data += new String(bytes, /* offset */ 0, /* length */ length, /* charset */ StandardCharsets.UTF_8);
+        } else {
+          this.data += new String(bytes, /* offset */ 0, /* length */ length, /* charset */ StandardCharsets.ISO_8859_1);
+        }
+      }
+    }
+
+    public final String content ()
+    {
+      if ( null != uri ) {
+        return uri.getPath();
+      }
+      return data;
+    }
+
+  };
 
   /*         */
   /* --- --- */
   /*/        */
-  private Response _do_http (final String a_method, final String a_url, final RubyHash a_headers, final Stream a_stream,
+  private Response _do_http (final String a_method, final String a_url, final RubyHash a_headers, final InputStream a_input_stream, final OutputStream a_output_stream,
                             final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
     HttpURLConnection connection = null;
     Response          response   = null;
     Exception         exception  = null;
-    StringBuilder     content    = new StringBuilder();
+    String            responseBody = null;
 
     if ( true == DEBUG ) {
-      System.out.println("[JAVA][DEBUG] ~> " + a_method);
-      System.out.println("[JAVA][DEBUG] ~> " + a_url);
+      System.out.println("[JAVA][DEBUG] ~> METHOD  - " + a_method);
+      System.out.println("[JAVA][DEBUG] ~> URL     - " + a_url);
+      if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {
+        if ( null != a_input_stream.uri() ) {
+          System.out.println("[JAVA][DEBUG] - TX BODY - IS A FILE @ " + a_input_stream.uri().getPath());
+        } else {
+          System.out.println("[JAVA][DEBUG] - TX BODY - IS A STRING");
+        }
+      }
+      if ( null != a_output_stream.uri() ) {
+        System.out.println("[JAVA][DEBUG] - RX BODY - IS A FILE @ " + a_output_stream.uri().getPath());
+      } else {
+        System.out.println("[JAVA][DEBUG] - RX BODY - IS A STRING");
+      }
     }
 
     try {
@@ -280,7 +404,7 @@ public class HTTPClient
       if ( true == a_method.equals("PATCH") ) {
         // ... HttpURLConnection does not support 'PATCH' method ...
         if ( true == DEBUG ) {
-          System.out.println("[JAVA][DEBUG] - trying to set PATCH method ( brute-force )...");
+          System.out.println("[JAVA][DEBUG] - HACK    - trying to set PATCH method ( brute-force )...");
         }
         // ... brute-force it ...
         try {
@@ -308,22 +432,25 @@ public class HTTPClient
       // ... set headers ...
       connection.setRequestProperty("User-Agent", "SP-JOB/JAVA/HTTP-CLIENT");
 
-      for ( java.util.Iterator keySetIterator = a_headers.keySet().iterator(); keySetIterator.hasNext(); ) {
-        final Object key   = keySetIterator.next();
-        final Object value = a_headers.get(key);
-        connection.setRequestProperty(String.valueOf(key), String.valueOf(value));
-        if ( true == DEBUG ) {
-          System.out.println("[JAVA][DEBUG] - HEADER - " + String.valueOf(key) + ": " + String.valueOf(value));
+      if ( null != a_headers ) {
+        for ( java.util.Iterator keySetIterator = a_headers.keySet().iterator(); keySetIterator.hasNext(); ) {
+          final Object key   = keySetIterator.next();
+          final Object value = a_headers.get(key);
+          connection.setRequestProperty(String.valueOf(key), String.valueOf(value));
+          if ( true == DEBUG ) {
+            System.out.println("[JAVA][DEBUG] - HEADER  - " + String.valueOf(key) + ": " + String.valueOf(value));
+          }
         }
       }
 
       // ... if it's a POST, PUT or PATCH ...
       if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {
 
-        final long content_length = a_stream.length();
+        final long content_length = a_input_stream.length();
         if ( true == DEBUG ) {
-          System.out.println("[JAVA][DEBUG] - Content-Length: " + content_length);
+          System.out.println("[JAVA][DEBUG] - TX      - Content-Length: " + content_length);
         }
+
         // ... we'll write data if we have a data to send ...
         if ( content_length > 0 ) {
           // ... fix 'Content-Length' header ...
@@ -331,44 +458,58 @@ public class HTTPClient
           // ... signal we want to write ...
           connection.setDoOutput(true);
           if ( true == DEBUG ) {
-            System.out.println("[JAVA][DEBUG] - Writing data ");
+            System.out.println("[JAVA][DEBUG] - TX      - Writing data...");
           }
             // ... write data ...
-          a_stream.write(connection);
+          a_input_stream.write(connection);
         }
 
       }
 
-      // ... read body ...
-      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-      String line;
-      while ( null != ( line = in.readLine() ) ) {
-        content.append(line);
+      //
+      // ... RESPONSE ...
+      //
+      final int    responseCode        = connection.getResponseCode();
+      final String responseContentType = connection.getContentType();
+
+      if ( true == DEBUG ) {
+        System.out.println("[JAVA][DEBUG] - RX      - Status Code   : " + responseCode);
+        System.out.println("[JAVA][DEBUG] - RX      - Content-Type  : " + responseContentType );
+        System.out.println("[JAVA][DEBUG] - RX      - Content-Length: " + connection.getContentLengthLong());
       }
 
       // ... set response ...
-      response = new Response(connection.getResponseCode(), content.toString(),
-        new Response.Content(
-          connection.getContentType(), connection.getContentLengthLong()
-        )
-      );
-    } catch (java.io.FileNotFoundException a_not_found_exception) {
-      response = new Response(connection.getResponseCode(), content.toString(),
-        new Response.Content(
-          connection.getContentType(), connection.getContentLengthLong()
-        )
-      );
-    } catch (java.io.IOException a_io_exception) {
-      response = new Response(connection.getResponseCode(), content.toString(),
-        new Response.Content(
-          connection.getContentType(), connection.getContentLengthLong()
-        )
-      );
+      if ( 204 == responseCode ) {
+        // ... no body ...
+        response = new Response(connection.getResponseCode(), responseBody, /* content */ null);
+      } else {
+        // ... read body ...
+        byte[] chunk = new byte[2048];
+        final DataInputStream responseStream;
+        if ( responseCode >= 400 && responseCode <= 499 ) {
+          responseStream = new DataInputStream((java.io.FilterInputStream)connection.getErrorStream());
+        } else {
+          responseStream = new DataInputStream((java.io.FilterInputStream)connection.getContent());
+        }
+        int length = 0;
+        while ( -1 != ( length = responseStream.read(chunk, 0, chunk.length) ) ) {
+          a_output_stream.write(chunk, length, responseContentType);
+        } 
+        responseBody = a_output_stream.content();
+        // if ( true == DEBUG ) {
+        //   System.out.println("[JAVA][DEBUG] - RX      - " + responseBody);
+        // }
+        response = new Response(connection.getResponseCode(), responseBody,
+          new Response.Content(
+            connection.getContentType(), connection.getContentLengthLong()
+          )
+        );
+      }
     } catch (Exception a_exception) {
       exception = a_exception;
     } finally {
       if ( true == DEBUG ) {
-        System.out.println("[JAVA][DEBUG] - " + ( null != connection ? "closing connection" : "connection is not open"));
+        System.out.println("[JAVA][DEBUG] -         - C" + ( null != connection ? "losing connection" : "onnection is not open"));
       }
       if ( null != connection ) {
         connection.disconnect();

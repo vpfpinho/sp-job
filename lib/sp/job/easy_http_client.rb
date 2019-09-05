@@ -204,6 +204,14 @@ module SP
         raise NotImplemented.new(method: 'UPLOAD', url: url)
       end
 
+      def self.get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'GET', url: url)
+      end
+
+      def self.post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'POST', url: url)
+      end
+
       def self.post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
         raise NotImplemented.new(method: 'POST', url: to)
       end
@@ -237,12 +245,10 @@ module SP
         if response[:code] != expect[:code]
           case response[:code]
           when 400
-            ap response
             raise EasyHttpClient::BadRequest.new(method: method, url: url, response: response)
           when 401
             raise EasyHttpClient::Unauthorized.new(method: method, url: url, response: response)
           when 403
-            ap response
             raise EasyHttpClient::Forbidden.new(method: method, url: url, response: response)
           else
             raise EasyHttpClient::Error.new(method: method, url: url, code: response[:code], message: nil,
