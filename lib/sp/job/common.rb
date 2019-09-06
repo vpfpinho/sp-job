@@ -261,12 +261,12 @@ module SP
               'X-CASPER-BILLING-TYPE' => billing_type.to_s,
               'X-CASPER-BILLING-ID' => billing_id.to_s              
             }
-         ).create(entity: entity, 
-                  billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
-                  permissions: access.to_s,
-                  uri: tmp_file.to_s, 
-                  content_type: content_type.to_s, 
-                  filename: final_file
+         ).move(entity: entity,
+                billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+                permissions: access.to_s,
+                uri: tmp_file.to_s,
+                content_type: content_type.to_s,
+                filename: final_file
         )
 
       end
