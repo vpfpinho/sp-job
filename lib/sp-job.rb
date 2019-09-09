@@ -52,6 +52,7 @@ require 'sp/job/broker_oauth2_client'  unless RUBY_ENGINE == 'jruby'
 require 'sp/job/int_api_client'
 require 'sp/job/central_api_client'
 require 'sp/job/broker_archive_client'
+require 'sp/job/mime_types'
 
 
 # JSONAPI library classes
