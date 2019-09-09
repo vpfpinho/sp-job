@@ -61,7 +61,7 @@ module SP
         xhtml:    'application/xhtml+xml',
         xls:      'application/vnd.ms-excel',
         xlsx:     'application/vnd.ms-excel',
-        xml:      'application/xml',
+        xml:      'text/xml',
         xul:      'application/vnd.mozilla.xul+xml',
         zip:      'application/zip',
         :'3gp' => 'video/3gpp',
