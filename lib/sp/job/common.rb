@@ -167,7 +167,7 @@ module SP
       # @return When tmp_dir is set file URI otherwise file body.
       #
       def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
-        
+
         path = alt_path.nil? ? config[:tmp_file_server][:path] + '/' : alt_path
         url  = "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{path}#{file}"
         uri  = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
@@ -212,21 +212,21 @@ module SP
         else
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
-        
+
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
             job: {},
             headers: {
               'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s              
+              'X-CASPER-BILLING-ID' => billing_id.to_s
             }
-          ).create(entity: entity, 
+          ).create(entity: entity,
                    billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
                     permissions: access.to_s,
-                    uri: src_file, 
-                    content_type: content_type.to_s, 
+                    uri: src_file,
+                    content_type: content_type.to_s,
                     filename: file_name
           )
 
@@ -243,7 +243,7 @@ module SP
       # @param company_id
       #
       def archive_on_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
-        
+
         if !company_id.nil? && user_id.nil?
           entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: company_id.to_i, type: :company)
         elsif company_id.nil? && !user_id.nil?
@@ -255,11 +255,11 @@ module SP
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
             job: {},
             headers: {
               'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s              
+              'X-CASPER-BILLING-ID' => billing_id.to_s
             }
          ).move(entity: entity,
                 billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
@@ -287,7 +287,7 @@ module SP
         url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
 
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url, 
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
             job: {
               entity_id: entity_id.to_s,
               user_id: user_id.to_s,
@@ -296,10 +296,37 @@ module SP
             },
             headers: {
               'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s              
+              'X-CASPER-BILLING-ID' => billing_id.to_s
             }
         ).delete(id: file_identifier)
 
+      end
+
+      #
+      # Get a file from file server
+      #
+      # @param file_identifier
+      # @param user_id
+      # @param entity_id
+      # @param role_mask
+      # @param module_mask
+      #
+      # NOTE: Only works with files that are not binary
+      def get_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:)
+
+        raise 'missing file_identifier' if file_identifier.nil?
+
+        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+
+        # returning 'normalized' response
+        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
+            job: {
+              entity_id: entity_id.to_s,
+              user_id: user_id.to_s,
+              role_mask: role_mask.to_s,
+              module_mask: module_mask.to_s
+            }
+          ).get(id: file_identifier)
       end
 
       #
@@ -1074,7 +1101,7 @@ module SP
         )
 
         tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
-        
+
         pdf_response = HttpClient.post_to_file(
           url: get_cdn_public_url,
           headers: {
