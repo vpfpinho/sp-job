@@ -208,10 +208,10 @@ module SP
         error_count+= self.run_test(verb: "POST", output: output) do
           http.post(url: 'https://httpbin.org/post',
             headers: {
-                'Accept' => 'application/json',
+                'Accept' => 'application/json;charset="utf-8"',
                 'Content-Type' => 'application/text'
             },
-            body: '<insert POST body here>',
+            body: '<insert POST body here>ÇÉÈ€',
             expect: {
                 code: 200,
                 content: {

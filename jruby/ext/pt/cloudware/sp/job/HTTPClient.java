@@ -32,9 +32,15 @@ import java.io.PrintWriter;
 import java.io.FileNotFoundException;
 
 import org.jruby.RubyHash;
+import org.jruby.RubyString;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.Ruby;
+import org.jruby.javasupport.JavaEmbedUtils;
 
 import java.util.List;
 import java.util.Map;
+
+import org.jcodings.Encoding;
 
 public class HTTPClient
 {
@@ -70,9 +76,9 @@ public class HTTPClient
 
     public static class Content {
 
-      public final String type;
+      public final RubyString type;
 
-      public Content (final String a_type)
+      public Content (final RubyString a_type)
       {
         type = a_type;
       }
@@ -94,10 +100,10 @@ public class HTTPClient
 
     public static class Content {
 
-      public final String type;
+      public final RubyString type;
       public final long   length;
 
-      public Content (final String type, final long length)
+      public Content (final RubyString type, final long length)
       {
         this.type   = type;
         this.length = length;
@@ -105,11 +111,11 @@ public class HTTPClient
 
     };
 
-    public final Integer code;
-    public final String  body;
-    public final Content content;
+    public final Integer    code;
+    public final RubyString body;
+    public final Content    content;
 
-    public Response (final Integer code, final String body, final Content content)
+    public Response (final Integer code, final RubyString body, final Content content)
     {
       this.code = code;
       this.body = body;
@@ -118,61 +124,97 @@ public class HTTPClient
 
   };
 
-  public Response head (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
-  throws MalformedURLException, ProtocolException, IOException, Exception
+  private static class JRubyHelper {
+
+    public static RubyString toRubyString (final Ruby runtime, final String value)
+    {
+      return RubyString.newString(runtime, value, runtime.getEncodingService().getEncodingFromString("UTF-8"));
+    }
+
+    public static String toJavaString (final RubyString value)
+    {
+      return value.toString();
+    }
+
+    public static URI newURI (final RubyString value) throws URISyntaxException
+    {
+      return new URI(value.toString());
+    }
+
+    public static URL newURL (final RubyString value) throws MalformedURLException
+    {
+      return new URL(value.toString());
+    }
+
+  };
+
+  private Ruby mRuntime;
+
+  public HTTPClient ()
   {
-    return do_http("HEAD", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
+      mRuntime = Ruby.getDefaultInstance();
   }
 
-  public Response get (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
+
+  public Response head (final RubyString a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("GET", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "HEAD"), a_url, a_headers, /* a_body */ (RubyString)null, a_expect, a_connection);
   }
 
-  public Response delete (final String a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
+  public Response get (final RubyString a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("DELETE", a_url, a_headers, /* a_body */ (String)null, a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "GET"), a_url, a_headers, /* a_body */ (RubyString)null, a_expect, a_connection);
   }
 
-  public Response post (final String a_url, final RubyHash a_headers, final String a_body,
+  public Response delete (final RubyString a_url, final RubyHash a_headers, final Expect a_expect, final Connection a_connection)
+  throws MalformedURLException, ProtocolException, IOException, Exception
+  {
+    return do_http(JRubyHelper.toRubyString(mRuntime, "DELETE"), a_url, a_headers, /* a_body */ (RubyString)null, a_expect, a_connection);
+  }
+
+  public Response post (final RubyString a_url, final RubyHash a_headers, final RubyString a_body,
                         final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("POST", a_url, a_headers, a_body, a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "POST"), a_url, a_headers, a_body, a_expect, a_connection);
   }
 
-  public Response put (final String a_url, final RubyHash a_headers, final String a_body,
+  public Response put (final RubyString a_url, final RubyHash a_headers, final RubyString a_body,
                        final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("PUT", a_url, a_headers, a_body, a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "PUT"), a_url, a_headers, a_body, a_expect, a_connection);
   }
 
-  public Response patch (final String a_url, final RubyHash a_headers, final String a_body,
+  public Response patch (final RubyString a_url, final RubyHash a_headers, final RubyString a_body,
                                      final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("PATCH", a_url, a_headers, a_body, a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "PATCH"), a_url, a_headers, a_body, a_expect, a_connection);
   }
  
   /*         */
   /* --- --- */
   /*/        */
 
-  public Response get_to_file (final String a_url, final RubyHash a_headers, final String a_to,
+  public Response get_to_file (final RubyString a_url, final RubyHash a_headers, final RubyString a_to,
                                final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception, URISyntaxException
   {
-    return do_http("GET", a_url, a_headers, /* a_from */ (URI)null, new URI(a_to), a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "GET"), a_url, a_headers, /* a_from */ (URI)null, JRubyHelper.newURI(a_to), a_expect, a_connection);
   }
 
-  public Response post_to_file (final String a_url, final RubyHash a_headers, final String a_body, final String a_to,
+  public Response post_to_file (final RubyString a_url, final RubyHash a_headers, final RubyString a_body, final RubyString a_to,
                                 final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception, URISyntaxException
   {
-    return _do_http("POST", a_url, a_headers, /* a_stream */ new InputStream(a_body), new OutputStream(new URI("file://" + a_to)), a_expect, a_connection);
+    return _do_http(JRubyHelper.toRubyString(mRuntime, "POST"), a_url, a_headers,
+        /* a_stream */ new InputStream(mRuntime, a_body), 
+        new OutputStream(mRuntime, new URI("file://" + JRubyHelper.toJavaString(a_to))), 
+        a_expect, a_connection
+    );
   }
 
 
@@ -183,60 +225,76 @@ public class HTTPClient
   /*
    * Perform an HTTP POST request to send a local file ( a_from ) to an url ( a_to ). 
    */
-  public Response post_file (final String a_from, final String a_to, final RubyHash a_headers,
+  public Response post_file (final RubyString a_from, final RubyString a_to, final RubyHash a_headers,
                              final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("POST", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "POST"), /* a_url */ a_to, a_headers, JRubyHelper.newURI(a_from), a_expect, a_connection);
   }
 
   /*
    * Perform an HTTP PUT request to send a local file ( a_from ) to an url ( a_to ). 
    */
-  public Response put_file (final String a_from, final String a_to, final RubyHash a_headers,
+  public Response put_file (final RubyString a_from, final RubyString a_to, final RubyHash a_headers,
                                      final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("PUT", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "PUT"), /* a_url */ a_to, a_headers, JRubyHelper.newURI(a_from), a_expect, a_connection);
   }
 
   /*
    * Perform an HTTP PATCH request to send a local file ( a_from ) to an url ( a_to ). 
    */
-  public Response patch_file (final String a_from, final String a_to, final RubyHash a_headers,
+  public Response patch_file (final RubyString a_from, final RubyString a_to, final RubyHash a_headers,
                                      final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    return do_http("PATCH", /* a_url */ a_to, a_headers, new URI(a_from), a_expect, a_connection);
+    return do_http(JRubyHelper.toRubyString(mRuntime, "PATCH"), /* a_url */ a_to, a_headers, JRubyHelper.newURI(a_from), a_expect, a_connection);
   }
 
   /*         */
   /* --- --- */
   /*/        */
 
-  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final String a_body,
+  private Response do_http (final RubyString a_method, final RubyString a_url, final RubyHash a_headers, final RubyString a_body,
                             final Expect a_expect, final Connection a_connection)
     throws MalformedURLException, ProtocolException, IOException, Exception
     {
-      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(a_body), new OutputStream(), a_expect, a_connection);
+      return _do_http(a_method, a_url, a_headers, 
+        new InputStream(mRuntime, a_body), 
+        new OutputStream(mRuntime), 
+        a_expect, a_connection
+      );
   }
 
-  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final URI a_from,
+  private Response do_http (final RubyString a_method, final RubyString a_url, final RubyHash a_headers, final URI a_from,
                             final Expect a_expect, final Connection a_connection)
     throws MalformedURLException, ProtocolException, IOException, Exception
     {
-      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(new URI("file://" + a_from.getPath())), new OutputStream(), a_expect, a_connection);
+      return _do_http(a_method, a_url, a_headers, 
+        new InputStream(mRuntime, new URI("file://" + a_from.getPath())), 
+        new OutputStream(mRuntime), 
+        a_expect, a_connection
+      );
   }
   
 
-  private Response do_http (final String a_method, final String a_url, final RubyHash a_headers, final URI a_from, final URI a_to,
+  private Response do_http (final RubyString a_method, final RubyString a_url, final RubyHash a_headers, final URI a_from, final URI a_to,
                             final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
     if ( null != a_from ) {
-      return _do_http(a_method, a_url, a_headers, /* a_stream */ new InputStream(new URI("file://" + a_from.getPath())), new OutputStream(new URI("file://" + a_to.getPath())), a_expect, a_connection);
+      return _do_http(a_method, a_url, a_headers, 
+        new InputStream(mRuntime, new URI("file://" + a_from.getPath())), 
+        new OutputStream(mRuntime, new URI("file://" + a_to.getPath())),
+        a_expect, a_connection
+      );
     } else {
-      return _do_http(a_method, a_url, a_headers, /* a_stream */ (InputStream)null, new OutputStream(new URI("file://" + a_to.getPath())), a_expect, a_connection);
+      return _do_http(a_method, a_url, a_headers, 
+        /* a_stream */ (InputStream)null, 
+        new OutputStream(mRuntime, new URI("file://" + a_to.getPath())), 
+        a_expect, a_connection
+      );
     }
   }
 
@@ -247,17 +305,20 @@ public class HTTPClient
   private static class Stream 
   {
 
-    protected String data = null;
-    protected URI    uri  = null;
+    protected Ruby       mRuntime = null;
+    protected RubyString data = null;
+    protected URI        uri  = null;
 
-    public Stream(final String data)
+    public Stream(final Ruby runtime, final RubyString data)
     {
+      mRuntime  = runtime;
       this.data = data;
       this.uri  = null;
     }
 
-    public Stream(final URI uri)
+    public Stream(final Ruby runtime, final URI uri)
     {
+      mRuntime = runtime;
       this.data = null;
       this.uri  = uri;
     }
@@ -272,22 +333,21 @@ public class HTTPClient
   private static class InputStream extends Stream
   {
 
-
-    public InputStream(final String data)
+    public InputStream(final Ruby runtime, final RubyString data)
     {
-      super(data);
+      super(runtime, data);
     }
 
-    public InputStream(final URI uri)
+    public InputStream(final Ruby runtime, final URI uri)
     {
-      super(uri);
+      super(runtime, uri);
     }
 
     public void write (HttpURLConnection a_connection)
       throws MalformedURLException, ProtocolException, IOException, Exception, FileNotFoundException
     {
       if ( null != data ) {
-        new DataOutputStream(a_connection.getOutputStream()).write(data.getBytes(StandardCharsets.UTF_8));
+        new DataOutputStream(a_connection.getOutputStream()).write(data.getBytes());
       } else if ( null != uri ) {
 
         final BufferedOutputStream output = new BufferedOutputStream(a_connection.getOutputStream());
@@ -308,7 +368,7 @@ public class HTTPClient
       throws IOException, Exception
     {
       if ( null != data ) {
-        return (long)data.length();
+        return data.getBytes().length;
       } else if ( null != uri ) {
         final File file = new File(uri);
         if ( false == file.exists() ) {
@@ -327,39 +387,37 @@ public class HTTPClient
   private static class OutputStream  extends Stream
   {
 
-    private FileOutputStream stream = null;
+    private FileOutputStream mStream = null;
 
-    public OutputStream()
+    public OutputStream(final Ruby runtime)
     {
-      super(new String());
-      this.stream = null;
+      super(runtime, JRubyHelper.toRubyString (runtime, ""));
+      mStream = null;
     }
 
-    public OutputStream(final URI uri) 
+    public OutputStream(final Ruby runtime, final URI uri) 
       throws FileNotFoundException
     {
-      super(uri);
-      this.stream = new FileOutputStream(uri.getPath());
+      super(runtime, uri);
+      mStream = new FileOutputStream(uri.getPath());
     }
 
-    public void write (final byte[] bytes, final int length, final String contentType)
+    public void write (final byte[] bytes, final int length, final RubyString contentType)
     throws Exception
     {
-      if ( null != stream ) {
-        this.stream.write(bytes, 0, length);
+      if ( null != mStream ) {
+        mStream.write(bytes, 0, length);
       } else {
-        if ( true == contentType.startsWith("application/json") || true == contentType.startsWith("application/vnd.api+json") ) {
-          this.data += new String(bytes, /* offset */ 0, /* length */ length, /* charset */ StandardCharsets.UTF_8);
-        } else {
-          this.data += new String(bytes, /* offset */ 0, /* length */ length, /* charset */ StandardCharsets.ISO_8859_1);
-        }
+         this.data.append(
+          RubyString.newString(mRuntime, bytes, /* start */ 0, /* length */ length, /* encoding */ mRuntime.getEncodingService().getEncodingFromString("UTF-8"))
+         );
       }
     }
 
-    public final String content ()
+    public final RubyString content ()
     {
       if ( null != uri ) {
-        return uri.getPath();
+        return JRubyHelper.toRubyString(mRuntime, uri.getPath());
       }
       return data;
     }
@@ -369,19 +427,20 @@ public class HTTPClient
   /*         */
   /* --- --- */
   /*/        */
-  private Response _do_http (final String a_method, final String a_url, final RubyHash a_headers, final InputStream a_input_stream, final OutputStream a_output_stream,
+  private Response _do_http (final RubyString a_method, final RubyString a_url, final RubyHash a_headers, final InputStream a_input_stream, final OutputStream a_output_stream,
                             final Expect a_expect, final Connection a_connection)
   throws MalformedURLException, ProtocolException, IOException, Exception
   {
-    HttpURLConnection connection = null;
-    Response          response   = null;
-    Exception         exception  = null;
-    String            responseBody = null;
+    HttpURLConnection connection   = null;
+    Response          response     = null;
+    Exception         exception    = null;
+    RubyString        responseBody = null;
+    final String      method       = JRubyHelper.toJavaString(a_method);
 
     if ( true == DEBUG ) {
       System.out.println("[JAVA][DEBUG] ~> METHOD  - " + a_method);
       System.out.println("[JAVA][DEBUG] ~> URL     - " + a_url);
-      if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {
+      if ( true == method.equals("POST") || true == method.equals("PUT") || true == method.equals("PATCH") ) {
         if ( null != a_input_stream.uri() ) {
           System.out.println("[JAVA][DEBUG] - TX BODY - IS A FILE @ " + a_input_stream.uri().getPath());
         } else {
@@ -398,10 +457,10 @@ public class HTTPClient
     try {
 
       // ... open connection ...
-      connection = (HttpURLConnection) new URL(a_url).openConnection();
+      connection = (HttpURLConnection) JRubyHelper.newURL(a_url).openConnection();
 
       // ... set method and properties ...
-      if ( true == a_method.equals("PATCH") ) {
+      if ( true == method.equals("PATCH") ) {
         // ... HttpURLConnection does not support 'PATCH' method ...
         if ( true == DEBUG ) {
           System.out.println("[JAVA][DEBUG] - HACK    - trying to set PATCH method ( brute-force )...");
@@ -422,11 +481,11 @@ public class HTTPClient
         } catch (Exception ex) {
           // ... expected 'not supported' exception ...
           // ... this set must be called here ! - do not move it !
-          connection.setRequestMethod(a_method);
+          connection.setRequestMethod(JRubyHelper.toJavaString(a_method));
         }
       } else {
         // ... this set must be called here ! - do not move it !
-        connection.setRequestMethod(a_method);
+        connection.setRequestMethod(JRubyHelper.toJavaString(a_method));
       }
 
       // ... set headers ...
@@ -444,7 +503,7 @@ public class HTTPClient
       }
 
       // ... if it's a POST, PUT or PATCH ...
-      if ( true == a_method.equals("POST") || true == a_method.equals("PUT") || true == a_method.equals("PATCH") ) {
+      if ( true == method.equals("POST") || true == method.equals("PUT") || true == method.equals("PATCH") ) {
 
         final long content_length = a_input_stream.length();
         if ( true == DEBUG ) {
@@ -469,8 +528,8 @@ public class HTTPClient
       //
       // ... RESPONSE ...
       //
-      final int    responseCode        = connection.getResponseCode();
-      final String responseContentType = connection.getContentType();
+      final int        responseCode        = connection.getResponseCode();
+      final RubyString responseContentType = JRubyHelper.toRubyString(mRuntime, connection.getContentType());
 
       if ( true == DEBUG ) {
         System.out.println("[JAVA][DEBUG] - RX      - Status Code   : " + responseCode);
@@ -501,7 +560,7 @@ public class HTTPClient
         // }
         response = new Response(connection.getResponseCode(), responseBody,
           new Response.Content(
-            connection.getContentType(), connection.getContentLengthLong()
+            JRubyHelper.toRubyString(mRuntime, connection.getContentType()), connection.getContentLengthLong()
           )
         );
       }
