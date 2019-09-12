@@ -48,21 +48,34 @@ module SP
     class UploadedImageConverter
       extend SP::Job::Common
 
+      #
+      # One shot code that configures the converter into class variables
+      #
+      @@upload = URI.parse(config[:urls][:upload_internal])
+      if @@upload.host == 'localhost' || @@upload.host == '127.0.0.1' || @@upload.host == config[:machine][:internal_ip]
+        @@ssh = ''
+        @@src = config[:paths][:temporary_uploads]
+        @@dst = config[:paths][:uploads_storage]
+      else
+        @@ssh = "ssh #{@@upload.host}"
+        @@src = config[:paths][:remote_temporary_uploads]
+        @dst  = config[:paths][:remote_uploads_storage]
+      end
+      @@options = config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter']
+
       def self.perform (job)
 
         raise_error(message: 'i18n_entity_id_must_be_defined') if job[:to_entity_id].nil? || job[:to_entity_id].to_i == 0
 
         step        = 100 / (job[:copies].size + 1)
         progress    = step
-        original    = File.join(config[:scp_config][:temp_uploads], job[:original])
-        destination = File.join(config[:scp_config][:path], job[:entity], id_to_path(job[:to_entity_id]), job[:folder])
+        original    = File.join(@@src, job[:original])
+        destination = File.join(@@dst, job[:entity], id_to_path(job[:to_entity_id]), job[:folder])
 
-        if config[:scp_config][:local]
-          ssh = ''
+        if @@ssh == ''
           FileUtils::mkdir_p destination
         else
-          ssh = "ssh #{config[:scp_config][:server]} "
-          %x[#{ssh}mkdir -p #{destination}]
+          %x[#{@@ssh}mkdir -p #{destination}]
           unless $?.success?
             raise_error(message: 'i18n_internal_error', info: "unable to create remote directory")
           end
@@ -72,7 +85,7 @@ module SP
         # Check the original image, check format and limits
         #
         update_progress(progress: progress, message: 'i18n_reading_original_$image', image: job[:original_file_path] || job[:original])
-        img_info = %x[#{ssh}identify #{original}]
+        img_info = %x[#{@@ssh}identify #{original}]
         m = %r[.*\.ul\s(\w+)\s(\d+)x(\d+)\s.*].match img_info
         if $?.success? == false
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
@@ -80,14 +93,14 @@ module SP
         if m.nil? || m.size != 4
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
-        unless config[:options][:formats].include? m[1]
+        unless @@options[:formats].include? m[1]
           return report_error(message: 'i18n_unsupported_$format', format: m[1])
         end
-        if m[2].to_i > config[:options][:max_width]
-          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  config[:options][:max_width])
+        if m[2].to_i > @@options[:'max-width']
+          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  @@options[:'max-width'])
         end
-        if m[3].to_i > config[:options][:max_height]
-          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: config[:options][:max_height])
+        if m[3].to_i > @@options[:'max-height']
+          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: @@options[:'max-height'])
         end
 
         barrier = true # To force progress on first scalling
@@ -96,7 +109,7 @@ module SP
         # Iterate the copies array
         #
         job[:copies].each do |copy|
-          %x[#{ssh}convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
+          %x[#{@@ssh}convert #{original} -geometry #{copy[:geometry]} #{File.join(destination, copy[:name])}]
           unless $?.success?
             raise_error(message: 'i18n_internal_error', info: "convert failed to scale #{original} to #{copy[:geometry]}")
           end
