@@ -626,7 +626,7 @@ def self.run_configure (args)
         )
       else
         diff_and_write(contents: expand_template(template, pretty_json: true),
-                       path: "#{@config.prefix}/etc/jobs/#{@job_name}.conf.json",
+                       path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
                        diff: diff_before_copy,
                        dry_run: dry_run
         )
