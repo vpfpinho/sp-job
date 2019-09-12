@@ -526,6 +526,8 @@ public class HTTPClient
           }
             // ... write data ...
           a_input_stream.write(connection);
+        } else {
+          connection.setRequestProperty("Content-length", String.valueOf(content_length));
         }
 
       }
