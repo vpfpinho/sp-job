@@ -168,8 +168,8 @@ module SP
       #
       def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
 
-        path = alt_path.nil? ? config[:tmp_file_server][:path] + '/' : alt_path
-        url  = "#{config[:tmp_file_server][:protocol]}://#{config[:tmp_file_server][:server]}:#{config[:tmp_file_server][:port]}/#{path}#{file}"
+        path = alt_path.nil? ? 'uploads/' : alt_path
+        url  = "#{config[:urls][:upload_internal]}/#{path}#{file}"
         uri  = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
 
         response = HttpClient.get_to_file(url: url, to: uri)
