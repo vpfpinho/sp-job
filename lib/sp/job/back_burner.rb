@@ -554,7 +554,7 @@ end
 #
 unless $config[:rollbar].nil?
 
-  if $config[:rollbar][:enabled] == 'false'
+  if $config[:rollbar][:enabled] == false
     $rollbar = false
   else
     $rollbar = true

@@ -213,7 +213,7 @@ module SP
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
 
-        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+        url = config[:urls][:archive_internal]
 
         # returning 'normalized' response
         ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
@@ -252,7 +252,7 @@ module SP
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
 
-        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+        url = config[:urls][:archive_internal]
 
         # returning 'normalized' response
         ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
@@ -284,7 +284,7 @@ module SP
 
         raise 'missing file_identifier' if file_identifier.nil?
 
-        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+        url = config[:urls][:archive_internal]
 
         # returning 'normalized' response
         ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
@@ -316,7 +316,7 @@ module SP
 
         raise 'missing file_identifier' if file_identifier.nil?
 
-        url = "#{config[:internal_file_server][:protocol]}://#{config[:internal_file_server][:server]}:#{config[:internal_file_server][:port]}/#{config[:internal_file_server][:path]}"
+        url = config[:urls][:archive_internal]
 
         # returning 'normalized' response
         ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
