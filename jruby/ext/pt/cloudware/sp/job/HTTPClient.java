@@ -518,7 +518,6 @@ public class HTTPClient
         if ( content_length > 0 ) {
           // ... fix 'Content-Length' header ...
           connection.setFixedLengthStreamingMode(content_length);
-          connection.setRequestProperty("Content-length", String.valueOf(content_length));
           // ... signal we want to write ...
           connection.setDoOutput(true);
           if ( true == DEBUG ) {
@@ -526,8 +525,6 @@ public class HTTPClient
           }
             // ... write data ...
           a_input_stream.write(connection);
-        } else {
-          connection.setRequestProperty("Content-length", String.valueOf(content_length));
         }
 
       }
