@@ -128,7 +128,11 @@ public class HTTPClient
 
     public static RubyString toRubyString (final Ruby runtime, final String value)
     {
-      return RubyString.newString(runtime, value, runtime.getEncodingService().getEncodingFromString("UTF-8"));
+      if ( null != value ) {
+        return RubyString.newString(runtime, value, runtime.getEncodingService().getEncodingFromString("UTF-8"));
+      } else {
+        return null;
+      }
     }
 
     public static String toJavaString (final RubyString value)
@@ -513,7 +517,8 @@ public class HTTPClient
         // ... we'll write data if we have a data to send ...
         if ( content_length > 0 ) {
           // ... fix 'Content-Length' header ...
-          connection.setFixedLengthStreamingMode(content_length);        
+          connection.setFixedLengthStreamingMode(content_length);
+          connection.setRequestProperty("Content-length", String.valueOf(content_length));
           // ... signal we want to write ...
           connection.setDoOutput(true);
           if ( true == DEBUG ) {
@@ -533,8 +538,6 @@ public class HTTPClient
 
       if ( true == DEBUG ) {
         System.out.println("[JAVA][DEBUG] - RX      - Status Code   : " + responseCode);
-        System.out.println("[JAVA][DEBUG] - RX      - Content-Type  : " + responseContentType );
-        System.out.println("[JAVA][DEBUG] - RX      - Content-Length: " + connection.getContentLengthLong());
       }
 
       // ... set response ...
@@ -542,6 +545,10 @@ public class HTTPClient
         // ... no body ...
         response = new Response(connection.getResponseCode(), responseBody, /* content */ null);
       } else {
+        if ( true == DEBUG ) {
+          System.out.println("[JAVA][DEBUG] - RX      - Content-Type  : " + responseContentType );
+          System.out.println("[JAVA][DEBUG] - RX      - Content-Length: " + connection.getContentLengthLong());
+        }
         // ... read body ...
         byte[] chunk = new byte[2048];
         final DataInputStream responseStream;
