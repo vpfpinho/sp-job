@@ -57,9 +57,9 @@ module SP
         @@src = config[:paths][:temporary_uploads]
         @@dst = config[:paths][:uploads_storage]
       else
-        @@ssh = "ssh #{@@upload.host}"
+        @@ssh = "ssh #{@@upload.host} "
         @@src = config[:paths][:remote_temporary_uploads]
-        @dst  = config[:paths][:remote_uploads_storage]
+        @@dst  = config[:paths][:remote_uploads_storage]
       end
       @@options = config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter']
 
