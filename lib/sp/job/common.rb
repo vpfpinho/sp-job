@@ -840,15 +840,27 @@ module SP
 
       end
 
+      def clean_notifications (redis_client, redis_key, pattern)
+        cursor = 0
+        loop do
+          notification_exists = get_notifications_to_clean(redis_client, redis_key, cursor, pattern)
+          break if notification_exists.nil?
 
-      def key_scanner(job_type, cursor=0, redis_client, redis_key, notification)
-        scanner = redis_client.sscan(redis_key[:key], cursor, { match: "*\"tube\":\"#{job_type}*\"*" , count: 100}) if job_type
+          cursor = notification_exists.first
 
-        unless scanner
-          scanner = redis_client.sscan(redis_key[:key], cursor, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
+          if notification_exists[1] && notification_exists[1].any?
+            notification_exists[1].map do |key|
+              redis_client.srem(redis_key[:key], "#{key}")
+              redis_client.publish(redis_key[:public_key], "#{{ id: JSON.parse(key)["id"], destroy: true }.to_json}")
+            end
+          end
+
+          break if notification_exists.first == '0'
         end
+      end
 
-        scanner
+      def get_notifications_to_clean (redis_client, redis_key, cursor, pattern)
+        redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
       end
 
       def manage_notification(options = {}, notification = {})
@@ -876,21 +888,10 @@ module SP
 
           job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
 
-          cursor = 0
-          loop do
-            job_exists = key_scanner(job_type, cursor, redis_client, redis_key, notification) if job_type
-            break if job_exists.nil?
-            cursor = job_exists.first
-            
-            if job_exists[1] && job_exists[1].any?
-              job_exists[1].map do |key|
-                redis_client.srem redis_key[:key], "#{key}"
-                temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
-                redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
-              end
-            end
-            
-            break if job_exists.first == '0'
+          unless notification.key?(:resource_job_queue_name)
+            clean_notifications(redis_client, redis_key, "*\"tube\":\"#{job_type}*\"*")
+          else
+            clean_notifications(redis_client, redis_key, "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*")
           end
 
           redis_client.sadd redis_key[:key], "#{notification.to_json}"
