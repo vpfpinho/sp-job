@@ -841,6 +841,28 @@ module SP
 
       end
 
+      def clean_notifications (redis_client, redis_key, pattern)
+        cursor = 0
+        loop do
+          notification_exists = get_notifications_to_clean(redis_client, redis_key, cursor, pattern)
+          break if notification_exists.nil?
+
+          cursor = notification_exists.first
+
+          if notification_exists[1] && notification_exists[1].any?
+            notification_exists[1].map do |key|
+              redis_client.srem(redis_key[:key], "#{key}")
+              redis_client.publish(redis_key[:public_key], "#{{ id: JSON.parse(key)["id"], destroy: true }.to_json}")
+            end
+          end
+
+          break if notification_exists.first == '0'
+        end
+      end
+
+      def get_notifications_to_clean (redis_client, redis_key, cursor, pattern)
+        redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
+      end
 
       def manage_notification(options = {}, notification = {})
 
@@ -867,27 +889,14 @@ module SP
 
           job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
 
-          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
-
-          unless job_exists
-            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
-          end
-
-          if job_exists[1] && job_exists[1].any?
-            job_exists[1].map do |key|
-              redis_client.srem redis_key[:key], "#{key}"
-              temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
-              redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
-            end
-            # ap ["theres a similar job notification => REDIS PUBLISH DESTROY", redis_key[:public_key], temp_response_object.to_json]
-
-            # ap ["create the new one after destroy similar"]
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+          unless notification.key?(:resource_job_queue_name)
+            clean_notifications(redis_client, redis_key, "*\"tube\":\"#{job_type}*\"*")
           else
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+            clean_notifications(redis_client, redis_key, "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*")
           end
+
+          redis_client.sadd redis_key[:key], "#{notification.to_json}"
+          redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
 
         elsif options[:action] == :update
 
