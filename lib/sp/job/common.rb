@@ -27,6 +27,28 @@ module SP
 
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
+      class Exception < StandardError
+
+        private
+
+        @status_code  = nil
+        @content_type = nil
+        @body         = nil
+
+        public
+        attr_accessor :status_code
+        attr_accessor :content_type
+        attr_accessor :body
+
+        public
+        def initialize(status_code:, content_type:, body:)
+          @status_code  = status_code
+          @content_type = content_type
+          @body         = body
+        end
+
+      end # class Error
+
       def prepend_platform_configuration (job)
         begin
           if config && config[:brands] && job && job[:x_brand]
@@ -114,6 +136,10 @@ module SP
         $config
       end
 
+      def cluster_config
+        $cluster_config
+      end
+
       #
       # Returns the object you should use to perform JSON api requests
       #
@@ -168,11 +194,19 @@ module SP
       #
       def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
 
-        path = alt_path.nil? ? 'uploads/' : alt_path
-        url  = "#{config[:urls][:upload_internal]}/#{path}#{file}"
-        uri  = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+        upl_int_tmp_uri = URI.parse(config[:urls][:upload_internal_tmp])
 
-        response = HttpClient.get_to_file(url: url, to: uri)
+        if alt_path.nil?
+          path = upl_int_tmp_uri.path[1..-1]
+        else
+          path = alt_path
+        end
+
+        org_file_url = "#{upl_int_tmp_uri.scheme}://#{upl_int_tmp_uri.host}:#{upl_int_tmp_uri.port}/#{path}/#{file}"
+        tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+
+        response = HttpClient.get_to_file(url: org_file_url, to: tmp_file_uri)
+
         if 200 != response[:code]
           raise "#{response[:code]}"
         end
@@ -180,17 +214,17 @@ module SP
         # if temporary dir was provided
         if nil != tmp_dir
           # return file URI
-          return uri
-        else
-          # read from file
-          data = nil
-          File.open(uri, 'rb') {
-              | f | data = f.read
-          }
-          # return it's content
-          return data
+          return tmp_file_uri
         end
 
+        # read from file
+        data = nil
+        File.open(tmp_file_uri, 'rb') {
+            | f | data = f.read
+        }
+
+        # return it's content
+        return data
       end
 
       #
@@ -1045,6 +1079,48 @@ module SP
         return base_exception.is_a?(PG::ServerError) ? base_exception.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
       end
 
+      def file_to_downloadable_url(path, expiration = nil)
+        if OS.mac?
+          file = File.join(path.split('/')[3..-1])
+        else
+          file = File.join(path.split('/')[2..-1])
+        end
+
+        now = Time.now.getutc.to_i
+        exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
+
+        download_uri = URI.parse($config[:urls][:download_internal])
+        private_key = "#{$config[:paths][:private_key]}/#{$config[:cdn][:public_link][:private_key]}"
+        jwt = ::SP::Job::JWTHelper.encode(
+          key: private_key,
+          payload: {
+            exp: exp,
+            iat: now,
+            nbf: now,
+            action: 'redirect',
+            redirect: {
+              protocol: download_uri.scheme,
+              host: download_uri.host,
+              port: download_uri.port,
+              path: download_uri.path[1..-1],
+              file: file
+            }
+          }
+        )
+
+        cluster_url = URI.parse($cluster_config[:url])
+
+        protocol = $config[:cdn][:public_link][:protocol] || cluster_url.scheme
+        host     = $config[:cdn][:public_link][:host]     || cluster_url.host
+        port     = $config[:cdn][:public_link][:port]     || cluster_url.port
+        path     = $config[:cdn][:public_link][:path]     || 'downloads'
+
+        url = "#{protocol}://#{host}"
+        url += ":#{port}" if ! [80, 443].include?(port)
+        url += "/#{path}/#{jwt}"
+        url
+      end
+
       def file_identifier_to_url(id, filename)
         url = ''
         if filename[0] == 'c'
@@ -1130,28 +1206,6 @@ module SP
                                        company_id: entity_id)
         response
       end
-
-      class Exception < StandardError
-
-        private
-
-        @status_code  = nil
-        @content_type = nil
-        @body         = nil
-
-        public
-        attr_accessor :status_code
-        attr_accessor :content_type
-        attr_accessor :body
-
-        public
-        def initialize(status_code:, content_type:, body:)
-          @status_code  = status_code
-          @content_type = content_type
-          @body         = body
-        end
-
-      end # class Error
 
       private
 
