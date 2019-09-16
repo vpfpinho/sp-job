@@ -841,6 +841,16 @@ module SP
       end
 
 
+      def key_scanner(job_type, cursor=0, redis_client, redis_key, notification)
+        scanner = redis_client.sscan(redis_key[:key], cursor, { match: "*\"tube\":\"#{job_type}*\"*" , count: 100}) if job_type
+
+        unless scanner
+          scanner = redis_client.sscan(redis_key[:key], cursor, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
+        end
+
+        scanner
+      end
+
       def manage_notification(options = {}, notification = {})
 
         options = {
@@ -866,27 +876,24 @@ module SP
 
           job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
 
-          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
-
-          unless job_exists
-            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
-          end
-
-          if job_exists[1] && job_exists[1].any?
-            job_exists[1].map do |key|
-              redis_client.srem redis_key[:key], "#{key}"
-              temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
-              redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
+          cursor = 0
+          loop do
+            job_exists = key_scanner(job_type, cursor, redis_client, redis_key, notification) if job_type
+            cursor = job_exists.first
+            
+            if job_exists[1] && job_exists[1].any?
+              job_exists[1].map do |key|
+                redis_client.srem redis_key[:key], "#{key}"
+                temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
+                redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
+              end
             end
-            # ap ["theres a similar job notification => REDIS PUBLISH DESTROY", redis_key[:public_key], temp_response_object.to_json]
-
-            # ap ["create the new one after destroy similar"]
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
-          else
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+            
+            break if job_exists.first == '0'
           end
+
+          redis_client.sadd redis_key[:key], "#{notification.to_json}"
+          redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
 
         elsif options[:action] == :update
 
