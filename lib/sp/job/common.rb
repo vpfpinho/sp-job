@@ -879,6 +879,7 @@ module SP
           cursor = 0
           loop do
             job_exists = key_scanner(job_type, cursor, redis_client, redis_key, notification) if job_type
+            break if job_exists.nil?
             cursor = job_exists.first
             
             if job_exists[1] && job_exists[1].any?
