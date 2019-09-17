@@ -624,20 +624,6 @@ Backburner.configure do |config|
   }
 end
 
-if $config[:mail] && $config[:mail][:enabled]
-  Mail.defaults do
-    delivery_method :smtp, {
-      :address => $config[:mail][:smtp][:address],
-      :port => $config[:mail][:smtp][:port].to_i,
-      :domain =>  $config[:mail][:smtp][:domain],
-      :user_name => $config[:mail][:smtp][:user_name],
-      :password => $config[:mail][:smtp][:password],
-      :authentication => $config[:mail][:smtp][:authentication],
-      :enable_starttls_auto => $config[:mail][:smtp][:enable_starttls_auto]
-    }
-  end
-end
-
 #### TODO end ####
 
 # Check if the user DB is on a different database

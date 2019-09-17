@@ -1029,11 +1029,11 @@ module SP
         end
 
         m = Mail.new do
-          from     $config[:mail][:from]
+          from     args[:default_from]
           to       to_email
           cc       cc_email unless cc_email.nil?
           subject  args[:subject]
-          reply_to (args[:reply_to] || $config[:mail][:from])
+          reply_to (args[:reply_to] || args[:default_from])
 
           html_part do
             content_type 'text/html; charset=UTF-8'

@@ -39,15 +39,32 @@ module SP
       queue 'mail-queue'
       queue_respond_timeout 30
 
+      #
+      # One shot code that configures the tube options
+      #
+      @@options = config[:jobs][$args[:program_name].to_sym][:'mail-queue']
+      Mail.defaults do
+        delivery_method :smtp, {
+            :address => @@options[:smtp][:address],
+            :port => @@options[:smtp][:port].to_i,
+            :domain =>  @@options[:smtp][:domain],
+            :user_name => @@options[:smtp][:user_name],
+            :password => @@options[:smtp][:password],
+            :authentication => @@options[:smtp][:authentication],
+            :enable_starttls_auto => @@options[:smtp][:enable_starttls_auto]
+        }
+      end
+
       def self.perform (job)
         email = synchronous_send_email(
-          body:        job[:body],
-          template:    job[:template],
-          to:          job[:to],
-          cc:          job[:cc],
-          reply_to:    job[:reply_to],
-          subject:     job[:subject],
-          attachments: job[:attachments],
+          default_from: @@options[:from],
+          body:         job[:body],
+          template:     job[:template],
+          to:           job[:to],
+          cc:           job[:cc],
+          reply_to:     job[:reply_to],
+          subject:      job[:subject],
+          attachments:  job[:attachments],
           session: {
             user_id: job[:user_id],
             entity_id: job[:entity_id],
