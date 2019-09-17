@@ -131,7 +131,7 @@ module SP
     class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key)
       def initialize
         self.job_status = {}
-        if $config[:jsonapi]
+        if $config[:options][:jsonapi]
           require 'sp/job/job_db_adapter'
           if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
             self.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com' , SP::Job::JobDbAdapter)
