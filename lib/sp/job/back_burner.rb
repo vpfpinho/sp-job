@@ -172,7 +172,7 @@ $args = {
   stdout:           false,
   log_level:        'info',
   program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:      File.join($prefix, 'etc', 'jobs', 'main.conf.json'),
+  config_file:      File.join($prefix, 'etc', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}/conf.json"),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
