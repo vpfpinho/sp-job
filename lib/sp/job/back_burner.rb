@@ -35,7 +35,7 @@ class ClusterMember
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
   attr_reader :config    # cluster configuration read from the conf.json
-  attr_reader :broker    # Driver for casper broker OAUTH 2.0 authentication
+  #attr_reader :broker    # Driver for casper broker OAUTH 2.0 authentication
 
   #
   # Create the cluster member wrapper
@@ -54,13 +54,13 @@ class ClusterMember
     end
     @number = configuration[:number]
     @config = configuration
-    unless RUBY_ENGINE == 'jruby'
-      @broker = ::SP::Job::Broker::Job.new(config: {
-                                            :service_id => serviceId,
-                                            :oauth2 => configuration[:oauth2],
-                                            :redis => @redis
-                                          })
-    end
+    #unless RUBY_ENGINE == 'jruby'
+    #  @broker = ::SP::Job::Broker::Job.new(config: {
+    #                                        :service_id => serviceId,
+    #                                        :oauth2 => configuration[:oauth2],
+    #                                        :redis => @redis
+    #                                      })
+    #end
   end
 
   #
@@ -131,12 +131,12 @@ module SP
     class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key)
       def initialize
         self.job_status = {}
-        if $config[:jsonapi] && $config[:jsonapi][:prefix]
+        if $config[:jsonapi]
           require 'sp/job/job_db_adapter'
           if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
-            self.jsonapi = SP::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
+            self.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com' , SP::Job::JobDbAdapter)
           else
-            self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, $config[:jsonapi][:prefix], SP::Job::JobDbAdapter)
+            self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com' , SP::Job::JobDbAdapter)
           end
         end
       end
@@ -172,7 +172,7 @@ $args = {
   stdout:           false,
   log_level:        'info',
   program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:      File.join($prefix, 'etc', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.conf.json"),
+  config_file:      File.join($prefix, 'etc', 'jobs', 'main.conf.json'),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
@@ -210,46 +210,6 @@ if  OS.mac?
   Dir.mkdir("#{$prefix}/var/run/jobs") unless Dir.exist? "#{$prefix}/var/run/jobs"
 end
 File.write("#{$prefix}/var/run/jobs/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
-
- # Monkey patch for configuration deep merge
-class ::Hash
-
-  def config_merge (second)
-
-    second.each do |skey, sval|
-
-      if ! self.has_key?(skey)
-        self[skey] = sval
-      else
-        if Array === self[skey] && Array === sval
-          self[skey] = self[skey] | sval
-        elsif Hash === self[skey] && Hash === sval
-          self[skey].config_merge(sval)
-        else
-          self[skey] = sval
-        end
-      end
-    end
-  end
-
-  def clean_keys!
-    tmp = Hash.new
-
-    self.each do |key, val|
-      if Hash === val
-        val.clean_keys!
-      end
-
-      if key[-1] == '!'
-        tmp[key[0..-2]] = val
-        self.delete(key)
-      end
-    end
-
-    self.merge! tmp
-  end
-
-end # Hash monkey patch
 
 #
 # Read configuration
@@ -476,7 +436,6 @@ extend SP::Job::Common
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
-
 if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:unified]
   # Unified configuration
   if $config[:jobs][$args[:program_name].to_sym][:runs_on]
@@ -485,7 +444,7 @@ if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:job
     $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
   end
 
-  $config.config_merge($config[:jobs][$args[:program_name].to_sym]) if !$config[:jobs][$args[:program_name].to_sym].nil?
+  $config[:options] = $config[:jobs][$args[:program_name].to_sym][:options] || {}
 
   if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
     key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
