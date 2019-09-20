@@ -504,12 +504,14 @@ module SP
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom, :simple_message].include? key
+            next if [:step, :progress, :message, :title, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom, :simple_message].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
+          title = [ args[:title], message_args ] if args[:title]
         else
           message = nil
+          title   = nil
         end
 
         # update job status
@@ -539,6 +541,7 @@ module SP
         # Create notification that will be published
         td.job_notification = {}
         td.job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
+        td.job_notification[:title]       = title unless title.nil?
         td.job_notification[:message]     = message unless message.nil?
         td.job_notification[:index]       = p_index unless p_index.nil?
         td.job_notification[:status]      = status.nil? ? 'in-progress' : status
