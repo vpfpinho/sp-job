@@ -27,6 +27,28 @@ module SP
 
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
+      class Exception < StandardError
+
+        private
+
+        @status_code  = nil
+        @content_type = nil
+        @body         = nil
+
+        public
+        attr_accessor :status_code
+        attr_accessor :content_type
+        attr_accessor :body
+
+        public
+        def initialize(status_code:, content_type:, body:)
+          @status_code  = status_code
+          @content_type = content_type
+          @body         = body
+        end
+
+      end # class Error
+
       def prepend_platform_configuration (job)
         begin
           if config && config[:brands] && job && job[:x_brand]
@@ -114,6 +136,10 @@ module SP
         $config
       end
 
+      def cluster_config
+        $cluster_config
+      end
+
       #
       # Returns the object you should use to perform JSON api requests
       #
@@ -168,11 +194,19 @@ module SP
       #
       def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
 
-        path = alt_path.nil? ? 'uploads/' : alt_path
-        url  = "#{config[:urls][:upload_internal]}/#{path}#{file}"
-        uri  = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+        upl_int_tmp_uri = URI.parse(config[:urls][:upload_internal_tmp])
 
-        response = HttpClient.get_to_file(url: url, to: uri)
+        if alt_path.nil?
+          path = upl_int_tmp_uri.path[1..-1]
+        else
+          path = alt_path
+        end
+
+        org_file_url = "#{upl_int_tmp_uri.scheme}://#{upl_int_tmp_uri.host}:#{upl_int_tmp_uri.port}/#{path}/#{file}"
+        tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+
+        response = HttpClient.get_to_file(url: org_file_url, to: tmp_file_uri)
+
         if 200 != response[:code]
           raise "#{response[:code]}"
         end
@@ -180,17 +214,17 @@ module SP
         # if temporary dir was provided
         if nil != tmp_dir
           # return file URI
-          return uri
-        else
-          # read from file
-          data = nil
-          File.open(uri, 'rb') {
-              | f | data = f.read
-          }
-          # return it's content
-          return data
+          return tmp_file_uri
         end
 
+        # read from file
+        data = nil
+        File.open(tmp_file_uri, 'rb') {
+            | f | data = f.read
+        }
+
+        # return it's content
+        return data
       end
 
       #
@@ -470,12 +504,14 @@ module SP
         if args.has_key? :message
           message_args = Hash.new
           args.each do |key, value|
-            next if [:step, :progress, :message, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom, :simple_message].include? key
+            next if [:step, :progress, :message, :title, :status, :barrier, :index, :response, :action, :content_type, :status_code, :link, :custom, :simple_message].include? key
             message_args[key] = value
           end
           message = [ args[:message], message_args ]
+          title = [ args[:title], message_args ] if args[:title]
         else
           message = nil
+          title   = nil
         end
 
         # update job status
@@ -505,6 +541,7 @@ module SP
         # Create notification that will be published
         td.job_notification = {}
         td.job_notification[:progress]    = progress.to_f.round(2) unless progress.nil?
+        td.job_notification[:title]       = title unless title.nil?
         td.job_notification[:message]     = message unless message.nil?
         td.job_notification[:index]       = p_index unless p_index.nil?
         td.job_notification[:status]      = status.nil? ? 'in-progress' : status
@@ -807,6 +844,28 @@ module SP
 
       end
 
+      def clean_notifications (redis_client, redis_key, pattern)
+        cursor = 0
+        loop do
+          notification_exists = get_notifications_to_clean(redis_client, redis_key, cursor, pattern)
+          break if notification_exists.nil?
+
+          cursor = notification_exists.first
+
+          if notification_exists[1] && notification_exists[1].any?
+            notification_exists[1].map do |key|
+              redis_client.srem(redis_key[:key], "#{key}")
+              redis_client.publish(redis_key[:public_key], "#{{ id: JSON.parse(key)["id"], destroy: true }.to_json}")
+            end
+          end
+
+          break if notification_exists.first == '0'
+        end
+      end
+
+      def get_notifications_to_clean (redis_client, redis_key, cursor, pattern)
+        redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
+      end
 
       def manage_notification(options = {}, notification = {})
 
@@ -833,27 +892,14 @@ module SP
 
           job_type  = notification[:tube] && notification[:tube].gsub("-hd", "") #remove the -hd pattern to merge on the original tube ex: saft-importer-hd -> saft-importer
 
-          job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"tube\":\"#{job_type}*\"*" }) if job_type
-
-          unless job_exists
-            job_exists = redis_client.sscan(redis_key[:key], 0, { match: "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*" })
-          end
-
-          if job_exists[1] && job_exists[1].any?
-            job_exists[1].map do |key|
-              redis_client.srem redis_key[:key], "#{key}"
-              temp_response_object = { id: JSON.parse(key)["id"], destroy: true }
-              redis_client.publish redis_key[:public_key], "#{temp_response_object.to_json}"
-            end
-            # ap ["theres a similar job notification => REDIS PUBLISH DESTROY", redis_key[:public_key], temp_response_object.to_json]
-
-            # ap ["create the new one after destroy similar"]
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+          unless notification.key?(:resource_job_queue_name)
+            clean_notifications(redis_client, redis_key, "*\"tube\":\"#{job_type}*\"*")
           else
-            redis_client.sadd redis_key[:key], "#{notification.to_json}"
-            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+            clean_notifications(redis_client, redis_key, "*\"icon\":\"#{notification[:icon]}\"*\"resource_job_queue_name\":\"#{notification[:resource_job_queue_name]}*")
           end
+
+          redis_client.sadd redis_key[:key], "#{notification.to_json}"
+          redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
 
         elsif options[:action] == :update
 
@@ -986,11 +1032,11 @@ module SP
         end
 
         m = Mail.new do
-          from     $config[:mail][:from]
+          from     args[:default_from]
           to       to_email
           cc       cc_email unless cc_email.nil?
           subject  args[:subject]
-          reply_to (args[:reply_to] || $config[:mail][:from])
+          reply_to (args[:reply_to] || args[:default_from])
 
           html_part do
             content_type 'text/html; charset=UTF-8'
@@ -1043,6 +1089,48 @@ module SP
         end
 
         return base_exception.is_a?(PG::ServerError) ? base_exception.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
+      end
+
+      def file_to_downloadable_url(path, expiration = nil)
+        if OS.mac?
+          file = File.join(path.split('/')[3..-1])
+        else
+          file = File.join(path.split('/')[2..-1])
+        end
+
+        now = Time.now.getutc.to_i
+        exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
+
+        download_uri = URI.parse($config[:urls][:download_internal])
+        private_key = "#{$config[:paths][:private_key]}/#{$config[:cdn][:public_link][:private_key]}"
+        jwt = ::SP::Job::JWTHelper.encode(
+          key: private_key,
+          payload: {
+            exp: exp,
+            iat: now,
+            nbf: now,
+            action: 'redirect',
+            redirect: {
+              protocol: download_uri.scheme,
+              host: download_uri.host,
+              port: download_uri.port,
+              path: download_uri.path[1..-1],
+              file: file
+            }
+          }
+        )
+
+        cluster_url = URI.parse($cluster_config[:url])
+
+        protocol = $config[:cdn][:public_link][:protocol] || cluster_url.scheme
+        host     = $config[:cdn][:public_link][:host]     || cluster_url.host
+        port     = $config[:cdn][:public_link][:port]     || cluster_url.port
+        path     = $config[:cdn][:public_link][:path]     || 'downloads'
+
+        url = "#{protocol}://#{host}"
+        url += ":#{port}" if ! [80, 443].include?(port)
+        url += "/#{path}/#{jwt}"
+        url
       end
 
       def file_identifier_to_url(id, filename)
@@ -1130,28 +1218,6 @@ module SP
                                        company_id: entity_id)
         response
       end
-
-      class Exception < StandardError
-
-        private
-
-        @status_code  = nil
-        @content_type = nil
-        @body         = nil
-
-        public
-        attr_accessor :status_code
-        attr_accessor :content_type
-        attr_accessor :body
-
-        public
-        def initialize(status_code:, content_type:, body:)
-          @status_code  = status_code
-          @content_type = content_type
-          @body         = body
-        end
-
-      end # class Error
 
       private
 
