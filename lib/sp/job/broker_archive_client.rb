@@ -30,6 +30,91 @@ module SP
     module Job
 
       #
+      # nginx-broker 'cdn-api' module client
+      #
+      class BrokerCDNBillingAPIClient
+
+        #
+        # Initialize a Broker CDN Billing API Client
+        #
+        # @param owner [REQUIRED] Client's owner - usually tube name - used for 'User-Agent' header.
+        # @param url   [REQUIRED] Base URL
+        #
+        def initialize(owner:, url:)
+            @url   = url
+            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {
+                'Content-Type': 'application/vnd.api+json;charset=utf-8'
+            }, mandatory_headers: {})
+        end
+
+        #
+        # Retrieve an existing billing information.
+        #
+        # @param id [REQUIRED] Billing id, uint64.
+        #
+        # @return Billing data.
+        #
+        def get(id:)
+            # make request
+            response = @http.get(url: "#{@url}/billing/#{id}",
+                expect: {
+                    code: 200,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+             # return body only
+            JSON.parse(response[:body], symbolize_names: true)
+        end
+
+        #
+        # Create a new billing entry.
+        #
+        # @param id    [REQUIRED] Billing id, uint64.
+        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
+        #
+        # @return Billing data.
+        #
+        def create(id:, limit:)
+            # make request
+            response = @http.post(url: "#{@url}/billing", headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
+                expect: {
+                    code: 204,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+            # nothing to return
+            nil
+        end
+
+        #
+        # Updates an existing billing entry.
+        #
+        # @param id    [REQUIRED] Billing id, uint64.
+        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
+        #
+        # @return Billing data.
+        #
+        def update(id:, limit:)
+            # make request
+            response = @http.patch(url: "#{@url}/billing/#{id}", headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
+                expect: {
+                    code: 200,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+            # return body only
+            JSON.parse(response[:body], symbolize_names: true)
+        end
+
+      end # class 'BrokerCDNBillingAPIClient'
+
+      #
       # nginx-broker 'archive' module client
       #
       class BrokerArchiveClient
@@ -168,7 +253,7 @@ module SP
         end
 
         #
-        # Retreive an existing archive.
+        # Retrieve an existing archive.
         #
         # @param id [REQUIRED] Archive id, expected format aBBccccc[.ext]
         #
