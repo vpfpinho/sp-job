@@ -68,8 +68,7 @@ module SP
       #
       def connect ()
         @mutex.synchronize {
-          _disconnect()
-          @connection = PG.connect(@config[:conn_str])
+          _connect()
         }
       end
 
@@ -213,6 +212,11 @@ module SP
       def _connect ()
         _disconnect()
         @connection = PG.connect(@config[:conn_str])
+        if @config[:post_connect_queries]
+          @config[:post_connect_queries].each do |query|
+            @connection.exec(query)
+          end
+        end
       end
 
       def _disconnect ()

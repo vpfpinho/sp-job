@@ -50,6 +50,9 @@ class ClusterMember
     @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
     @session = ::SP::Job::Session.new(configuration: configuration, serviceId: serviceId, redis: @redis, programName: $args[:program_name])
     if db.nil?
+      if $config[:options] && $config[:options][:post_connect_queries]
+        configuration[:db][:post_connect_queries] =  $config[:options][:post_connect_queries]
+      end
       @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db])
     else
       @db = db
@@ -677,6 +680,9 @@ $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? f
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
 if $config[:postgres] && $config[:postgres][:conn_str]
+  if $config[:options] && $config[:options][:post_connect_queries]
+    $config[:postgres][:post_connect_queries] =  $config[:options][:post_connect_queries]
+  end
   $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")
