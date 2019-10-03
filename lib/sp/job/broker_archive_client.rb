@@ -43,7 +43,7 @@ module SP
         def initialize(owner:, url:)
             @url   = url
             @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {
-                'Content-Type': 'application/vnd.api+json;charset=utf-8'
+                'Content-Type' => 'application/vnd.api+json;charset=utf-8'
             }, mandatory_headers: {})
         end
 
@@ -549,7 +549,7 @@ module SP
                                                    filename: nil
                 )
             end
-            
+
             # test GET method
             error_count+= ::SP::Job::HttpClient.run_test(verb: "GET", output: output) do
                 responses[:get] = client.get(id: responses[:create][:id])
@@ -574,7 +574,7 @@ module SP
                 { code: 204, body: '' }
             end
 
-            if 'jruby' != RUBY_ENGINE 
+            if 'jruby' != RUBY_ENGINE
                 # test UPLOAD internal method
                 error_count+= ::SP::Job::HttpClient.run_test(verb: "UPLOAD", output: output) do
                     responses[:upload] = ::SP::Job::BrokerUploadClient.new(owner: self.name(), url: urls[:upload]).upload(body: 'UPLOADED TEST DATA')
