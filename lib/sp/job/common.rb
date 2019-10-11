@@ -49,6 +49,10 @@ module SP
 
       end # class Error
 
+      def default_tube_options
+        { broker: false, transient: false, raw_response: false, min_progress: 3 }
+      end
+
       def prepend_platform_configuration (job)
         begin
           if config && config[:brands] && job && job[:x_brand]
@@ -459,6 +463,14 @@ module SP
             }
           ]
         }
+        if self.respond_to?(:options)
+          td.tube_options = self.options
+        else
+          td.tube_options = default_tube_options()
+        end
+        logger.debug "Annnddd the tube options are".green
+        ap td.tube_options
+
         td.report_time_stamp    = 0
         td.exception_reported   = false
         td.job_id               = job[:id]
@@ -554,7 +566,7 @@ module SP
           td.job_notification[:action]       = args[:action]
         end
 
-        if ['completed', 'error', 'follow-up', 'cancelled'].include?(status) || (Time.now.to_f - td.report_time_stamp) > $min_progress || args[:barrier]
+        if ['completed', 'error', 'follow-up', 'cancelled'].include?(status) || (Time.now.to_f - td.report_time_stamp) > td.tube_options[:min_progress] || args[:barrier]
           update_progress_on_redis
           if td.current_job[:notification]
             notification_icon   = p_options && p_options[:icon] || td.current_job[:notification_options] && td.current_job[:notification_options][:icon] ||  "toc-icons:notification_SIS"
@@ -612,11 +624,9 @@ module SP
         args[:content_type] ||= 'application/json'
         args[:response]     ||= {}
         args[:status_code]  ||= 200
-        # $raw_response cam either be:
-        # - a Boolean (true or false)
-        # - an Array of tube names; in this case, the response is raw if the current tube name is one of the Array names
-        is_raw_response = ($raw_response.is_a?(Array) ? td.job_tube.in?($raw_response) : $raw_response)
-        if is_raw_response && $transient_job || args[:force_raw_response]
+
+        is_raw_response = td.tube_options[:raw_response]
+        if is_raw_response && td.tube_options[:transient] == true || args[:force_raw_response]
           response = '*'
           response << args[:status_code].to_s
           response << ','
@@ -667,29 +677,29 @@ module SP
         td.job_id = nil
       end
 
-      def on_bury_lock_cleanup(*args)
-        #logger.error "Caused an exception (#{args.to_s})"
-      end
+      def on_failure_for_all_jobs (e, *args)
+        job = thread_data.current_job
+        if job[:notification]
+          begin
+            if (e.is_a?(::SP::Job::JobAborted))
+              _message = eval(e.message)[:args][:message]
+            else
+              _message = self.pg_server_error(e)
+            end
 
-      def on_failure_lock_cleanup(e, *args)
-        #logger.error "Lock cleanup caused an exception (#{e})"
-      end
-
-      def on_failure_for_all_jobs(e, *args)
-        begin
-          job = thread_data.current_job
-
-        _message = if (e.is_a?(::SP::Job::JobAborted))
-            eval(e.message)[:args][:message]
-          else
-            self.pg_server_error(e) || _notification
+            update_progress({
+                status:  'error',
+                action: 'response',
+                content_type: 'application/json',
+                status_code:  500,
+                message: _message,
+                progress: 100,
+                detail: "Error in job with params: #{job} -> #{e}"
+            })
+          rescue => e
+            logger.error "**** FAILURE ALL JOBS **** #{e}"
           end
-
-          report_error(progress: 100, status: 'error', message: _message, detail: "Error in job with params: #{job} -> #{e}" )
-        rescue => e
-          logger.error "**** FAILURE ALL JOBS **** #{e}"
         end
-
       end
 
       def after_perform_lock_cleanup (*args)
@@ -725,10 +735,10 @@ module SP
       end
 
       def error_handler (args)
-        if $config[:options][:source] == "broker"
+        td = thread_data
+        if td.tube_options[:broker] == true
           raise "Implementation error : please use 'raise' instead of report_error or raise_error"
         end
-        td = thread_data
         args[:status]       ||= 'error'
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
@@ -741,7 +751,7 @@ module SP
       end
 
       #
-      # @NOTE: do not use this method if $config[:options][:source] == "broker"
+      # @NOTE: do not use this method if td.tube_options[:broker] == true
       #
       def report_error (args)
         td = thread_data
@@ -750,7 +760,7 @@ module SP
       end
 
       #
-      # @NOTE: do not use this method if $config[:options][:source] == "broker"
+      # @NOTE: do not use this method if td.tube_options[:broker] == true
       #
       def raise_error (args)
         td = thread_data
@@ -764,7 +774,7 @@ module SP
       def update_progress_on_redis
         td = thread_data
         if $redis_mutex.nil?
-          if $transient_job
+          if td.tube_options[:transient] == true
             $redis.publish td.publish_key, td.job_notification.to_json
           else
             $redis.pipelined do
@@ -774,7 +784,7 @@ module SP
           end
         else
           $redis_mutex.synchronize {
-            if $transient_job
+            if td.tube_options[:transient] == true
               $redis.publish td.publish_key, td.job_notification.to_json
             else
               $redis.pipelined do

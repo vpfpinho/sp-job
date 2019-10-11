@@ -35,7 +35,6 @@ class ClusterMember
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
   attr_reader :config    # cluster configuration read from the conf.json
-  #attr_reader :broker    # Driver for casper broker OAUTH 2.0 authentication
 
   #
   # Create the cluster member wrapper
@@ -54,13 +53,6 @@ class ClusterMember
     end
     @number = configuration[:number]
     @config = configuration
-    #unless RUBY_ENGINE == 'jruby'
-    #  @broker = ::SP::Job::Broker::Job.new(config: {
-    #                                        :service_id => serviceId,
-    #                                        :oauth2 => configuration[:oauth2],
-    #                                        :redis => @redis
-    #                                      })
-    #end
   end
 
   #
@@ -128,7 +120,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options)
       def initialize
         self.job_status = {}
         if $config[:options][:jsonapi]
@@ -166,13 +158,12 @@ end
 #
 $prefix           = OS.mac? ? '/usr/local' : ''
 $rollbar          = false
-$min_progress     = 3
 $gracefull_exit   = false
 $args = {
   stdout:           false,
   log_level:        'info',
   program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:      File.join($prefix, 'etc', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}/conf.json"),
+  config_file:      File.join($prefix, 'etc', 'jobs', 'main.conf.json'),
   default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 }
 
@@ -392,7 +383,7 @@ module Backburner
       end
 
       # if we're in broker mode
-      if $config[:options] && $config[:options][:source] == 'broker'
+      if td.tube_options[:broker] == true
         # prepare next action for this exception
         exception_options = {
           bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
@@ -436,63 +427,36 @@ extend SP::Job::Common
 # Now create the global data needed by the mix-in methods
 #
 $connected     = false
-if $config[:jobs] && $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:unified]
-  # Unified configuration
-  if $config[:jobs][$args[:program_name].to_sym][:runs_on]
-    $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
-  else
-    $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
-  end
 
-  $config[:options] = $config[:jobs][$args[:program_name].to_sym][:options] || {}
-
-  if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
-    key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
-    key_name ||= 'nginx-broker'
-
-    $config[:nginx_broker_private_key] = "#{$config[:paths][:private_key]}/#{key_name}"
-  end
-
-  # Get current member database configuration
-  $redis          = Redis.new(:host => $cluster_config[:redis][:casper][:host], :port => $cluster_config[:redis][:casper][:port], :db => 0)
-  $transient_job  = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
-  # raw_response, in the job conf.json can either be:
-  # - a Boolean (true or false)
-  # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
-  $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
-  $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
-  $beaneater     = Beaneater.new "#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
-  if $cluster_config[:db]
-    $cluster_config[:db][:conn_str] = pg_conn_str($cluster_config[:db])
-    $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $cluster_config[:db], multithreaded: $multithreading)
-    if $verbose_log
-      $pg.exec("SET log_min_duration_statement TO 0;")
-    end
-  end
-
-  $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
+# Unified configuration
+if $config[:jobs][$args[:program_name].to_sym][:runs_on]
+  $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
 else
-  # Classical configuration (clusterless)
-
-  $redis         = Redis.new(:host => $config[:redis][:host], :port => $config[:redis][:port], :db => 0)
-  $transient_job = $config[:options] && ( $config[:options][:transient] == true || $config[:options][:source] == 'broker' )
-  # raw_response, in the job conf.json can either be:
-  # - a Boolean (true or false)
-  # - an Array of tube names; in this case, the response will be raw if the current tube name is one of the Array names
-  $raw_response  = ($config[:options] ? ($config[:options][:raw_response].nil? ? false : $config[:options][:raw_response]) : false)
-  $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
-  $beaneater     = Beaneater.new "#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
-  if $config[:postgres] && $config[:postgres][:conn_str]
-    $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $config[:postgres], multithreaded: $multithreading)
-    if $verbose_log
-      $pg.exec("SET log_min_duration_statement TO 0;")
-    end
-  end
-
-  $beanstalk_url = "beanstalk://#{$config[:beanstalkd][:host]}:#{$config[:beanstalkd][:port]}"
+  $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
 end
 
-$min_progress = $config[:options] && $config[:options][:min_progress] || 3
+$config[:options] = $config[:jobs][$args[:program_name].to_sym][:options] || {}
+
+if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
+  key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
+  key_name ||= 'nginx-broker'
+
+  $config[:nginx_broker_private_key] = "#{$config[:paths][:private_key]}/#{key_name}"
+end
+
+# Get current member database configuration
+$redis          = Redis.new(:host => $cluster_config[:redis][:casper][:host], :port => $cluster_config[:redis][:casper][:port], :db => 0)
+$verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
+$beaneater     = Beaneater.new "#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
+if $cluster_config[:db]
+  $cluster_config[:db][:conn_str] = pg_conn_str($cluster_config[:db])
+  $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $cluster_config[:db], multithreaded: $multithreading)
+  if $verbose_log
+    $pg.exec("SET log_min_duration_statement TO 0;")
+  end
+end
+
+ $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
 
 #
 # Sanity check we only support multithreading on JRUBY
@@ -540,7 +504,7 @@ Backburner.configure do |config|
         logger.warn "got a deadline warning".red
       else
         begin
-          if $config[:options] && $config[:options][:source] == 'broker'
+          if td.tube_options[:broker] == true
             send_response(InternalBrokerException.translate_to_response(e:e))
           else
             if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)

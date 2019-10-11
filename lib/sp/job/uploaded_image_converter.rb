@@ -61,8 +61,20 @@ module SP
         @@src = config[:paths][:remote_temporary_uploads]
         @@dst  = config[:paths][:remote_uploads_storage]
       end
-      @@options = config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter']
 
+      @@options = default_tube_options()
+      if (config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter'])
+        @@options.merge!(config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter'])
+      end
+      @@options[:transient] = true
+
+      def self.options
+        return @@options
+      end
+
+      #
+      # JOB execution method main entry point
+      #
       def self.perform (job)
 
         raise_error(message: 'i18n_entity_id_must_be_defined') if job[:to_entity_id].nil? || job[:to_entity_id].to_i == 0

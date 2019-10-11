@@ -582,7 +582,7 @@ def self.run_configure (args)
       @unified_config  = false
 
       if job
-        @unified_config = job.unified || false
+        @unified_config = job.unified && true
 
         if job.args
           job.args.to_h.each do | k, v |
@@ -600,8 +600,26 @@ def self.run_configure (args)
         end
         @job_threads = job.threads
 
+        #unless @unified_config
+        #  @job_args += "-c #{@config.prefix}/etc/#{@config.project && @config.project.id ? ( @config.project.id + '/' ) : '' }jobs/main.conf.json"
+        #end
+        puts "warning you must support project ID ??? in main.conf.json???".yellow
+
+        #
+        # Clean up leftovers from old ages
+        #
         if @unified_config
-          @job_args += "-c #{@config.prefix}/etc/#{@config.project && @config.project.id ? ( @config.project.id + '/' ) : '' }jobs/main.conf.json"
+          old_config_dir = File.join(@config.prefix, 'etc', @job_name.to_s)
+          if Dir.exist?(old_config_dir)
+            puts "CLEANUP - please remove folder #{old_config_dir}".yellow
+          end
+          old_log_dir    = File.join(@config.prefix, 'var', 'log', @job_name.to_s)
+          if Dir.exist?(old_log_dir)
+            puts "CLEANUP - please remove folder #{old_log_dir}".yellow
+          end
+          puts @job_dir.red
+        else
+          puts "CLEANUP - job #{@job_name} is not unified sieg heil".yellow
         end
       end
       puts "  #{name}:"
