@@ -1101,7 +1101,7 @@ module SP
         return base_exception.is_a?(PG::ServerError) ? base_exception.result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY) : e.message
       end
 
-      def file_to_downloadable_url(path, expiration = nil)
+      def file_to_downloadable_url (path, expiration = nil)
         if OS.mac?
           file = File.join(path.split('/')[3..-1])
         else
@@ -1143,7 +1143,7 @@ module SP
         url
       end
 
-      def file_identifier_to_url(id, filename)
+      def file_identifier_to_url (id, filename)
         url = ''
         if filename[0] == 'c'
           url += "company"
