@@ -176,7 +176,7 @@ end
 def self.diff_and_write (contents:, path:, diff: true, dry_run: false)
 
   if contents.length == 0
-    puts "\t* contents for #{path} is empty, ignored, we don't write empty files".green
+    puts "\t* contents for #{path} is empty, ignored, we don't write empty files".green if $verbose
     return
   end
 
@@ -186,7 +186,7 @@ def self.diff_and_write (contents:, path:, diff: true, dry_run: false)
 
   if ! File.exists?(path)
     if contents.length == 0
-      puts "\t* #{path} does not exist and it's empty, ignored".green
+      puts "\t* #{path} does not exist and it's empty, ignored".green if $verbose
       return
     else
       safesudo("touch #{path}")
@@ -199,7 +199,7 @@ def self.diff_and_write (contents:, path:, diff: true, dry_run: false)
     File.write(tmp_file,contents)
     diff_contents = %x[diff -u #{path} #{tmp_file.path} 2>/dev/null]
     if 0 == $?.exitstatus
-      puts "\t* #{path} not changed".green
+      puts "\t* #{path} not changed".green if $verbose
       return
     end
     if File.exists?(path)
@@ -355,6 +355,7 @@ def self.run_configure (args)
     dry_run = true
     action = 'dry-run'
   end
+  $verbose = args[:verbose]
 
   #
   # Read the configuration into ostruct @config will be accessible to the ERB templates
@@ -438,7 +439,7 @@ def self.run_configure (args)
     paths = { 'project' => @project }
   end
   paths.each do |src, dest|
-    puts "Configuring #{src.upcase}"
+    puts "Configuring #{src.upcase}".green
 
     # List all .erb files in hidden and visible folders
     erblist = Dir.glob("#{@project}/configure/#{src}/.**/*.erb") +
@@ -477,7 +478,7 @@ def self.run_configure (args)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil? or !conf[key_l1].key?(m[2])
-          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}"
+          puts "        * Filtered #{m[1]} - #{m[2]} - #{dst_file}".green if $verbose
           next
         end
       end
@@ -486,7 +487,7 @@ def self.run_configure (args)
       if m && m.size == 3
         key_l1 = m[1].gsub('-', '_')
         if conf[key_l1].nil?
-          puts "Filtered #{m[1]} - #{m[2]} - #{dst_file}"
+          puts "        * Filtered #{m[1]} - #{m[2]} - #{dst_file}".green if $verbose
           next
         end
       end
@@ -503,7 +504,7 @@ def self.run_configure (args)
       if @config.erb_exclusion_list
         base_filename = File.basename(dst_file)
         if @config.erb_exclusion_list.include?(base_filename)
-          puts "Filtered #{base_filename}".yellow
+          puts "        * Filtered #{base_filename}".yellow  if $verbose
           next
         end
       end
@@ -546,7 +547,7 @@ def self.run_configure (args)
   #
   if action == 'dry-run' || action == 'overwrite'
     if used_locations.size
-      puts "Configuring NGINX LOCATIONS"
+      puts "Configuring NGINX LOCATIONS".green
       locations.each do |dst_file, template|
         m = /.*\/(.*).location$/.match dst_file
         if used_locations.include? m[1]
@@ -568,9 +569,11 @@ def self.run_configure (args)
   #
   # Configure JOBS
   #
+  unified_done = false
   if action == 'dry-run' || action == 'overwrite'
-    puts "Configuring JOBS"
+    puts "Configuring JOBS".green
     @config.jobs.to_h.each do |name, job|
+      # Note using instance vars to make them visible to ERB templates
       @job_name        = name
       @job_description = @job_name
       @job_dir         = "#{@config.paths.working_directory}/jobs/#{@job_name}"
@@ -579,10 +582,10 @@ def self.run_configure (args)
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
-      @unified_config  = false
+      @unified_config  = true
 
       if job
-        @unified_config = job.unified && true
+        @unified_config = job.unified.nil? ? true : job.unified
 
         if job.args
           job.args.to_h.each do | k, v |
@@ -600,15 +603,10 @@ def self.run_configure (args)
         end
         @job_threads = job.threads
 
-        #unless @unified_config
-        #  @job_args += "-c #{@config.prefix}/etc/#{@config.project && @config.project.id ? ( @config.project.id + '/' ) : '' }jobs/main.conf.json"
-        #end
-        puts "warning you must support project ID ??? in main.conf.json???".yellow
-
-        #
-        # Clean up leftovers from old ages
-        #
         if @unified_config
+          #
+          # Clean up leftovers from old ages
+          #
           old_config_dir = File.join(@config.prefix, 'etc', @job_name.to_s)
           if Dir.exist?(old_config_dir)
             puts "CLEANUP - please remove folder #{old_config_dir}".yellow
@@ -617,19 +615,25 @@ def self.run_configure (args)
           if Dir.exist?(old_log_dir)
             puts "CLEANUP - please remove folder #{old_log_dir}".yellow
           end
-          puts @job_dir.red
-        else
-          puts "CLEANUP - job #{@job_name} is not unified sieg heil".yellow
+          old_template = File.join(@config.paths.working_directory, 'jobs', @job_name.to_s, 'conf.json.erb')
+          if File.exists?(old_template)
+            puts "CLEANUP - please remove file #{old_template}".yellow
+          end
         end
+
       end
       puts "  #{name}:"
-      if File.exists?("#{@job_dir}/conf.json.erb") && !@unified_config
-        template = "#{@job_dir}/conf.json.erb"
+      if @unified_config
+        template = "#{templates_fallback_dir}/default_conf.json.erb"
       else
-        template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
-      end
-      unless File.exists? template
-        throw "Missing #{template} => configuration file for #{@job_name}"
+        if File.exists?("#{@job_dir}/conf.json.erb")
+          template = "#{@job_dir}/conf.json.erb"
+        else
+          template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
+        end
+        unless File.exists? template
+          throw "Missing #{template} => configuration file for #{@job_name}"
+        end
       end
       if OS.mac?
         create_directory("/usr/local/var/lock/#{@job_name}/")
@@ -637,11 +641,14 @@ def self.run_configure (args)
 
       create_directory "#{@config.prefix}/etc/jobs"
       if @unified_config
-        diff_and_write(contents: expand_template(template, pretty_json: true),
-                       path: "#{@config.prefix}/etc/#{@config.project && @config.project.id ? @config.project.id + '/' : '' }jobs/main.conf.json",
-                       diff: diff_before_copy,
-                       dry_run: dry_run
-        )
+        unless unified_done
+          diff_and_write(contents: expand_template(template, pretty_json: true),
+                         path: "#{@config.prefix}/etc/#{@config.project && @config.project.id ? @config.project.id + '/' : '' }jobs/main.conf.json",
+                         diff: diff_before_copy,
+                         dry_run: dry_run
+          )
+          unified_done = true
+        end
       else
         diff_and_write(contents: expand_template(template, pretty_json: true),
                        path: "#{@config.prefix}/etc/#{@job_name}/conf.json",

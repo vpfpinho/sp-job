@@ -29,28 +29,23 @@ module SP
 
       class Exception < StandardError
 
-        private
-
-        @status_code  = nil
-        @content_type = nil
-        @body         = nil
-
-        public
         attr_accessor :status_code
         attr_accessor :content_type
         attr_accessor :body
 
-        public
-        def initialize(status_code:, content_type:, body:)
+        def initialize(status_code:, content_type: nil, body: nil)
           @status_code  = status_code
           @content_type = content_type
           @body         = body
         end
 
-      end # class Error
+      end # class Exception
 
+      #
+      # These are default per tube options 'tube classes' can overide tube_options() to merge with these values
+      #
       def default_tube_options
-        { broker: false, transient: false, raw_response: false, min_progress: 3 }
+        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true }
       end
 
       def prepend_platform_configuration (job)
@@ -153,11 +148,19 @@ module SP
       # jsonapi.delete! (resource)
       #
       def jsonapi
-        thread_data.jsonapi.adapter
-      end
-
-      def has_jsonapi
-        return thread_data.jsonapi != nil
+        td = thread_data
+        if td.jsonapi.nil?
+          require 'sp/job/job_db_adapter' # TODO suck in the base class from SP-DUH
+          if RUBY_ENGINE == 'jruby'
+            td.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
+            td.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(td.current_job))
+          else
+            # TODO this needs sp-duh to be "manually" required in MRI
+            td.jsonapi = SP::Duh::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
+            td.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(td.current_job))
+          end
+        end
+        td.jsonapi.adapter
       end
 
       #
@@ -463,10 +466,10 @@ module SP
             }
           ]
         }
-        if self.respond_to?(:options)
-          td.tube_options = self.options
+        if self.respond_to?(:tube_options)
+          td.tube_options = default_tube_options.merge(self.tube_options)
         else
-          td.tube_options = default_tube_options()
+          td.tube_options = default_tube_options
         end
         logger.debug "Annnddd the tube options are".green
         ap td.tube_options
@@ -477,9 +480,6 @@ module SP
         td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
         td.job_tube             = (job[:tube] || $args[:program_name])
-        if has_jsonapi
-          set_jsonapi_parameters(job)
-        end
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         exists = redis do |r|

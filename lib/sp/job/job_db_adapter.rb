@@ -29,6 +29,7 @@ module SP
           def subentity_prefix ; service.parameters.subentity_prefix.nil? ? nil : service.parameters.subentity_prefix ; end
 
       end
+
     else
 
       class JobDbAdapter < ::SP::Duh::JSONAPI::Adapters::Db

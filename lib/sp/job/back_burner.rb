@@ -126,14 +126,6 @@ module SP
     class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options)
       def initialize
         self.job_status = {}
-        if $config[:options][:jsonapi]
-          require 'sp/job/job_db_adapter'
-          if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
-            self.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com' , SP::Job::JobDbAdapter)
-          else
-            self.jsonapi = SP::Duh::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com' , SP::Job::JobDbAdapter)
-          end
-        end
       end
     end
 
@@ -389,7 +381,7 @@ module Backburner
       if td.tube_options[:broker] == true
         # prepare next action for this exception
         exception_options = {
-          bury: $config[:options].has_key?(:bury) ? $config[:options][:bury] || false : false,
+          bury: td.tube_options[:bury],
           raise: true
         }
         begin
@@ -431,14 +423,18 @@ extend SP::Job::Common
 #
 $connected     = false
 
-# Unified configuration
-if $config[:jobs][$args[:program_name].to_sym][:runs_on]
+# Unified configuration (now it's always unified)
+if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
   $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
 else
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
 end
 
-$config[:options] = $config[:jobs][$args[:program_name].to_sym][:options] || {}
+if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:options]
+  $config[:options] = $config[:jobs][$args[:program_name].to_sym][:options]
+else
+  $config[:options] = {}
+end
 
 if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
   key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
@@ -564,6 +560,7 @@ Backburner.configure do |config|
 
   logger.info "Log file ...... #{$args[:log_file]}"
   logger.info "PID ........... #{Process.pid}"
+
 
   if $args[:log_level].nil?
     config.logger.level = Logger::INFO

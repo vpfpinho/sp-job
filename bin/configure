@@ -22,7 +22,7 @@ require 'bundler/setup'
 require 'optparse'
 require 'sp/job/configure/configure'
 
-$args = {}
+$args = { verbose: false }
 
 #
 # Parse command line arguments
@@ -32,9 +32,9 @@ $option_parser = OptionParser.new do |opts|
   opts.on('-m', '--dump'      , "dump merged configuration")                               { $args[:print_config] = true        }
   opts.on('-o', '--overwrite' , "overwrite system, project and user files, BE CAREFULL!")  { $args[:action]       = 'overwrite' }
   opts.on('-h', '--hotfix'    , "hotfix modifies only project and user files")             { $args[:action]       = 'hotfix'    }
+  opts.on('-v', '--verbose'   , "hotfix modifies only project and user files")             { $args[:verbose]      = true        }
   opts.on('-d', '--debug'     , "developer mode: log to stdout and print job")             { $args[:debug]        = true        }
 end
 $option_parser.parse!
 
 run_configure($args)
-

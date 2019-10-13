@@ -62,14 +62,14 @@ module SP
         @@dst  = config[:paths][:remote_uploads_storage]
       end
 
-      @@options = default_tube_options()
+      @@tube_options = default_tube_options()
       if (config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter'])
-        @@options.merge!(config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter'])
+        @@tube_options.merge!(config[:jobs][$args[:program_name].to_sym][:'uploaded-image-converter'])
       end
-      @@options[:transient] = true
+      @@tube_options[:transient] = true
 
-      def self.options
-        return @@options
+      def self.tube_options
+        return @@tube_options
       end
 
       #
@@ -105,14 +105,14 @@ module SP
         if m.nil? || m.size != 4
           return report_error(message: 'i18n_invalid_image', info: "Image #{original} can't be identified '#{img_info}'")
         end
-        unless @@options[:formats].include? m[1]
+        unless @@tube_options[:formats].include? m[1]
           return report_error(message: 'i18n_unsupported_$format', format: m[1])
         end
-        if m[2].to_i > @@options[:'max-width']
-          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  @@options[:'max-width'])
+        if m[2].to_i > @@tube_options[:'max-width']
+          return report_error(message: 'i18n_image_too_wide_$width$max_width', width: m[2], max_width:  @@tube_options[:'max-width'])
         end
-        if m[3].to_i > @@options[:'max-height']
-          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: @@options[:'max-height'])
+        if m[3].to_i > @@tube_options[:'max-height']
+          return report_error(message: 'i18n_image_too_tall_$height$max_height', height: m[3], max_height: @@tube_options[:'max-height'])
         end
 
         barrier = true # To force progress on first scalling

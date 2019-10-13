@@ -42,22 +42,28 @@ module SP
       #
       # One shot code that configures the tube options
       #
-      @@options = config[:jobs][$args[:program_name].to_sym][:'mail-queue']
+      @@tube_options = config[:jobs][$args[:program_name].to_sym][queue.to_sym]
+      @@tube_options[:transient] = true
+
+      def self.tube_options
+        @@tube_options
+      end
+
       Mail.defaults do
         delivery_method :smtp, {
-            :address => @@options[:smtp][:address],
-            :port => @@options[:smtp][:port].to_i,
-            :domain =>  @@options[:smtp][:domain],
-            :user_name => @@options[:smtp][:user_name],
-            :password => @@options[:smtp][:password],
-            :authentication => @@options[:smtp][:authentication],
-            :enable_starttls_auto => @@options[:smtp][:enable_starttls_auto]
+            :address => @@tube_options[:smtp][:address],
+            :port => @@tube_options[:smtp][:port].to_i,
+            :domain =>  @@tube_options[:smtp][:domain],
+            :user_name => @@tube_options[:smtp][:user_name],
+            :password => @@tube_options[:smtp][:password],
+            :authentication => @@tube_options[:smtp][:authentication],
+            :enable_starttls_auto => @@tube_options[:smtp][:enable_starttls_auto]
         }
       end
 
       def self.perform (job)
         email = synchronous_send_email(
-          default_from: @@options[:from],
+          default_from: @@tube_options[:from],
           body:         job[:body],
           template:     job[:template],
           to:           job[:to],
