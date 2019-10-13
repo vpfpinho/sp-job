@@ -471,8 +471,8 @@ module SP
         else
           td.tube_options = default_tube_options
         end
-        logger.debug "Annnddd the tube options are".green
-        ap td.tube_options
+        logger.info "Annnddd the tube options are".green
+        logger.info ap td.tube_options
 
         td.report_time_stamp    = 0
         td.exception_reported   = false
