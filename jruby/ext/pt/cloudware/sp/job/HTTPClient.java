@@ -11,6 +11,7 @@ package pt.cloudware.sp.job;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -418,6 +419,15 @@ public class HTTPClient
       }
     }
 
+    public void write (final java.io.InputStream stream, final RubyString contentType, byte[] chunk)
+    throws Exception
+    {
+      int length = 0;
+      while ( -1 != ( length = stream.read(chunk, 0, chunk.length) ) ) {
+        this.write(chunk, length, contentType);
+      } 
+    }
+
     public final RubyString content ()
     {
       if ( null != uri ) {
@@ -550,16 +560,17 @@ public class HTTPClient
         }
         // ... read body ...
         byte[] chunk = new byte[2048];
-        final DataInputStream responseStream;
         if ( responseCode >= 400 && responseCode <= 499 ) {
-          responseStream = new DataInputStream((java.io.FilterInputStream)connection.getErrorStream());
+          if ( true == DEBUG ) {
+            System.out.println("[JAVA][DEBUG] - RX      - Stream        :  " + connection.getErrorStream().toString());
+          }
+          a_output_stream.write(connection.getErrorStream(), responseContentType, chunk);
         } else {
-          responseStream = new DataInputStream((java.io.FilterInputStream)connection.getContent());
+          if ( true == DEBUG ) {
+            System.out.println("[JAVA][DEBUG] - RX      - Stream        :  " + connection.getInputStream().toString());
+          }
+          a_output_stream.write(connection.getInputStream(), responseContentType, chunk);
         }
-        int length = 0;
-        while ( -1 != ( length = responseStream.read(chunk, 0, chunk.length) ) ) {
-          a_output_stream.write(chunk, length, responseContentType);
-        } 
         responseBody = a_output_stream.content();
         // if ( true == DEBUG ) {
         //   System.out.println("[JAVA][DEBUG] - RX      - " + responseBody);
