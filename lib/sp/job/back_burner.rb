@@ -443,6 +443,20 @@ if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
   $config[:nginx_broker_private_key] = "#{$config[:paths][:private_key]}/#{key_name}"
 end
 
+#
+# Sanity check we only support multithreading on JRUBY
+#
+if $config[:options] && $config[:options][:threads].to_i > 1
+  raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
+  $redis_mutex = Mutex.new
+  $roolbar_mutex = Mutex.new
+  $multithreading = true
+else
+  $redis_mutex = nil
+  $roolbar_mutex = ::SP::Job::FauxMutex.new
+  $multithreading = false
+end
+
 # Get current member database configuration
 $redis          = Redis.new(:host => $cluster_config[:redis][:casper][:host], :port => $cluster_config[:redis][:casper][:port], :db => 0)
 $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
@@ -459,20 +473,6 @@ if $cluster_config[:db]
 end
 
  $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
-
-#
-# Sanity check we only support multithreading on JRUBY
-#
-if $config[:options] && $config[:options][:threads].to_i > 1
-  raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
-  $redis_mutex = Mutex.new
-  $roolbar_mutex = Mutex.new
-  $multithreading = true
-else
-  $redis_mutex = nil
-  $roolbar_mutex = ::SP::Job::FauxMutex.new
-  $multithreading = false
-end
 
 #
 # Configure rollbar
