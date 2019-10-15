@@ -153,13 +153,12 @@ module SP
           require 'sp/job/job_db_adapter' # TODO suck in the base class from SP-DUH
           if RUBY_ENGINE == 'jruby'
             td.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
-            td.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(td.current_job))
           else
             # TODO this needs sp-duh to be "manually" required in MRI
             td.jsonapi = SP::Duh::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
-            td.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(td.current_job))
           end
         end
+        set_jsonapi_parameters(td.current_job)
         td.jsonapi.adapter
       end
 
