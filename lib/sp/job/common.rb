@@ -191,6 +191,18 @@ module SP
 
 
       #
+      # Retrieve a previously uploaded public ( company or user ) file .
+      #
+      # @param file
+      # @param tmp_dir
+      #
+      # @return When tmp_dir is set file URI otherwise file body.
+      #
+      def get_public_file(file:, tmp_dir:, alt_path: nil)
+        get_from_temporary_uploads(file: file, tmp_dir: tmp_dir, alt_path: alt_path)
+      end
+
+      #
       # Retrieve a previously temporary uploaded file.
       #
       # @param file
