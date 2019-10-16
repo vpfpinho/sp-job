@@ -1,6 +1,6 @@
-<%= "#{@config.prefix}/var/log/jobs/#{@job_name}" %>.log {
+<%= "#{@config.prefix}/var/log/jobs/#{@job_name}" %>.*.log {
         su <%= @config.user %> <%= @config.group %>
-        daily
+        weekly
         missingok
         rotate 15
         copytruncate
