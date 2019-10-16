@@ -602,27 +602,27 @@ def self.run_configure (args)
           @job_environment = "#{job.environment}"
         end
         @job_threads = job.threads
-
-        if @unified_config
-          #
-          # Clean up leftovers from old ages
-          #
-          old_config_dir = File.join(@config.prefix, 'etc', @job_name.to_s)
-          if Dir.exist?(old_config_dir)
-            puts "CLEANUP - please remove folder #{old_config_dir}".yellow
-          end
-          old_log_dir    = File.join(@config.prefix, 'var', 'log', @job_name.to_s)
-          if Dir.exist?(old_log_dir)
-            puts "CLEANUP - please remove folder #{old_log_dir}".yellow
-          end
-          old_template = File.join(@config.paths.working_directory, 'jobs', @job_name.to_s, 'conf.json.erb')
-          if File.exists?(old_template)
-            puts "CLEANUP - please remove file #{old_template}".yellow
-          end
-        end
-
       end
       puts "  #{name}:"
+      #
+      # Clean up leftovers from old ages
+      #
+      if @unified_config
+
+        old_config_dir = File.join(@config.prefix, 'etc', @job_name.to_s)
+        if Dir.exist?(old_config_dir)
+          puts "CLEANUP - please remove folder #{old_config_dir}".yellow
+        end
+        old_log_dir    = File.join(@config.prefix, 'var', 'log', @job_name.to_s)
+        if Dir.exist?(old_log_dir)
+          puts "CLEANUP - please remove folder #{old_log_dir}".yellow
+        end
+        old_template = File.join(@config.paths.working_directory, 'jobs', @job_name.to_s, 'conf.json.erb')
+        if File.exists?(old_template)
+          puts "CLEANUP - please remove file #{old_template}".yellow
+        end
+      end
+
       if @unified_config
         template = "#{templates_fallback_dir}/default_conf.json.erb"
       else
@@ -677,7 +677,7 @@ def self.run_configure (args)
       )
 
       # logrotate.erb?
-      if File.exists? "#{@job_dir}/logrorate.erb"
+      if File.exists? "#{@job_dir}/logrotate.erb"
         template = "#{@job_dir}/logrotate.erb"
       else
         template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
