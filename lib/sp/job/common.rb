@@ -221,7 +221,7 @@ module SP
         end
 
         org_file_url = "#{upl_int_tmp_uri.scheme}://#{upl_int_tmp_uri.host}:#{upl_int_tmp_uri.port}/#{path}/#{file}"
-        tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+        tmp_file_uri = Unique::File.create("/#{tmp_dir || 'tmp'}/#{(Date.today + 2).to_s}", 'dl')
 
         response = HttpClient.get_to_file(url: org_file_url, to: tmp_file_uri)
 
