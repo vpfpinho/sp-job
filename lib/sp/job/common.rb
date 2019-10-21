@@ -1068,8 +1068,14 @@ module SP
         if args.has_key?(:attachments) && args[:attachments] != nil
           args[:attachments].each do |attach|
             uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
+            if attach.has_key?(:id) # archived file?
+              # from FSOPO ( file by id )
+              uri += "/#{attach[:id]}" 
+            else  # temporary cluster file
+              # file by name
+              uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
+            end
             if false == args[:session].nil? && false == args[:session][:role_mask].nil?
-              uri += "/#{attach[:id]}"
               attach_http_call = Curl::Easy.http_get(URI.escape(uri)) do |http|
                 http.headers['X-CASPER-USER-ID'] = args[:session][:user_id]
                 http.headers['X-CASPER-ENTITY-ID'] = args[:session][:entity_id]
@@ -1078,7 +1084,6 @@ module SP
                 http.headers['User-Agent'] = "curb/mail-queue"
               end
             else
-              uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
               attach_http_call = Curl::Easy.http_get(URI.escape(uri))
             end
             if attach_http_call.response_code == 200
