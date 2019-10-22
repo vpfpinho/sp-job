@@ -524,13 +524,17 @@ Backburner.configure do |config|
     # Report exception to rollbar
     $roolbar_mutex.synchronize {
       if $rollbar
+        extra_params = {}
         if e.instance_of? ::SP::Job::JobException
           e.job[:password] = '<redacted>'
-          Rollbar.error(e, e.message, { job: e.job, args: e.args})
+          extra_params.merge!({ job: e.job, args: e.args}) if e.job
+          Rollbar.error(e, e.message, extra_params)
         elsif e.is_a?(::SP::Job::JSONAPI::Error)
-          Rollbar.error(e, e.body)
+          extra_params.merge!({ job: td.current_job }) if td && td.current_job
+          Rollbar.error(e, e.body, extra_params)
         else
-          Rollbar.error(e)
+          extra_params.merge!({ job: td.current_job }) if td && td.current_job
+          Rollbar.error(e, e.message, extra_params)
         end
       end
     }
