@@ -668,11 +668,11 @@ def self.run_configure (args)
       #
       if @unified_config
 
-        old_config_dir = File.join(@config.prefix, 'etc', @job_name.to_s)
+        old_config_dir = File.join(@config.prefix || '', 'etc', @job_name.to_s)
         if Dir.exist?(old_config_dir)
           puts "CLEANUP - please remove folder #{old_config_dir}".yellow
         end
-        old_log_dir    = File.join(@config.prefix, 'var', 'log', @job_name.to_s)
+        old_log_dir    = File.join(@config.prefix || '', 'var', 'log', @job_name.to_s)
         if Dir.exist?(old_log_dir)
           puts "CLEANUP - please remove folder #{old_log_dir}".yellow
         end
