@@ -467,7 +467,7 @@ def self.run_configure (args)
     puts "Configuring logrotate.d".green
     tmp_logrotated = SpDataStruct::to_hash_sp(@config.logrotated)
     tmp_logrotated.each_key do | template |
-      puts "    * Using template '#{template}.erb'...".white
+      puts "    * Using template '#{template}.erb'...".white if $verbose
       tmp_config = {
           service: { name: nil, user: @config.user, group: @config.group },
           project: { dir: "#{@project}/configure/system/etc/logrotate.d" },
@@ -477,7 +477,7 @@ def self.run_configure (args)
       }
       tmp_logrotated[template].each do | service |
         tmp_config[:service][:name] = service
-        puts "        * Generating configuration file for #{tmp_config[:service][:name]}".white
+        puts "        * Generating configuration file for #{tmp_config[:service][:name]}".white if $verbose
         write_service_logrotate_conf(config: tmp_config , diff: diff_before_copy, dry_run: dry_run)
       end
       tmp_config = nil
