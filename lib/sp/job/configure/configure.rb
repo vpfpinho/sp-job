@@ -343,6 +343,39 @@ def self.get_config (args)
   return JSON.parse(conf.to_json, object_class: SpDataStruct), conf
 end
 
+#
+# Write a logrotate.d configuration file for a specific service.
+#
+# @param config Service configuration.
+#               Expected: { service: { name: '' }, project: { dir: '' }, template: { uri: nil, default: '' } }
+# @param diff
+# @param dry_run
+#
+def self.write_service_logrotate_conf(config:, diff:, dry_run:)
+  # ... does app have a logrotate.erb?
+  if File.exists? "#{config[:project][:dir]}/logrotate.erb"
+    # ... yes, use it ...
+    template = "#{config[:project][:dir]}/logrotate.erb"
+  else
+    # ... no, use default ...
+    template = config[:template][:default]
+  end
+  # ... if template exists ...
+  if File.exists? template
+    @logrotated = config.merge(
+        { template: { uri: template }, output: { uri: "#{@config.prefix}/etc/logrotate.d/#{config[:service][:name]}" } }
+    )
+    # ... yes ... write to final destination ...
+    diff_and_write(contents: expand_template(template),
+                   path: @logrotated[:output][:uri],
+                   diff: diff,
+                   dry_run: dry_run
+    )
+    @logrotated = nil
+  end
+  # done
+end
+
 def self.run_configure (args)
 
   if args[:action] == 'overwrite'
@@ -425,6 +458,32 @@ def self.run_configure (args)
   if @config.nginx_epaper &&  @config.nginx_epaper.nginx && @config.nginx_epaper.nginx.suffix
     create_directory("/usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
     safesudo("cp -v -f /usr#{local_dir}/share/nginx-epaper/fonts/ttf/dejavu/* /usr#{local_dir}/share/nginx-epaper#{@config.nginx_epaper.nginx.suffix}/fonts/ttf/dejavu")
+  end
+
+  #
+  # Write logrotate.d config files.
+  #
+  if @config.logrotated
+    puts "Configuring logrotate.d".green
+    tmp_logrotated = SpDataStruct::to_hash_sp(@config.logrotated)
+    tmp_logrotated.each_key do | template |
+      puts "    * Using template '#{template}.erb'...".white
+      tmp_config = {
+          service: { name: nil, user: @config.user, group: @config.group },
+          project: { dir: "#{@project}/configure/system/etc/logrotate.d" },
+          template: {
+            default: "#{File.expand_path(File.join(File.dirname(__FILE__), '../../../../', 'system', 'etc', 'logrotate.d', template.to_s + '.erb'))}" 
+          }
+      }
+      tmp_logrotated[template].each do | service |
+        tmp_config[:service][:name] = service
+        puts "        * Generating configuration file for #{tmp_config[:service][:name]}".white
+        write_service_logrotate_conf(config: tmp_config , diff: diff_before_copy, dry_run: dry_run)
+      end
+      tmp_config = nil
+    end
+    tmp_logrotated = nil
+    @config.delete_field('logrotated')
   end
 
   #
