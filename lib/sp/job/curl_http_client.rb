@@ -151,10 +151,15 @@ module SP
       def self.delete(url:, headers: nil, expect: nil, conn_options: nil)
         response = call(method: 'DELETE', url: url) do
           r = nil
-          r = Curl::Easy.http_delete(url) do | h |
-            set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+          begin
+            r = Curl::Easy.http_delete(url) do | h |
+              set_handle_properties(handle: h, headers: headers, conn_options: conn_options)
+            end
+            response = normalize_response(curb_r: r)
+          rescue Curl::Err::GotNothingError
+            response = {:code => 204}
           end
-          raise_if_not_expected(method: 'DELETE', url: url, response: normalize_response(curb_r: r), expect: expect)
+          raise_if_not_expected(method: 'DELETE', url: url, response: response, expect: expect)
         end
       end # method 'delete'
 
