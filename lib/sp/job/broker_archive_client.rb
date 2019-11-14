@@ -266,6 +266,20 @@ module SP
             return response[:body]
         end
 
+
+        # Retrieve an existing archive contents to file.
+        #
+        # @param id [REQUIRED] Archive id, expected format aBBccccc[.ext]
+        #
+        # @return tmp file path
+        #
+        def get_to_file(id:)
+            # make request
+            tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+            @http.get_to_file(url: "#{@url}/#{id}", headers: make_request_headers(), to: tmp_file_uri)
+            return tmp_file_uri
+        end
+
         #
         # Perform an HTTP POST request to 'Create' a new archive.
         #

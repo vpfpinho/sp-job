@@ -364,21 +364,26 @@ module SP
       # @param module_mask
       #
       # NOTE: Only works with files that are not binary
-      def get_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:)
+      def get_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:, to_file:false)
 
         raise 'missing file_identifier' if file_identifier.nil?
 
         url = config[:urls][:archive_internal]
 
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {
-              entity_id: entity_id.to_s,
-              user_id: user_id.to_s,
-              role_mask: role_mask.to_s,
-              module_mask: module_mask.to_s
-            }
-          ).get(id: file_identifier)
+        broker = ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
+          job: {
+            entity_id: entity_id.to_s,
+            user_id: user_id.to_s,
+            role_mask: role_mask.to_s,
+            module_mask: module_mask.to_s
+          }
+        )
+        if to_file
+          broker.get_to_file(id: file_identifier)
+        else
+          broker.get(id: file_identifier)
+        end
       end
 
       #
