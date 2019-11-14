@@ -472,7 +472,7 @@ def self.run_configure (args)
           service: { name: nil, user: @config.user, group: @config.group },
           project: { dir: "#{@project}/configure/system/etc/logrotate.d" },
           template: {
-            default: "#{File.expand_path(File.join(File.dirname(__FILE__), '../../../../', 'system', 'etc', 'logrotate.d', template.to_s + '.erb'))}" 
+            default: "#{File.expand_path(File.join(File.dirname(__FILE__), '../../../../', 'system', 'etc', 'logrotate.d', template.to_s + '.erb'))}"
           }
       }
       tmp_logrotated[template].each do | service |
@@ -507,6 +507,10 @@ def self.run_configure (args)
     erblist.each do |template|
       dst_file = template.sub("#{@project}/configure/#{src}", "#{dest}").sub(/\.erb$/, '')
 
+      # beware of /usr/share
+      if OS.mac? && dst_file.match(/^\/usr\/local\/usr\/share/)
+        dst_file = dst_file.sub(/^\/usr\/local\/usr\/share\//, '/usr/local/share/')
+      end
       # do not configure motd
       if dst_file == '/etc/motd'
         if OS.mac? || ! @config.motd || ! @config.motd[hostname.to_sym]
