@@ -26,6 +26,7 @@ require 'os'
 require 'fileutils'
 require 'tempfile'
 require 'etc'
+require 'open3'
 
 # require 'byebug'
 
@@ -111,6 +112,26 @@ class SpDataStruct < OpenStruct
   end
 
 end
+
+class Shell
+
+  def self.exec(cmd:, show_stdout: false)
+      stdout_str, stderr_str, status = Open3.capture3(cmd)
+      if false == status.success?
+          puts stderr_str
+          raise "An and error occurred while executing #{cmd}"
+      elsif true == show_stdout
+          puts stdout_str
+      end
+  end
+
+  def self.mkdir(path:)
+    if ! Dir.exist?(path)
+      Shell.exec(cmd: "mkdir -p #{path}")
+    end
+  end
+
+end # class 'shell'
 
 def self.safesudo(cmd)
   unless true == system(cmd)
@@ -760,5 +781,27 @@ def self.run_configure (args)
     end
   end
 
+  #
+  # PARENT'S PROJECT SPECIFC HOOKS
+  #
+  hooks = File.join(@project, 'configure', 'hooks.rb')
+  if File.exists? hooks
+    puts "Running hooks.rb".green
+    gemfile = File.expand_path(File.join(File.dirname(hooks), '..', 'Gemfile'))
+    data = { env: { project: @project }, config: conf }
+    cmd = "BUNDLE_GEMFILE=#{gemfile} bundle exec #{hooks}"
+    cmd += ' -v' if true == $verbose
+    cmd += ' -o' if 'overwrite' == $args[:action]
+    cmd += ' -d' if true == $args[:debug]
+    cmd += " --config '#{data.to_json}'"
+    ap cmd if args[:debug]
+    stdout_str, stderr_str, status = Open3.capture3(cmd)
+    if false == status.success?
+      puts "\t* Failed call #{cmd}".red
+      puts "#{stderr_str}".yellow
+    else
+      puts stdout_str
+    end
+  end
 
 end
