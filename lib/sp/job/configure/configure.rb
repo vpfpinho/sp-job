@@ -795,12 +795,11 @@ def self.run_configure (args)
     cmd += ' -d' if true == $args[:debug]
     cmd += " --config '#{data.to_json}'"
     ap cmd if args[:debug]
-    stdout_str, stderr_str, status = Open3.capture3(cmd)
-    if false == status.success?
+
+    system(cmd)
+    if $?.exitstatus != 0
       puts "\t* Failed call #{cmd}".red
       puts "#{stderr_str}".yellow
-    else
-      puts stdout_str
     end
   end
 
