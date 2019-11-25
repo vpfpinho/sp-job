@@ -123,6 +123,14 @@ class Shell
       elsif true == show_stdout
           puts stdout_str
       end
+      stdout_str
+  end
+
+  def self.exec2(cmd:)
+    system(cmd)
+    if $?.exitstatus != 0
+      raise "An and error occurred while executing #{cmd}"
+    end
   end
 
   def self.mkdir(path:)
@@ -799,7 +807,6 @@ def self.run_configure (args)
     system(cmd)
     if $?.exitstatus != 0
       puts "\t* Failed call #{cmd}".red
-      puts "#{stderr_str}".yellow
     end
   end
 
