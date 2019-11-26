@@ -604,7 +604,7 @@ module SP
                 end
                 # test GET 'moved' file
                 error_count+= ::SP::Job::HttpClient.run_test(verb: "GET", output: output) do
-                    responses[:get] = client.get(id: responses[:move])
+                    responses[:get] = client.get(id: responses[:move][:id])
                     # if reached here, response is OK
                     { code: 200, body: responses[:get] }
                 end
