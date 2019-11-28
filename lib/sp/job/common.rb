@@ -267,21 +267,22 @@ module SP
 
         url = config[:urls][:archive_internal]
 
-        # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {},
-            headers: {
-              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s
-            }
-          ).create(entity: entity,
-                   billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
-                    permissions: access.to_s,
-                    uri: src_file,
-                    content_type: content_type.to_s,
-                    filename: file_name
-          )
-
+        handle_archive_error do
+          # returning 'normalized' response
+          ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
+              job: {},
+              headers: {
+                'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+                'X-CASPER-BILLING-ID' => billing_id.to_s
+              }
+            ).create(entity: entity,
+                     billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+                      permissions: access.to_s,
+                      uri: src_file,
+                      content_type: content_type.to_s,
+                      filename: file_name
+            )
+        end
       end
 
       #
@@ -305,21 +306,22 @@ module SP
         end
 
         url = config[:urls][:archive_internal]
-
-        # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {},
-            headers: {
-              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s
-            }
-         ).move(entity: entity,
-                billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
-                permissions: access.to_s,
-                uri: tmp_file.to_s,
-                content_type: content_type.to_s,
-                filename: final_file
-        )
+        handle_archive_error do
+          # returning 'normalized' response
+          ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
+              job: {},
+              headers: {
+                'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+                'X-CASPER-BILLING-ID' => billing_id.to_s
+              }
+          ).move(entity: entity,
+                  billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+                  permissions: access.to_s,
+                  uri: tmp_file.to_s,
+                  content_type: content_type.to_s,
+                  filename: final_file
+          )
+        end
 
       end
 
@@ -1073,7 +1075,7 @@ module SP
             uri = "#{attach[:protocol]}://#{attach[:host]}:#{attach[:port]}/#{attach[:path]}"
             if attach.has_key?(:id) # archived file?
               # from FSOPO ( file by id )
-              uri += "/#{attach[:id]}" 
+              uri += "/#{attach[:id]}"
             else  # temporary cluster file
               # file by name
               uri += "/#{attach[:file]}" if attach.has_key?(:file) && !attach[:file].nil?
@@ -1263,6 +1265,24 @@ module SP
         	cdn_public_url += "/#{config[:cdn][:public_link][:path]}"
         end
         cdn_public_url
+      end
+
+      def handle_archive_error(*callback)
+        response = nil
+        begin
+          response = yield
+        rescue ::SP::Job::EasyHttpClient::Error => e
+          if 413 == e.code
+            if 'application/vnd.api+json;charset=utf-8' != e.response[:content][:type]
+              report_error(message: "Quota exceeded.", status_code: e.code)
+            else
+              report_error(message: "File too large.", status_code: e.code)
+            end
+          else # let sp-job common handle it
+            raise e
+          end
+        end
+        response
       end
 
     end # Module Common

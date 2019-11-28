@@ -512,6 +512,8 @@ Backburner.configure do |config|
           else
             if e.is_a?(::SP::Job::JobAborted) || e.is_a?(::SP::Job::JobException)
               raise_error(message: e)
+            elsif e.is_a?(::SP::Job::EasyHttpClient::Error)
+              raise_error(message: e.status, status_code: e.code)
             else
               raise_error(message: 'i18n_unexpected_server_error')
             end
@@ -532,6 +534,9 @@ Backburner.configure do |config|
         elsif e.is_a?(::SP::Job::JSONAPI::Error)
           extra_params.merge!({ job: td.current_job }) if td && td.current_job
           Rollbar.error(e, e.body, extra_params)
+        elsif e.is_a?(::SP::Job::EasyHttpClient::Error)
+          extra_params.merge!({ job: td.current_job }) if td && td.current_job
+          Rollbar.error(e, e.status, extra_params)
         else
           extra_params.merge!({ job: td.current_job }) if td && td.current_job
           Rollbar.error(e, e.message, extra_params)

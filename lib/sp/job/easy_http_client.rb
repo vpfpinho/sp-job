@@ -69,7 +69,7 @@ module SP
       end # class 'InternalError'
 
       class NotImplemented < Error
-        
+
         def initialize(method:, url:, message: nil, detail: nil, response: nil)
           super(method: method, url: url, code: 501, message: message, detail: detail, response: response)
         end
@@ -114,7 +114,7 @@ module SP
           super(method: method, url: url, code: 400, message: message, response: response)
         end
 
-      end # class 'BadRequest'      
+      end # class 'BadRequest'
 
       class NotFound < Error
 
@@ -124,6 +124,13 @@ module SP
 
       end # class 'NotFound'
 
+      class PayloadTooLarge < Error
+
+        def initialize(method:, url:, message: nil, response: nil)
+          super(method: method, url: url, code: 413, message: message, response: response)
+        end
+
+      end # class 'PayloadTooLarge'
 
       @@REASONS = {
         100 => 'Continue',
@@ -261,6 +268,8 @@ module SP
             raise EasyHttpClient::Forbidden.new(method: method, url: url, response: response)
           when 404
             raise EasyHttpClient::NotFound.new(method: method, url: url, response: response)
+          when 403
+            raise EasyHttpClient::PayloadTooLarge.new(method: method, url: url, response: response)
           else
             raise EasyHttpClient::Error.new(method: method, url: url, code: response[:code], message: nil,
                   detail: nil, object: nil,
@@ -272,7 +281,7 @@ module SP
         if nil != expect[:content] && 204 != response[:code]
           if response[:content][:type] != expect[:content][:type]
             raise EasyHttpClient::Error.new(method: method, url: url, code: 500,
-                    detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!", 
+                    detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!",
                     response: response
             )
           end
