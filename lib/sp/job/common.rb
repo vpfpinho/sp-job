@@ -197,6 +197,19 @@ module SP
       end
 
       #
+      # Ensure a CDB Vault API client per thread and initialize it with current job.
+      #
+      def vault_api
+        td = thread_data
+        if td.vault_api.nil?
+          td.vault_api = CdbVaultClient.new(owner: self, url: config[:urls][:cdb_api], job: td.current_job)
+        else
+          td.vault_api.set(job: td.current_job)
+        end
+        td.vault_api
+      end
+
+      #
       # returns the logger object that job code must use for logging
       #
       def logger
