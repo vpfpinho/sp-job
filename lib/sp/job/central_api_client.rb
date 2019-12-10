@@ -40,11 +40,11 @@ module SP
             user_email: job[:user_email],
           }
         )
-        @job = job
+        @job = job.dup
       end
 
       def set(job:)
-        reset(header: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
+        reset(headers: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
               x_casper_values: {
                 entity_id:  job[:entity_id],
                 role_mask: (job[:role_mask].to_i | SP::Job::ROLE_IS_JOB),
@@ -52,31 +52,31 @@ module SP
                 user_email: job[:user_email],
               }
         )
-        @job = job
+        @job = job.dup
       end
 
       def head(path)
-        return __parse(head(url: @url + path, headers: @headers))
+        return __parse(super(url: @url + path, headers: @headers))
       end
 
       def get(path)
-        return __parse(get(url: @url + path, headers: @headers))
+        return __parse(super(url: @url + path, headers: @headers))
       end
 
       def post(path, body)
-        return __parse(post(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def put(path, body)
-        return __parse(put(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def patch(path, body)
-        return __parse(patch(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def delete(path)
-        return __parse(delete(url: @url + path, headers: @headers, expect: nil))
+        return __parse(super(url: @url + path, headers: @headers, expect: nil))
       end
 
       private

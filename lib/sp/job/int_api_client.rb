@@ -56,7 +56,7 @@ module SP
           'X-CASPER-USER-ID',
           'X-CASPER-USER-EMAIL'
         ]
-        super.reset(headers: __headers, mandatory_headers: (__mandatory_headers + __headers.keys).uniq)
+        super(headers: __headers, mandatory_headers: (__mandatory_headers + __headers.keys).uniq)
       end
 
     end # class IntApiClient
