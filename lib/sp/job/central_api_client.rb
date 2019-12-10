@@ -40,37 +40,48 @@ module SP
             user_email: job[:user_email],
           }
         )
-
         @job = job
       end
 
-      def head (path)
-        return __parse(SP::Job::IntApiClient.head(url: @url + path, headers: @headers))
+      def set(job:)
+        reset(header: { 'Content-Type' => 'application/json', 'Accept' => 'application/json' },
+              x_casper_values: {
+                entity_id:  job[:entity_id],
+                role_mask: (job[:role_mask].to_i | SP::Job::ROLE_IS_JOB),
+                user_id:    job[:user_id],
+                user_email: job[:user_email],
+              }
+        )
+        @job = job
       end
 
-      def get (path)
-        return __parse(SP::Job::IntApiClient.get(url: @url + path, headers: @headers))
+      def head(path)
+        return __parse(head(url: @url + path, headers: @headers))
       end
 
-      def post (path, body)
-        return __parse(SP::Job::IntApiClient.post(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+      def get(path)
+        return __parse(get(url: @url + path, headers: @headers))
       end
 
-      def put (path, body)
-        return __parse(SP::Job::IntApiClient.put(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+      def post(path, body)
+        return __parse(post(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
-      def patch (path, body)
-        return __parse(SP::Job::IntApiClient.patch(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+      def put(path, body)
+        return __parse(put(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
       end
 
-      def delete (path)
-        return __parse(SP::Job::IntApiClient.delete(url: @url + path, headers: @headers, expect: nil))
+      def patch(path, body)
+        return __parse(patch(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+      end
+
+      def delete(path)
+        return __parse(delete(url: @url + path, headers: @headers, expect: nil))
       end
 
       private
 
-      def __parse (response)
+      def __parse(response)
         case response[:code]
         when 200
           return JSON.parse(response[:body], :symbolize_names => true)

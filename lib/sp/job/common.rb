@@ -182,6 +182,20 @@ module SP
         HashWithIndifferentAccess.new(JSON.parse(thread_data.jsonapi.parameters.to_json))
       end
 
+
+      #
+      # Ensure a CDB API client per thread and initialize it with current job.
+      #
+      def cdb_api
+        td = thread_data
+        if td.cdb_api.nil?
+          td.cdb_api = ::SP::Job::CentralApiClient.new(owner: self, url: config[:urls][:cdb_api], job: td.current_job)
+        else
+          td.cdb_api.set(job: td.current_job)
+        end
+        td.cdb_api
+      end
+
       #
       # returns the logger object that job code must use for logging
       #
