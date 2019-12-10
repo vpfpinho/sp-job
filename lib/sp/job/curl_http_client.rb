@@ -51,7 +51,58 @@ module SP
 
     class CurlHTTPClient < EasyHttpClient
 
+       ### INSTANCE METHODS ###
 
+      def head(url:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.head(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def get(url:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.get(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.post(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.put(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.patch(url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def delete(url:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.delete(url: url, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
+        CurlHTTPClient.upload(origin: origin, url: url, headers: headers, body: body, expect: expect, conn_options: conn_options)
+      end
+
+      def get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        CurlHTTPClient.get_to_file(url: url, headers: headers, to: to, expect: expect, conn_options: conn_options)
+      end
+
+      def post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        CurlHTTPClient.post_to_file(url: url, headers: headers, body: body, to: to, expect: expect, conn_options: conn_options)
+      end
+
+      def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.post_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.put_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      def patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        CurlHTTPClient.patch_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+      end
+
+      ### STATIC METHODS ###
+          
       #
       # Perform an HTTP HEAD request
       #

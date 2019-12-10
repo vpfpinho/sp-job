@@ -31,23 +31,34 @@ module SP
         x_casper_values.each do | k, v |
           __headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
         end
-
-
         mandatory_headers = [
           'X-CASPER-ENTITY-ID',
           'X-CASPER-ROLE-MASK',
           'X-CASPER-USER-ID',
           'X-CASPER-USER-EMAIL'
         ]
-
         super(
           owner: owner,
           headers: __headers,
           mandatory_headers: (mandatory_headers + __headers.keys).uniq
         )
-
         @url = url
       end
-    end
+
+      def reset(headers:, x_casper_values:)
+        __headers = headers
+        x_casper_values.each do | k, v |
+          __headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
+        end
+        __mandatory_headers = [
+          'X-CASPER-ENTITY-ID',
+          'X-CASPER-ROLE-MASK',
+          'X-CASPER-USER-ID',
+          'X-CASPER-USER-EMAIL'
+        ]
+        super.reset(headers: __headers, mandatory_headers: (__mandatory_headers + __headers.keys).uniq)
+      end
+
+    end # class IntApiClient
   end
 end

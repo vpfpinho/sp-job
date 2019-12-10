@@ -38,64 +38,74 @@ module SP
 
       private
 
+        @owner   = nil
         @headers = nil
+        @client  = nil
 
       public
 
       def initialize(owner:, headers:, mandatory_headers: nil)
+        @owner   = owner
         @headers = {
           'User-Agent' => "#{HttpClient.get_klass.name()}/#{owner || 'unknown'}"
         }.merge(headers)
+        @mandatory_headers = mandatory_headers
+        @client = HttpClient.get_klass.new
+      end
 
+      def reset(headers:, mandatory_headers:)
+        @headers = {
+          'User-Agent' => "#{HttpClient.get_klass.name()}/#{@owner || 'unknown'}"
+        }.merge(headers)
         @mandatory_headers = mandatory_headers
       end
 
       def head(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.head(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
+        @client.head(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def get(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.get(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
+        @client.get(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def post(url:, headers: nil, body:, expect: nil, conn_options: nil)
-        HttpClient.post(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+        @client.post(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def put(url:, headers: nil, body:, expect: nil, conn_options: nil)
-        HttpClient.put(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+        @client.put(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def patch(url:, headers: nil, body:, expect: nil, conn_options: nil)
-        HttpClient.patch(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+        @client.patch(url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def delete(url:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.delete(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
+        @client.delete(url: url, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def upload(origin:, url:, headers: nil, body:, expect: nil, conn_options: nil)
-        HttpClient.upload(origin: origin, url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
+        @client.upload(origin: origin, url: url, headers: ensure_headers(headers: headers), body: body, expect: expect, conn_options: conn_options)
       end
 
       def get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
-        HttpClient.get_to_file(url: url, headers: headers, to: to, expect: expect, conn_options: conn_options)
+        @client.get_to_file(url: url, headers: ensure_headers(headers: headers), to: to, expect: expect, conn_options: conn_options)
       end
 
       def post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
-        HttpClient.post_to_file(url: url, headers: headers, body: body, to: to, expect: expect, conn_options: conn_options)
+        @client.post_to_file(url: url, headers: ensure_headers(headers: headers), body: body, to: to, expect: expect, conn_options: conn_options)
       end
 
       def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.post_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
+        @client.post_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.put_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+        @client.put_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
 
       def patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
-        HttpClient.patch_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
+        @client.patch_file(uri: uri, to: to, headers: ensure_headers(headers: headers), expect: expect, conn_options: conn_options)
       end
     
       private
@@ -163,7 +173,7 @@ module SP
         get_klass.patch_file(uri: uri, to: to, headers: headers, expect: expect, conn_options: conn_options)
       end
 
-      def self.test (owner:, output:)
+      def self.test(owner:, output:)
 
         http = SP::Job::HttpClient.new(owner: owner, headers:{}, mandatory_headers:[])
 
@@ -352,12 +362,12 @@ module SP
           end
           return 1
         elsif true == ( output[:on_success] || false )
-          ap response.except(:body)
-          if response[:body]
+          ap response # .except(:body)
+          if nil != response[:body]
             begin
               ap JSON.parse(response[:body], symbolize_keys: true)
             rescue
-              ap response[:body]
+              puts response[:body]
             end
           end
         end

@@ -188,6 +188,58 @@ module SP
         510 => 'Not Extended'
       }
 
+      ### INSTANCE METHODS ###
+
+      def head(url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'HEAD', url: url)
+      end
+
+      def get(url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'GET', url: url)
+      end
+
+      def post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'POST', url: url)
+      end
+
+      def put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PUT', url: url)
+      end
+
+      def patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PATCH', url: url)
+      end
+
+      def delete(url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'DELETE', url: url)
+      end
+
+      def self.upload(origin:, url:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'UPLOAD', url: url)
+      end
+
+      def get_to_file(url:, headers: nil, to:, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'GET', url: url)
+      end
+
+      def post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'POST', url: url)
+      end
+
+      def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'POST', url: to)
+      end
+
+      def put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PUT', url: to)
+      end
+
+      def patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+        raise NotImplemented.new(method: 'PATCH', url: to)
+      end
+
+      ### STATIC METHODS ###
+          
       def self.http_reason(code:)
         return @@REASONS[code]
       end

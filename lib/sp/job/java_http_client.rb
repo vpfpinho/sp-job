@@ -36,6 +36,190 @@ module SP
 
     class JavaHTTPClient < EasyHttpClient
 
+        ### INSTANCE METHODS ###
+
+        def initialize()
+            @java_client = ::Java::pt.cloudware.sp.job.HTTPClient.new()
+        end
+
+        #
+        # Perform an HTTP HEAD request
+        #
+        def head(url:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'HEAD', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'HEAD', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.head(url, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end # method 'get'
+        #
+        # Perform an HTTP GET request
+        #
+        def get(url:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'GET', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'GET', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.get(url, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end # method 'get'
+
+        #
+        # Perform an HTTP POST request
+        #
+        def post(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'POST', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'POST', url: url, response: JavaHTTPClient.normalize_response(response:
+                    @java_client.post(url, headers, body,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end # method 'post'
+
+        #
+        # Perform an HTTP PUT request
+        #
+        def put(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'PUT', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'PUT', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.put(url, headers, body,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end # method 'put'
+
+        #
+        # Perform an HTTP PATCH request
+        #
+        def patch(url:, headers: nil, body: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'PATCH', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'PATCH', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.patch(url, headers, body,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end # method 'patch'
+
+        #
+        # Perform an HTTP DELETE request
+        #
+        def delete(url:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'DELETE', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'DELETE', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.delete(url, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+             )
+            end
+        end # method 'delete'
+
+        #
+        # Perform an HTTP GET request to obtain a file
+        #
+        def get_to_file(url:, to:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'GET', url: url) do
+                JavaHTTPClient.raise_if_not_expected(method: 'GET', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.get_to_file(url, headers, to,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end
+
+        #
+        # Perform an HTTP POST and write response to file
+        #
+        def post_to_file(url:, headers: nil, body:, to:, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'POST', url: to) do
+                JavaHTTPClient.raise_if_not_expected(method: 'POST', url: url, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.post_to_file(url, headers, body, to,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end
+
+        #
+        # Perform an HTTP POST request to send a file
+        #
+        def post_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'POST', url: to, local_file_uri: uri) do
+                JavaHTTPClient.raise_if_not_expected(method: 'POST', url: to, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.post_file(uri, to, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end
+
+        #
+        # Perform an HTTP PUT request to send a file
+        #
+        def put_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'PUT', url: to, local_file_uri: uri) do
+                JavaHTTPClient.raise_if_not_expected(method: 'PUT', url: to, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.put_file(uri, to, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end
+
+        #
+        # Perform an HTTP PATCH request to send a file
+        #
+        def patch_file(uri:, to:, headers: nil, expect: nil, conn_options: nil)
+            response = JavaHTTPClient.call(method: 'PATCH', url: to, local_file_uri: uri) do
+                JavaHTTPClient.raise_if_not_expected(method: 'PATCH', url: to, response: JavaHTTPClient.normalize_response(response:
+                        @java_client.patch_file(uri, to, headers,
+                            JavaHTTPClient.expect_hash_to_object(expect: expect),
+                            JavaHTTPClient.connection_hash_to_object(options: conn_options)
+                        )
+                    ),
+                    expect: expect
+                )
+            end
+        end
+
+
+        ### STATIC METHODS ###
+
         #
         # Perform an HTTP HEAD request
         #
