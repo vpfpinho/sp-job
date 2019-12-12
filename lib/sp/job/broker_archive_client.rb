@@ -28,92 +28,7 @@ require 'fileutils'
 
 module SP
     module Job
-
-      #
-      # nginx-broker 'cdn-api' module client
-      #
-      class BrokerCDNBillingAPIClient
-
-        #
-        # Initialize a Broker CDN Billing API Client
-        #
-        # @param owner [REQUIRED] Client's owner - usually tube name - used for 'User-Agent' header.
-        # @param url   [REQUIRED] Base URL
-        #
-        def initialize(owner:, url:)
-            @url   = url
-            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {
-                'Content-Type' => 'application/vnd.api+json;charset=utf-8'
-            }, mandatory_headers: {})
-        end
-
-        #
-        # Retrieve an existing billing information.
-        #
-        # @param id [REQUIRED] Billing id, uint64.
-        #
-        # @return Billing data.
-        #
-        def get(id:)
-            # make request
-            response = @http.get(url: "#{@url}/billing/#{id}",
-                expect: {
-                    code: 200,
-                    content: {
-                        type: 'application/vnd.api+json;charset=utf-8'
-                    }
-                }
-            )
-             # return body only
-            JSON.parse(response[:body], symbolize_names: true)
-        end
-
-        #
-        # Create a new billing entry.
-        #
-        # @param id    [REQUIRED] Billing id, uint64.
-        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
-        #
-        # @return Billing data.
-        #
-        def create(id:, limit:)
-            # make request
-            response = @http.post(url: "#{@url}/billing", headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
-                expect: {
-                    code: 204,
-                    content: {
-                        type: 'application/vnd.api+json;charset=utf-8'
-                    }
-                }
-            )
-            # nothing to return
-            nil
-        end
-
-        #
-        # Updates an existing billing entry.
-        #
-        # @param id    [REQUIRED] Billing id, uint64.
-        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
-        #
-        # @return Billing data.
-        #
-        def update(id:, limit:)
-            # make request
-            response = @http.patch(url: "#{@url}/billing/#{id}", headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
-                expect: {
-                    code: 200,
-                    content: {
-                        type: 'application/vnd.api+json;charset=utf-8'
-                    }
-                }
-            )
-            # return body only
-            JSON.parse(response[:body], symbolize_names: true)
-        end
-
-      end # class 'BrokerCDNBillingAPIClient'
-
+    
       #
       # nginx-broker 'archive' module client
       #
@@ -222,6 +137,21 @@ module SP
             def initialize(id:, type:)
                 @id   = id
                 @type = type
+            end
+
+            #
+            # Translate this object into an hash with header data.
+            #
+            # @return { 'X-CASPER-xxx-ID': <value> }
+            #
+            def headers()
+                if @type == :user
+                    return { 'X-CASPER-USER-ID' => @id }
+                elsif @type == :company
+                    return { 'X-CASPER-ENTITY-ID' => @id }
+                else
+                    raise "Invalid entity type '#{@type}'!"
+                end
             end
 
         end # class 'Entity'
@@ -617,6 +547,152 @@ module SP
             puts "--- --- --- --- --- --- --- --- --- --- ---"
 
         end # self.test
+
+        public
+
+
+      #
+      # nginx-broker 'cdn-api' module client
+      #
+      class BillingAPIClient
+
+        #
+        # Initialize a Broker CDN Billing API Client
+        #
+        # @param owner [REQUIRED] Client's owner - usually tube name - used for 'User-Agent' header.
+        # @param url   [REQUIRED] Base URL
+        #
+        def initialize(owner:, url:)
+            @url   = "#{url}/billing"
+            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {
+                'Content-Type' => 'application/vnd.api+json;charset=utf-8'
+            }, mandatory_headers: {})
+        end
+
+        #
+        # Retrieve an existing billing information.
+        #
+        # @param id [REQUIRED] Billing id, uint64.
+        #
+        # @return Billing data.
+        #
+        def get(id:)
+            # make request
+            response = @http.get(url: "#{@url}/#{id}",
+                expect: {
+                    code: 200,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+             # return body only
+            JSON.parse(response[:body], symbolize_names: true)
+        end
+
+        #
+        # Create a new billing entry.
+        #
+        # @param id    [REQUIRED] Billing id, uint64.
+        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
+        #
+        # @return Billing data.
+        #
+        def create(id:, limit:)
+            # make request
+            response = @http.post(url: @url, headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
+                expect: {
+                    code: 204,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+            # nothing to return
+            nil
+        end
+
+        #
+        # Updates an existing billing entry.
+        #
+        # @param id    [REQUIRED] Billing id, uint64.
+        # @param limit [REQUIRED] Maximum number of bytes usage limit for 'accounted' items.
+        #
+        # @return Billing data.
+        #
+        def update(id:, limit:)
+            # make request
+            response = @http.patch(url: "#{@url}/#{id}", headers: nil, body: { data: { id: id, type: 'billing', attributes: { accounted_space_limit: limit } } }.to_json,
+                expect: {
+                    code: 200,
+                    content: {
+                        type: 'application/vnd.api+json;charset=utf-8'
+                    }
+                }
+            )
+            # return body only
+            JSON.parse(response[:body], symbolize_names: true)
+        end
+
+      end # class 'BillingAPIClient'
+
+         #
+         # nginx-broker 'cdn-api' module client - sideline API only
+         #
+        class SidelineAPIClient
+
+            #
+            # Initialize a Broker CDN Sideline API Client
+            #
+            # @param owner [REQUIRED] Client's owner - usually tube name - used for 'User-Agent' header.
+            # @param url   [REQUIRED] Base URL
+            #
+            def initialize(owner:, url:)
+                @url   = "#{url}/sideline"
+                @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {
+                    'Content-Type' => 'application/vnd.api+json;charset=utf-8'
+                }, mandatory_headers: {})
+            end
+
+            #
+            # Perform an HTTP POST request to 'Create' a new 'copy' sideline activity.
+            #
+            # @param entity  [REQUIRED] Entity info.
+            #                           See \link Entity \link.
+            # @param billing [REQUIRED] Billing info.
+            #                           See \link Billing \link.
+            # @param files   [REQUIRED] Array of filenames to copy.
+            def copy(entity:, billing:, files:)
+                # set headers
+                headers = {
+                    'Content-Type' => 'application/vnd.api+json;charset=utf-8'
+                }
+                headers.merge!(billing.headers()).merge!(entity.headers())
+                # make requests
+                files.each do | file |
+                    response = @http.post(url: @url, headers: headers, body: {
+                            :data => {
+                                :type => 'sideline',
+                                :attributes => {
+                                    :activity => 'Copy',
+                                    :filename => file[:name],
+                                    :path_suffix => file[:path_suffix]
+                                }
+                            }
+                        }.to_json,
+                        expect: {
+                            code: 200,
+                            content: {
+                                type: 'application/vnd.api+json;charset=utf-8'
+                            }
+                        }
+                    )
+                end
+                # nothing to return
+                nil
+            end
+
+        end # class 'SidelineAPIClient'
 
       end # class 'BrokerArchiveClient'
 

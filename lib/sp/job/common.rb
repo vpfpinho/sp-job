@@ -210,6 +210,17 @@ module SP
       end
 
       #
+      # Ensure a CDN Archive Sideline API client per thread and initialize it with current job.
+      #
+      def cdn_sideline
+        td = thread_data
+        if td.cdn_sideline.nil?
+          td.cdn_sideline = ::SP::Job::BrokerArchiveClient::SidelineAPIClient.new(owner: self.name(), url: "#{config[:urls][:fs_api_internal]}")
+        end
+        td.cdn_sideline
+      end
+
+      #
       # returns the logger object that job code must use for logging
       #
       def logger
