@@ -24,6 +24,8 @@ module SP
 
     class WorkerThread < Backburner::Workers::Simple
 
+      @@thread_counter = 0
+
       # Used to prepare job queues before processing jobs.
       # Setup beanstalk tube_names and watch all specified tubes for jobs.
       #
@@ -38,7 +40,9 @@ module SP
           connection.on_reconnect = lambda { |conn| conn.tubes.watch!(*tube_names) }
 
           $threads << Thread.new {
-            $thread_data[Thread.current] = ::SP::Job::ThreadData.new
+            $thread_data[Thread.current]       = ::SP::Job::ThreadData.new
+            $thread_data[Thread.current].index = @@thread_counter
+            @@thread_counter += 1
             logger.info "Thread for #{tube_names.join(',')} #{Thread.current}"
             loop do
               begin

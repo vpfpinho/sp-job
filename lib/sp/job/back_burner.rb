@@ -123,10 +123,11 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options, :job_data, :cdb_api, :vault_api, :cdn_sideline)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options, :job_data, :cdb_api, :vault_api, :index, :cdn_sideline)
       def initialize
         self.job_status = {}
         self.job_data = {}
+        self.index = 0
       end
     end
 
@@ -565,7 +566,8 @@ Backburner.configure do |config|
   config.logger           = $args[:debug] ? SP::Job::Logger.new(STDOUT) : SP::Job::Logger.new($args[:log_file])
   config.logger.formatter = proc do |severity, datetime, progname, msg|
     date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
-    "[#{date_format}] #{severity}: #{msg}\n"
+    thread_info = $thread_data.nil? || $thread_data[Thread.current].nil? ? '' : " ##{thread_data.index.to_s.rjust(2, '0')} "
+    "[#{date_format}]#{thread_info}#{severity}: #{msg}\n"
   end
 
   logger.info "Log file ...... #{$args[:log_file]}"
