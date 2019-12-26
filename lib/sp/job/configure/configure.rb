@@ -437,7 +437,6 @@ def self.run_configure (args)
     end
   end
 
-
   # Set helper variables on the task context
   $user  = @config.user
   $group = @config.group
@@ -657,6 +656,8 @@ def self.run_configure (args)
 
   #
   templates_fallback_dir = File.expand_path(File.join(File.dirname(__FILE__), '../../../../', 'jobs'))
+  job_template = nil
+  job_dir      = nil
 
   #
   # Configure JOBS
@@ -734,8 +735,10 @@ def self.run_configure (args)
       create_directory "#{@config.prefix}/etc/jobs"
       if @unified_config
         unless unified_done
+          job_template = template
+          job_dir      = "#{@config.prefix}/etc/#{@config.project && @config.project.id ? @config.project.id + '/' : '' }jobs"
           diff_and_write(contents: expand_template(template, pretty_json: true),
-                         path: "#{@config.prefix}/etc/#{@config.project && @config.project.id ? @config.project.id + '/' : '' }jobs/main.conf.json",
+                         path: "#{job_dir}/main.conf.json",
                          diff: diff_before_copy,
                          dry_run: dry_run
           )
@@ -802,6 +805,13 @@ def self.run_configure (args)
     cmd += ' -o' if 'overwrite' == $args[:action]
     cmd += ' -d' if true == $args[:debug]
     cmd += " --config '#{data.to_json}'"
+    if job_template
+      cmd += " --job-template #{job_template}"
+    end
+    if job_dir
+      cmd += " --job-config-dir #{job_dir}"
+    end
+
     ap cmd if args[:debug]
 
     system(cmd)
