@@ -68,7 +68,7 @@ class ClusterMember
   #
   # Creates the global structure that contains the cluster configuration
   #
-  def self.configure_cluster
+  def self.configure_cluster serviceId: nil
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
@@ -78,9 +78,9 @@ class ClusterMember
         if $cluster_config
           $cluster_config[:db][:conn_str] = cfg[:db][:conn_str]
         end
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id], db: $pg)
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id], db: $pg)
       else
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: $config[:service_id])
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id])
       end
       logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
     end
@@ -397,7 +397,7 @@ module Backburner
         # delete it now?
         if nil != task
           if true == exception_options[:bury]
-            task.bury
+            #task.bury  
           else
             task.delete
           end
