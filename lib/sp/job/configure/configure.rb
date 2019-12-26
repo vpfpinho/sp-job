@@ -241,13 +241,14 @@ def self.diff_and_write (contents:, path:, diff: true, dry_run: false)
   end
     puts "\t* Writing #{path}".green
     unless dry_run
-       if OS.mac? || File.writable?(path) || path.match("^/home/")
-         File.write(path, contents)
-       else
-         safesudo("chown #{$user}:#{$group} #{path}")
-         File.write(path, contents)
-         safesudo("chown root:root #{path}")
-       end
+      if OS.mac? || File.writable?(path) || path.match("^/home/")
+        File.write(path, contents)
+      else
+        create_directory File.dirname path
+        safesudo("chown #{$user}:#{$group} #{path}")
+        File.write(path, contents)
+        safesudo("chown root:root #{path}")
+      end
     end
     FileUtils.rm(tmp_file)
 end
