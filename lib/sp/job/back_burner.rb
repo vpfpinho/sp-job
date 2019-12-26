@@ -397,7 +397,7 @@ module Backburner
         # delete it now?
         if nil != task
           if true == exception_options[:bury]
-            #task.bury  
+            task.bury
           else
             task.delete
           end
