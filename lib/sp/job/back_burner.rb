@@ -42,17 +42,27 @@ class ClusterMember
   # @param configuration the cluster member configuration structure
   # @param serviceId the service prefix used by casper redis keys
   # @param db a fb connection to reuse or nil if a new one should be created
+  # @param siteFilter if null configure for all sites, otherwise ignore clusters on other sites
+  # @param noDatabase if true nils the db object, it will crash if someone tries to use the cluster DB
   #
-  def initialize (configuration:, serviceId:, db: nil)
+  def initialize (configuration:, serviceId:, db: nil, siteFilter:, noDatabase: false)
+    # Filter clusters that run on other sites
+    unless siteFilter.nil? 
+      return if siteFilter != configuration[:site]
+    end
     @redis = Redis.new(:host => configuration[:redis][:casper][:host], :port => configuration[:redis][:casper][:port], :db => 0)
     @session = ::SP::Job::Session.new(configuration: configuration, serviceId: serviceId, redis: @redis, programName: $args[:program_name])
-    if db.nil?
-      if $config[:options] && $config[:options][:post_connect_queries]
-        configuration[:db][:post_connect_queries] =  $config[:options][:post_connect_queries]
-      end
-      @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db])
+    if noDatabase
+      @db = nil;
     else
-      @db = db
+      if db.nil?
+        if $config[:options] && $config[:options][:post_connect_queries]
+          configuration[:db][:post_connect_queries] =  $config[:options][:post_connect_queries]
+        end
+        @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: configuration[:db])
+      else
+        @db = db
+      end
     end
     @number = configuration[:number]
     @config = configuration
@@ -68,7 +78,7 @@ class ClusterMember
   #
   # Creates the global structure that contains the cluster configuration
   #
-  def self.configure_cluster serviceId: nil
+  def self.configure_cluster(serviceId: nil, siteFilter: nil, noDatabase: false)
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
@@ -78,11 +88,12 @@ class ClusterMember
         if $cluster_config
           $cluster_config[:db][:conn_str] = cfg[:db][:conn_str]
         end
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id], db: $pg)
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id], db: $pg, siteFilter: siteFilter, noDatabase: noDatabase)
       else
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id])
+        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id], siteFilter: siteFilter, noDatabase: noDatabase)
       end
-      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]} db=#{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
+      dbinfo = @db.nil? ? ' *no-database* ' : " #{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) "
+      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
     end
   end
 
