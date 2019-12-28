@@ -98,7 +98,7 @@ class ClusterMember
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: cfg, serviceId: serviceId || $config[:service_id], noDatabase: noDatabase)
       end
       dbinfo = noDatabase ? ' *no-database* ' : " #{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) "
-      logger.info " --- Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
+      logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
     end
   end
 
