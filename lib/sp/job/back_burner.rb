@@ -81,7 +81,7 @@ class ClusterMember
 
     $config[:cluster][:members].each do |cfg|
       if siteFilter != false 
-        next if $config[:runs_on_site] != cfg[:site]
+        next if $config[:runs_on_site] != nil && $config[:runs_on_site] != cfg[:site]
       end
 
        # TODO get rid of exclude_member
