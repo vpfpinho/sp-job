@@ -45,7 +45,7 @@ module SP
       # These are default per tube options 'tube classes' can overide tube_options() to merge with these values
       #
       def default_tube_options
-        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true }
+        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false }
       end
 
       def prepend_platform_configuration (job)
@@ -727,10 +727,26 @@ module SP
         td.job_id = nil
       end
 
+      def disconnect_db_connections
+        td = thread_data
+        if td.tube_options[:disconnect_db] == true
+          if !$cdb.nil?
+            # logger.debug "disconnect central db"
+            $cdb.disconnect
+          end
+          $cluster_members.each do | number, member |
+            if !member.db.nil?
+              # logger.debug "disconnect cluster member #{number}"
+              member.db.disconnect
+            end
+          end
+        end
+      end
+
       def on_failure_for_all_jobs (e, *args)
         job = thread_data.current_job
-        if job[:notification]
-          begin
+        begin
+          if job[:notification]
             if (e.is_a?(::SP::Job::JobAborted))
               _message = eval(e.message)[:args][:message]
             else
@@ -746,13 +762,16 @@ module SP
                 progress: 100,
                 detail: "Error in job with params: #{job} -> #{e}"
             })
-          rescue => e
-            logger.error "**** FAILURE ALL JOBS **** #{e}"
           end
+        rescue => e
+          logger.error "**** FAILURE ALL JOBS **** #{e}"
+        ensure
+          disconnect_db_connections
         end
       end
 
       def after_perform_lock_cleanup (*args)
+        disconnect_db_connections
         check_gracefull_exit(dolog: true)
       end
 
