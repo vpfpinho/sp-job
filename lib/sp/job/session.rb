@@ -167,6 +167,26 @@ module SP
       end
 
       #
+      # Create a token pair session by merging an existing session with the given patch
+      #
+      # @param session the original session hash
+      # @param patch a symbolicated hash that will overide existing keys and/or add new ones
+      #
+      # @note Use null values on the patch to delete keys from the original session
+      #
+      def merge (session:, patch:)
+        refresh_token = session[:refresh_token]
+        patch.each do |key, value|
+          if value.nil?
+            session.delete(key)
+          else
+            session[key] = value
+          end
+        end
+        return create(patch: session, with_refresh: refresh_token != nil)
+      end
+
+      #
       # Delete tokens, immediately or after a grace period.
       #
       # @param token access token to dispose
