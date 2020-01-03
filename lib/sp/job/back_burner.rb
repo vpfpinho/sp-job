@@ -130,6 +130,10 @@ module SP
 
     class Logger < ::Logger
 
+      def write (message)
+        @logdev.write(message)
+      end
+
       def task (sequence, text, success = true)
         if success
           info "[#{sequence}] #{text} \xE2\x9C\x94".green
@@ -585,6 +589,9 @@ Backburner.configure do |config|
     thread_info = $thread_data.nil? || $thread_data[Thread.current].nil? ? '' : " ##{thread_data.index.to_s.rjust(2, '0')} "
     "[#{date_format}]#{thread_info}#{severity}: #{msg}\n"
   end
+
+  $stdout = config.logger
+  $stderr = config.logger
 
   logger.info "Log file ...... #{$args[:log_file]}"
   logger.info "PID ........... #{Process.pid}"
