@@ -639,7 +639,7 @@ Backburner.configure do |config|
     "[#{date_format}]#{thread_info}#{severity}: #{msg}\n"
   end
 
-  if ‘jruby’ == RUBY_ENGINE
+  if 'jruby' == RUBY_ENGINE
     $stdout = config.logger
     $stderr = config.logger
   end
