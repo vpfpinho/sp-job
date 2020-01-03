@@ -61,6 +61,11 @@ class ClusterMember
     end
     @number = configuration[:number]
     @config = configuration
+    if $config[:options] && $config[:options][:threads].to_i > 1
+      @redis_mutex = Mutex.new
+    else
+      @redis_mutex = nil
+    end
   end
   
   #
@@ -70,6 +75,50 @@ class ClusterMember
     Backburner.configuration.logger
   end
   
+  #
+  # Submit job to beanstalk queue
+  #
+  # Mandatory (symbolized) keys in args:
+  #
+  # 1. :job arbritary job data, must be a hash but can contatined nested data
+  #
+  # Optional keys in args:
+  #
+  def submit_job (args)
+    if @redis_mutex.nil?
+      rv = _submit_job(args)
+    else
+      @redis_mutex.synchronize {
+        rv = _submit_job(args)
+      }
+    end
+    rv
+  end
+
+  def get_next_job_id
+    (@redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+  end
+
+  def _submit_job (args)
+    job      = args[:job]
+    tube     = args[:tube] || $args[:program_name]
+    raise 'missing job argument' unless args[:job]
+
+    validity = args[:validity] || 180
+    ttr      = args[:ttr]      || 60
+    job[:id] ||= get_next_job_id
+    job[:tube] = tube
+    job[:validity] = validity
+    redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
+    @redis.pipelined do
+      @redis.hset(redis_key, 'status', '{"status":"queued"}')
+      @redis.expire(redis_key, validity)
+    end
+    @beaneater ||= Beaneater.new "#{@config[:beanstalkd][:host]}:#{@config[:beanstalkd][:port]}"
+    @beaneater.tubes[tube].put job.to_json, ttr: ttr
+    "#{tube}:#{job[:id]}"
+  end
+
   #
   # Creates the global structure that contains the cluster configuration
   #
