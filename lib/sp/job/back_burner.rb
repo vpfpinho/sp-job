@@ -30,7 +30,7 @@ require 'thread'
 #
 class ClusterMember
 
-  attr_reader :redis     # connection to cluster redis
+  attr_reader :redis     # connection to cluster redis #TODO check usage and thread safety
   attr_reader :session   # access to redis session
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
@@ -95,28 +95,15 @@ class ClusterMember
     rv
   end
 
-  def get_next_job_id
-    (@redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
-  end
-
-  def _submit_job (args)
-    job      = args[:job]
-    tube     = args[:tube] || $args[:program_name]
-    raise 'missing job argument' unless args[:job]
-
-    validity = args[:validity] || 180
-    ttr      = args[:ttr]      || 60
-    job[:id] ||= get_next_job_id
-    job[:tube] = tube
-    job[:validity] = validity
-    redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
-    @redis.pipelined do
-      @redis.hset(redis_key, 'status', '{"status":"queued"}')
-      @redis.expire(redis_key, validity)
+  def get_next_job_id ()
+    if @redis_mutex.nil?
+      rv = _get_next_job_id()
+    else
+      @redis_mutex.synchronize {
+        rv = _get_next_job_id()
+      }
     end
-    @beaneater ||= Beaneater.new "#{@config[:beanstalkd][:host]}:#{@config[:beanstalkd][:port]}"
-    @beaneater.tubes[tube].put job.to_json, ttr: ttr
-    "#{tube}:#{job[:id]}"
+    rv
   end
 
   #
@@ -150,6 +137,33 @@ class ClusterMember
       logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
     end
   end
+
+  protected
+
+  def _get_next_job_id
+    (@redis.incr "#{$config[:service_id]}:jobs:sequential_id").to_s
+  end
+
+  def _submit_job (args)
+    job      = args[:job]
+    tube     = args[:tube] || $args[:program_name]
+    raise 'missing job argument' unless args[:job]
+
+    validity = args[:validity] || 180
+    ttr      = args[:ttr]      || 60
+    job[:id] ||= _get_next_job_id
+    job[:tube] = tube
+    job[:validity] = validity
+    redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
+    @redis.pipelined do
+      @redis.hset(redis_key, 'status', '{"status":"queued"}')
+      @redis.expire(redis_key, validity)
+    end
+    @beaneater ||= Beaneater.new "#{@config[:beanstalkd][:host]}:#{@config[:beanstalkd][:port]}"
+    @beaneater.tubes[tube].put job.to_json, ttr: ttr
+    "#{tube}:#{job[:id]}"
+  end
+
 
 end
 
@@ -639,6 +653,7 @@ Backburner.configure do |config|
     "[#{date_format}]#{thread_info}#{severity}: #{msg}\n"
   end
 
+  if ERUBY
   $stdout = config.logger
   $stderr = config.logger
 
