@@ -653,9 +653,10 @@ Backburner.configure do |config|
     "[#{date_format}]#{thread_info}#{severity}: #{msg}\n"
   end
 
-  if ERUBY
-  $stdout = config.logger
-  $stderr = config.logger
+  if 'jruby' == RUBY_ENGINE
+    $stdout = config.logger
+    $stderr = config.logger
+  end
 
   logger.info "Log file ...... #{$args[:log_file]}"
   logger.info "PID ........... #{Process.pid}"
