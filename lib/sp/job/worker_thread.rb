@@ -19,6 +19,9 @@
 #
 # encoding: utf-8
 #
+
+require 'java'
+
 module SP
   module Job
 
@@ -55,6 +58,12 @@ module SP
                 # What to do?
                 logger.info "Thread #{Thread.current} job timeout".yellow
                 Rollbar.warning(jte)
+              rescue java.lang.Throwable => je
+                logger.error "Thread #{Thread.current} caught exception ".red
+                je.backtrace.each_with_index do | l, i |
+                  logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
+                end
+                Rollbar.error(e)
               rescue => e
                 Rollbar.error(e)
               end
