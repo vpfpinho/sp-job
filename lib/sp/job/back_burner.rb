@@ -610,21 +610,28 @@ Backburner.configure do |config|
     # Report exception to rollbar
     $roolbar_mutex.synchronize {
       if $rollbar
-        extra_params = {}
-        if e.instance_of? ::SP::Job::JobException
-          e.job[:password] = '<redacted>'
-          extra_params.merge!({ job: e.job, args: e.args}) if e.job
-          Rollbar.error(e, e.message, extra_params)
-        elsif e.is_a?(::SP::Job::JSONAPI::Error)
-          extra_params.merge!({ job: td.current_job }) if td && td.current_job
-          Rollbar.error(e, e.body, extra_params)
-        elsif e.is_a?(::SP::Job::EasyHttpClient::Error)
-          extra_params.merge!({ job: td.current_job }) if td && td.current_job
-          Rollbar.error(e, e.status, extra_params)
-        else
-          extra_params.merge!({ job: td.current_job }) if td && td.current_job
-          Rollbar.error(e, e.message, extra_params)
-        end
+        begin
+          extra_params = {}
+          if e.instance_of? ::SP::Job::JobException
+            e.job[:password] = '<redacted>'
+            extra_params.merge!({ job: e.job, args: e.args}) if e.job
+            Rollbar.error(e, e.message, extra_params)
+          elsif e.is_a?(::SP::Job::JSONAPI::Error)
+            extra_params.merge!({ job: td.current_job }) if td && td.current_job
+            Rollbar.error(e, e.body, extra_params)
+          elsif e.is_a?(::SP::Job::EasyHttpClient::Error)
+            extra_params.merge!({ job: td.current_job }) if td && td.current_job
+            Rollbar.error(e, e.status, extra_params)
+          else
+            extra_params.merge!({ job: td.current_job }) if td && td.current_job
+            Rollbar.error(e, e.message, extra_params)
+          end
+        rescue => e
+          logger.error "Unable to call Rollbar.error: #{e}"
+          e.backtrace.each_with_index do | l, i |
+            logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
+          end
+       end
       end
     }
 
