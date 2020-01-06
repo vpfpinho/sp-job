@@ -227,6 +227,37 @@ module SP
         Backburner.configuration.logger
       end
 
+      def send_to_rollbar(exception:, level: :error)
+        td = thread_data
+        # Report exception to rollbar
+        $roolbar_mutex.synchronize {
+          if $rollbar
+            begin
+              extra_params = {}
+              if exception.instance_of? ::SP::Job::JobException
+                exception.job[:password] = '<redacted>'
+                extra_params.merge!({ job: exception.job, args: exception.args}) if exception.job
+                Rollbar.send(level, exception, exception.message, extra_params)
+              elsif exception.is_a?(::SP::Job::JSONAPI::Error)
+                extra_params.merge!({ job: td.current_job }) if td && td.current_job
+                Rollbar.send(level, exception, exception.body, extra_params)
+              elsif exception.is_a?(::SP::Job::EasyHttpClient::Error)
+                extra_params.merge!({ job: td.current_job }) if td && td.current_job
+                Rollbar.send(level, exception, exception.status, extra_params)
+              else
+                extra_params.merge!({ job: td.current_job }) if td && td.current_job
+                Rollbar.send(level, exception, exception.message, extra_params)
+              end
+            rescue => e
+              logger.error "Unable to call Rollbar.error: #{e}"
+              e.backtrace.each_with_index do | l, i |
+                logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
+              end
+          end
+          end
+        }
+      end
+
 
       #
       # Retrieve a previously uploaded public ( company or user ) file .
