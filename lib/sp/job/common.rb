@@ -45,7 +45,7 @@ module SP
       # These are default per tube options 'tube classes' can overide tube_options() to merge with these values
       #
       def default_tube_options
-        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false }
+        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false, simpleapi: true }
       end
 
       def prepend_platform_configuration (job)
@@ -554,6 +554,9 @@ module SP
         else
           td.tube_options = default_tube_options
         end
+        if td.tube_options[:simpleapi]
+          td.tube_options[:transient] = true
+        end
 
         td.report_time_stamp    = 0
         td.exception_reported   = false
@@ -706,8 +709,8 @@ module SP
         args[:response]     ||= {}
         args[:status_code]  ||= 200
 
-        is_raw_response = td.tube_options[:raw_response]
-        if is_raw_response && td.tube_options[:transient] == true || args[:force_raw_response]
+        is_raw_response = td.tube_options[:simpleapi] || td.tube_options[:raw_response]
+        if is_raw_response
           response = '*'
           response << args[:status_code].to_s
           response << ','
@@ -843,11 +846,16 @@ module SP
         args[:action]       ||= 'response'
         args[:content_type] ||= 'application/json'
         args[:status_code]  ||= 500
-        update_progress(args)
         logger.error(args)
+        if td.tube_options[:simpleapi]
+          args[:response] = { error: args[:message] }
+          send_response(args)
+        else
+          update_progress(args)
+          signal_job_termination(td)
+          td.job_id = nil
+        end
         td.exception_reported = true
-        signal_job_termination(td)
-        td.job_id = nil
       end
 
       #

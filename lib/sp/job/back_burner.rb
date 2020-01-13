@@ -607,7 +607,11 @@ Backburner.configure do |config|
             elsif e.is_a?(::SP::Job::EasyHttpClient::Error)
               raise_error(message: e.status, status_code: e.code)
             else
-              raise_error(message: 'i18n_unexpected_server_error')
+              if td.tube_options[:simpleapi]
+                raise_error(message: e.message)
+              else
+                raise_error(message: 'i18n_unexpected_server_error')
+              end
             end
           end
         rescue
