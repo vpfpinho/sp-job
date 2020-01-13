@@ -848,7 +848,7 @@ module SP
         args[:status_code]  ||= 500
         logger.error(args)
         if td.tube_options[:simpleapi]
-          args[:response] = { error: args[:message] }
+          args[:response] ||= { error: args[:message] }
           send_response(args)
         else
           update_progress(args)
