@@ -45,7 +45,7 @@ module SP
       # These are default per tube options 'tube classes' can overide tube_options() to merge with these values
       #
       def default_tube_options
-        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false, simpleapi: true }
+        { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false, simpleapi: false }
       end
 
       def prepend_platform_configuration (job)
