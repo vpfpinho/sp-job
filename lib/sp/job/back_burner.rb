@@ -521,13 +521,6 @@ else
   $config[:options] = {}
 end
 
-if $config.has_key?(:paths) && $config[:paths].has_key?(:private_key)
-  key_name = $config[:nginx_broker][:private_key] if $config[:nginx_broker].has_key?(:private_key)
-  key_name ||= 'nginx-broker'
-
-  $config[:nginx_broker_private_key] = "#{$config[:paths][:private_key]}/#{key_name}"
-end
-
 #
 # Sanity check we only support multithreading on JRUBY
 #

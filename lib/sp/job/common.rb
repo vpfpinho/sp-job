@@ -1306,7 +1306,7 @@ module SP
         payload[:documents]      ||= []
 
         jwt = JWTHelper.jobify(
-          key: config[:nginx_broker_private_key], "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}"
+          key: "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}",
           tube: 'casper-print-queue',
           payload: payload
         )
