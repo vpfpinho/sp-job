@@ -185,6 +185,29 @@ module SP
           end
           r.expire(key, timeleft)
         end
+      end      
+      
+      #
+      # Cross patch, creates a new token on the current cluster by patching a source token from another cluster
+      #
+      # @param source session handler from which the original token is read
+      # @param token id of the original token on the source cluster
+      # @param patch symbolicated hash that is fused into source cluster
+      # @return fresh pait of access_token and refresh_token
+      #
+      def x_patch (source:, token:, patch:)
+        session = source.get(token: token)
+        refresh_token = session[:refresh_token]
+        patch.each do |key, value|
+          if value.nil?
+            session.delete(key)
+          else
+            session[key] = value
+          end
+        end
+        at, rt = create(patch: session, with_refresh: refresh_token != nil)
+        source.dispose(token: token, refresh_token: refresh_token)
+        return at,rt
       end
 
       #
@@ -203,6 +226,7 @@ module SP
         return rv
       end
 
+            
       protected
 
       def create_token (session:, refresh_token: false)
