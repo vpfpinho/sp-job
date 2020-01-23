@@ -19,13 +19,14 @@ module SP
         attr_reader :id
         attr_reader :status
         attr_reader :result
+        attr_reader :message
 
         def initialize(result, nested = $!)
           @result = result
           errors = get_result_errors()
           @status = (errors.map { |error| error[:status].to_i }.max) || 403
-          message = errors.first[:detail]
-          super(message, nested)
+          @message = errors.first[:detail]
+          super(@message, nested)
         end
 
         def internal_error
@@ -41,6 +42,10 @@ module SP
           description = super()
           description = description + " (#{internal_error})" if internal_error
           description
+        end
+
+        def to_s
+          @message
         end
 
         private
