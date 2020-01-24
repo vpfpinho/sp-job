@@ -372,6 +372,8 @@ module SP
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
 
+        final_file = final_file.gsub(/&|\?/,'_')
+
         url = config[:urls][:archive_internal]
         # returning 'normalized' response
         ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
