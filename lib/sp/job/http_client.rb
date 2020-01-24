@@ -238,7 +238,7 @@ module SP
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/text'
             },
-            body: '<insert PUT body here>',
+            body: '<insert PUT body here>ÇÉÈ€',
             expect: {
                 code: 200,
                 content: {
@@ -255,7 +255,7 @@ module SP
               'Accept' => 'application/json',
               'Content-Type' => 'application/text'
             },
-            body: '<insert PATCH body here>',
+            body: '<insert PATCH body here>ÇÉÈ€',
             expect: {
               code: 200,
               content: {

@@ -36,7 +36,7 @@ module Curl
         yield c if block_given?
         body = args.shift
         if nil != body
-          c.headers["Content-Length"] = body.length
+          c.headers["Content-Length"] = body.bytesize
           c.put_data = body
         end
         c.http(:PATCH)
@@ -281,7 +281,7 @@ module SP
           r = Curl::Easy.new
           r.url = url
           if nil != body
-            r.headers["Content-Length"] = body.length
+            r.headers["Content-Length"] = body.bytesize
             r.put_data = body
           end
           set_handle_properties(handle: r, headers: headers, conn_options: conn_options)

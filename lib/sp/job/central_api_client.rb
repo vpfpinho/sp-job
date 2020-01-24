@@ -85,7 +85,7 @@ module SP
         case response[:code]
         when 200
           return JSON.parse(response[:body], :symbolize_names => true)
-        when 204
+        when 201,204
           return true
         else
           begin
