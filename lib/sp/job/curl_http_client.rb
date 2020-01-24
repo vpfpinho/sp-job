@@ -397,13 +397,13 @@ module SP
             type: nil,
             length: 0
           }
-         }
+        }
         http_headers.each do |header|
-          m = header.match("(^Content-Type){1}:\s(.*){1}")
+          m =header.match(/(^Content-Type){1}:\s(.*){1}/i)
           if nil != m && 3 == m.length
             o[:content][:type] = m[2]
           end
-          m = header.match("(^Content-Length){1}:\s\([0-9]+){1}")
+          m = header.match(/(^Content-Length){1}:\s([0-9]+){1}/i)
           if nil != m && 3 == m.length
             o[:content][:length] = m[2].to_i
           end

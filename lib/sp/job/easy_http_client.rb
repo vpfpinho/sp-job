@@ -333,8 +333,9 @@ module SP
         if nil != expect[:content] && 204 != response[:code]
           if response[:content][:type] != expect[:content][:type]
             raise EasyHttpClient::Error.new(method: method, url: url, code: 500,
-                    detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!",
-                    response: response
+                                            message: '',
+                                            detail: "Unexpected 'Content-Type': #{response[:content][:type]}, expected #{expect[:content][:type]}!",
+                                            response: response
             )
           end
         end
