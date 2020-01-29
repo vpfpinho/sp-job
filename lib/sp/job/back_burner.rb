@@ -500,13 +500,17 @@ end
 # Check if the job runs on specifc machine or a on cluster member, if runs_on is empty we must be running 
 # on a cluster member i.e. cluser: members: [$config[:runs_on_cluster]]
 #
-runs_on   = $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
-runs_on ||= $config[:project] != nil && $config[:project][:id] != 'cdb'
-runs_on ||= ''
+if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on] 
+  runs_on   = $config[:jobs][$args[:program_name].to_sym][:runs_on]
+elsif config[:project] != nil && $config[:project][:id]
+  runs_on = $config[:project][:id]
+else
+  runs_on = nil
+end
 
-if runs_on != ''
+unless runs_on.nil?
   # We are on specific machine like cdb, fs etc
-  $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
+  $cluster_config = $config[:cluster][runs_on.to_sym]
 else
   # We are on member (usually an application (web) server) 
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
