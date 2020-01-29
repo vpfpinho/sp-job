@@ -35,14 +35,11 @@ module SP
   module Job
     class MailQueue
       extend SP::Job::Common
-      include Backburner::Queue
-      queue 'mail-queue'
-      queue_respond_timeout 30
 
       #
       # One shot code that configures the tube options
       #
-      @@tube_options = config[:jobs][$args[:program_name].to_sym][queue.to_sym]
+      @@tube_options = config[:jobs][$args[:program_name].to_sym][:'mail-queue']
       @@tube_options[:transient] = true
 
       def self.tube_options
