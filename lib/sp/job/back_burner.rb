@@ -488,10 +488,27 @@ extend SP::Job::Common
 #
 $connected     = false
 
-# Unified configuration (now it's always unified)
-if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
+#
+# Make sure the program name has key under jobs
+#
+unless $config[:jobs].key?($args[:program_name].to_sym)
+  puts "Fatal to run a job you must have a config entry jobs: #{$args[:program_name]}:"
+  exit -1
+end
+
+#
+# Check if the job runs on specifc machine or a on cluster member, if runs_on is empty we must be running 
+# on a cluster member i.e. cluser: members: [$config[:runs_on_cluster]]
+#
+runs_on   = $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
+runs_on ||= $config[:project] != nil && $config[:project][:id] != 'cdb'
+runs_on ||= ''
+
+if runs_on != ''
+  # We are on specific machine like cdb, fs etc
   $cluster_config = $config[:cluster][$config[:jobs][$args[:program_name].to_sym][:runs_on].to_sym]
 else
+  # We are on member (usually an application (web) server) 
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
 end
 
@@ -626,8 +643,8 @@ Backburner.configure do |config|
   end
 
   logger.info "Log file ...... #{$args[:log_file]}"
+  logger.info "Config file ... #{File.expand_path($args[:config_file])}"
   logger.info "PID ........... #{Process.pid}"
-
 
   if $args[:log_level].nil?
     config.logger.level = Logger::INFO
@@ -658,8 +675,12 @@ Backburner.configure do |config|
   }
 end
 
+if runs_on != ''
+  logger.info "JOB running on #{runs_on}"
+end
+
 unless $cluster_config.nil? || $cluster_config[:db].nil?
-  logger.info "DB .... #{$cluster_config[:db][:host]}:#{$cluster_config[:db][:port]}(#{$cluster_config[:db][:dbname]})"
+  logger.info "DB ............ #{$cluster_config[:db][:host]}:#{$cluster_config[:db][:port]}(#{$cluster_config[:db][:dbname]})"
 end
 
 #
@@ -667,7 +688,7 @@ end
 # Only connect directly to the CDB if not running on the CDB project the cluster has a CDB DB connection information
 #
 $cdb = nil
-if $config[:project] != nil && $config[:project][:id] != 'cdb' && config[:cluster][:cdb].instance_of?(Hash)
+if runs_on == '' && config[:cluster][:cdb].instance_of?(Hash) && config[:cluster][:members].instance_of?(Array)
   config[:cluster][:cdb][:conn_str] = pg_conn_str(config[:cluster][:cdb])
   $cdb = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:cdb], multithreaded: $multithreading)
   logger.info "Central DB .... #{$cdb.config[:host]}:#{$cdb.config[:port]}(#{$cdb.config[:dbname]})"
