@@ -530,7 +530,7 @@ if $cluster_config[:db]
   end
 end
 
- $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
+$beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
 
 #
 # Configure rollbar
@@ -658,19 +658,27 @@ Backburner.configure do |config|
   }
 end
 
-# Check if the user DB is on a different database
-if config[:cluster]
-  if config[:cluster][:cdb].instance_of? Hash
-    config[:cluster][:cdb][:conn_str] = pg_conn_str(config[:cluster][:cdb])
-    $cdb = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:cdb], multithreaded: $multithreading)
-    logger.info "Central DB .... #{$cdb.config[:host]}:#{$cdb.config[:port]}(#{$cdb.config[:dbname]})"
-  else
-    $cdb = nil # Will be grabbed from $cluster_members
-    logger.info "Central DB .... embedded in cluster #{config[:cluster][:cdb]}"
-  end
+unless $cluster_config.nil? || $cluster_config[:db].nil?
+  logger.info "DB .... #{$cluster_config[:db][:host]}:#{$cluster_config[:db][:port]}(#{$cluster_config[:db][:dbname]})"
 end
 
-$excluded_members = $config[:cluster].nil? || $config[:cluster][:members].nil? ? [] : ( $config[:cluster][:members].map {|m| m[:number] if m[:exclude_member] }.compact )
+#
+# Direct connection to the CDB is LEGACY!!! 
+# Only connect directly to the CDB if not running on the CDB project the cluster has a CDB DB connection information
+#
+$cdb = nil
+if $config[:project] != nil && $config[:project][:id] != 'cdb' && config[:cluster][:cdb].instance_of?(Hash)
+  config[:cluster][:cdb][:conn_str] = pg_conn_str(config[:cluster][:cdb])
+  $cdb = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:cdb], multithreaded: $multithreading)
+  logger.info "Central DB .... #{$cdb.config[:host]}:#{$cdb.config[:port]}(#{$cdb.config[:dbname]})"
+end
+
+$excluded_members = []
+unless $config[:cluster].nil? || $config[:cluster][:members].nil? || $config[:cluster][:members].instance_of?(Array) == false
+  $config[:cluster][:members].each do |member|
+    $excluded_members << member[:number] if member[:exclude_member]
+  end
+end
 
 #
 # Global data for mutex and sync
