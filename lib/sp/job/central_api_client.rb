@@ -56,32 +56,38 @@ module SP
       end
 
       def head(path)
-        return __parse(super(url: @url + path, headers: @headers))
+        url = @url + path
+        return __parse(method: 'head', url: url, response: super(url: url, headers: @headers))
       end
 
       def get(path)
-        return __parse(super(url: @url + path, headers: @headers))
+        url = @url + path
+        return __parse(method: 'get', url: url, response: super(url: url, headers: @headers))
       end
 
       def post(path, body)
-        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        url = @url + path
+        return __parse(method: 'post', url: url, response: super(url: url, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def put(path, body)
-        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        url = @url + path
+        return __parse(method: 'put', url: url, response: super(url: url, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def patch(path, body)
-        return __parse(super(url: @url + path, body: body.to_json, headers: @headers, expect: nil))
+        url = @url + path
+        return __parse(method: 'patch', url: url, response: super(url: url, body: body.to_json, headers: @headers, expect: nil))
       end
 
       def delete(path)
-        return __parse(super(url: @url + path, headers: @headers, expect: nil))
+        url = @url + path
+        return __parse(method: 'delete', url: url, response: super(url: url, headers: @headers, expect: nil))
       end
 
       private
 
-      def __parse(response)
+      def __parse(method:, url:, response:)
         case response[:code]
         when 200
           return JSON.parse(response[:body], :symbolize_names => true)
@@ -93,7 +99,9 @@ module SP
           rescue => e
             error = 'Unknown error'
           end
-          raise SP::Job::HttpClient::StandardError.new(code: response[:code], message: error)
+          raise SP::Job::HttpClient::Error.new(method: method, url: url, code: response[:code], message: error,
+            detail: nil, object: nil, response: response
+          )
         end
       end
 
