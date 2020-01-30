@@ -1069,6 +1069,21 @@ module SP
 
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{diff_email_addresses.join(', ')}" if diff_email_addresses.length > 0
 
+          resolver = Dnsruby::DNS.new
+
+          mx_not_found = []
+
+          valid_email_addresses.each do |email|
+            begin
+              domain = Mail::Address.new(email).domain
+              resolver.each_resource(domain, 'MX') {}
+            rescue Dnsruby::NXDomain => e
+              mx_not_found << email
+            end
+          end
+
+          raise ::Exception.new "Os seguintes endereços de email não são válidos: #{mx_not_found.join(', ')}" if mx_not_found.length > 0
+
           return { valid: true }
         rescue ::Exception => e
           return {

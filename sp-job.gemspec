@@ -43,6 +43,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'awesome_print'
   spec.add_dependency 'rollbar'
   spec.add_dependency 'roadie'
+  spec.add_dependency 'dnsruby', '~> 1.61', '>= 1.61.3'
 
   spec.add_development_dependency 'ruby-debug'    if     RUBY_ENGINE == 'jruby'
   spec.add_development_dependency 'byebug'        unless RUBY_ENGINE == 'jruby'
