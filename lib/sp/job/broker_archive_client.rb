@@ -182,6 +182,26 @@ module SP
             @owner =  owner
         end
 
+        # Reset a 'archive' module client.
+        #
+        # @param job     [REQUIRED] At least must contain entity_id, user_id, role_mask and module_mask attributes.
+        # @param headers [OPTIONAL] Extra headers.
+        #
+        def reset(job:, headers: nil)
+            @headers = headers || {}
+            x_casper_values = {
+                entity_id:   job[:entity_id],
+                user_id:     job[:user_id],
+                role_mask:   job[:role_mask],
+                module_mask: job[:module_mask],
+            }
+            x_casper_values.each do | k, v |
+                if nil !=  v
+                    @headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
+                end
+            end
+        end
+
         #
         # Retrieve an existing archive.
         #
