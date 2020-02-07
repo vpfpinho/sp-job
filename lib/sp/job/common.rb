@@ -221,6 +221,19 @@ module SP
       end
 
       #
+      # Ensure there is only one BrokerArchiveClient per thread
+      #
+      def broker_archive_client
+        td = thread_data
+        if td.broker_archive_client.nil?
+          td.broker_archive_client = ::SP::Job::BrokerArchiveClient.new(owner: self.name(), url: config[:urls][:archive_internal], job: nil)
+        else
+          td.broker_archive_client.reset(owner: self.name(), job: td.current_job)
+        end
+        td.broker_archive_client
+      end
+
+      #
       # returns the logger object that job code must use for logging
       #
       def logger
@@ -334,22 +347,22 @@ module SP
           raise 'missing argument user_id/company_id' if user_id.nil? && company_id.nil?
         end
 
-        url = config[:urls][:archive_internal]
-
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {},
-            headers: {
-              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s
-            }
-          ).create(entity: entity,
-                   billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
-                    permissions: access.to_s,
-                    uri: src_file,
-                    content_type: content_type.to_s,
-                    filename: file_name
-          )
+        broker_archive_client.reset(
+          owner: thread_data.job_tube,
+          job: {},
+          headers: {
+            'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+            'X-CASPER-BILLING-ID' => billing_id.to_s
+          }
+        ).create(
+          entity: entity,
+          billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+          permissions: access.to_s,
+          uri: src_file,
+          content_type: content_type.to_s,
+          filename: file_name
+        )
       end
 
       #
@@ -374,20 +387,21 @@ module SP
 
         final_file = final_file.gsub(/&|\?/,'_')
 
-        url = config[:urls][:archive_internal]
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {},
-            headers: {
-              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s
-            }
-        ).move(entity: entity,
-                billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
-                permissions: access.to_s,
-                uri: tmp_file.to_s,
-                content_type: content_type.to_s,
-                filename: final_file
+        broker_archive_client.reset(
+          owner: thread_data.job_tube,
+          job: {},
+          headers: {
+            'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+            'X-CASPER-BILLING-ID' => billing_id.to_s
+          }
+        ).move(
+          entity: entity,
+          billing: ::SP::Job::BrokerArchiveClient::Billing.new(id: billing_id, type: billing_type),
+          permissions: access.to_s,
+          uri: tmp_file.to_s,
+          content_type: content_type.to_s,
+          filename: final_file
         )
 
       end
@@ -405,20 +419,19 @@ module SP
 
         raise 'missing file_identifier' if file_identifier.nil?
 
-        url = config[:urls][:archive_internal]
-
         # returning 'normalized' response
-        ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
-            job: {
-              entity_id: entity_id.to_s,
-              user_id: user_id.to_s,
-              role_mask: role_mask.to_s,
-              module_mask: module_mask.to_s
-            },
-            headers: {
-              'X-CASPER-BILLING-TYPE' => billing_type.to_s,
-              'X-CASPER-BILLING-ID' => billing_id.to_s
-            }
+        broker_archive_client.reset(
+          owner: thread_data.job_tube,
+          job: {
+            entity_id: entity_id.to_s,
+            user_id: user_id.to_s,
+            role_mask: role_mask.to_s,
+            module_mask: module_mask.to_s
+          },
+          headers: {
+            'X-CASPER-BILLING-TYPE' => billing_type.to_s,
+            'X-CASPER-BILLING-ID' => billing_id.to_s
+          }
         ).delete(id: file_identifier)
 
       end
@@ -433,14 +446,13 @@ module SP
       # @param module_mask
       #
       # NOTE: Only works with files that are not binary
-      def get_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:, to_file:false)
+      def get_from_file_server (file_identifier:, user_id:, entity_id:, role_mask:, module_mask:, to_file: false, destination: nil)
 
         raise 'missing file_identifier' if file_identifier.nil?
 
-        url = config[:urls][:archive_internal]
-
         # returning 'normalized' response
-        broker = ::SP::Job::BrokerArchiveClient.new(owner: thread_data.job_tube, url: url,
+        broker_archive_client.reset(
+          owner: thread_data.job_tube,
           job: {
             entity_id: entity_id.to_s,
             user_id: user_id.to_s,
@@ -449,9 +461,9 @@ module SP
           }
         )
         if to_file
-          broker.get_to_file(id: file_identifier)
+          broker_archive_client.get_to_file(id: file_identifier, uri: destination)
         else
-          broker.get(id: file_identifier)
+          broker_archive_client.get(id: file_identifier)
         end
       end
 

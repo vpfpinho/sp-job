@@ -53,7 +53,8 @@ module SP
         @client = HttpClient.get_klass.new
       end
 
-      def reset(headers:, mandatory_headers:)
+      def reset(owner: nil, headers:, mandatory_headers:)
+        @owner   = owner if owner
         @headers = {
           'User-Agent' => "#{HttpClient.get_klass.name()}/#{@owner || 'unknown'}"
         }.merge(headers)
