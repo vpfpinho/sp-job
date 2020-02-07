@@ -186,7 +186,7 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options, :job_data, :cdb_api, :vault_api, :index, :cdn_sideline)
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options, :job_data, :cdb_api, :vault_api, :index, :cdn_sideline, :broker_archive_client)
       def initialize
         self.job_status = {}
         self.job_data = {}

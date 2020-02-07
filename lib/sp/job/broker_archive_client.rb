@@ -165,7 +165,23 @@ module SP
         # @param headers [OPTIONAL] Extra headers. - TMP until nginx-broker ( fs ) 0.2.xx is not released - TODO
         #
         def initialize(owner:, url:, job:, headers: nil)
-            @url = url
+            @url   = url
+            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {}, mandatory_headers: {})
+            if !job.nil?
+                reset(owner: owner, job: job, headers: headers)
+            else
+                @headers = headers || {}
+                @owner =  owner
+            end
+        end
+
+        # Reset a 'archive' module client.
+        #
+        # @param job     [REQUIRED] At least must contain entity_id, user_id, role_mask and module_mask attributes.
+        # @param headers [OPTIONAL] Extra headers.
+        #
+        def reset(owner:, job:, headers: nil)
+            @owner =  owner
             @headers = headers || {}
             x_casper_values = {
                 entity_id:   job[:entity_id],
@@ -178,8 +194,8 @@ module SP
                     @headers["X-CASPER-#{k.to_s.gsub('_', '-').upcase}"] = v
                 end
             end
-            @http  = ::SP::Job::HttpClient.new(owner: owner, headers: {}, mandatory_headers: {})
-            @owner =  owner
+            @http.reset(owner: owner, headers: {}, mandatory_headers: {})
+            return self
         end
 
         #
@@ -203,9 +219,14 @@ module SP
         #
         # @return tmp file path
         #
-        def get_to_file(id:)
+        def get_to_file(id:, uri: nil)
             # make request
-            tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+            if uri.nil?
+                tmp_file_uri = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", 'dl')
+            else
+                tmp_file_uri = uri
+            end
+
             @http.get_to_file(url: "#{@url}/#{id}", headers: make_request_headers(), to: tmp_file_uri)
             return tmp_file_uri
         end
