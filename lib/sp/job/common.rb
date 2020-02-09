@@ -226,9 +226,9 @@ module SP
       def broker_archive_client
         td = thread_data
         if td.broker_archive_client.nil?
-          td.broker_archive_client = ::SP::Job::BrokerArchiveClient.new(owner: self.name(), url: config[:urls][:archive_internal], job: nil)
+          td.broker_archive_client = ::SP::Job::BrokerArchiveClient.new(owner: td.job_tube, url: config[:urls][:archive_internal], job: nil)
         else
-          td.broker_archive_client.reset(owner: self.name(), job: td.current_job)
+          td.broker_archive_client.reset(owner: td.job_tube, job: td.current_job)
         end
         td.broker_archive_client
       end
