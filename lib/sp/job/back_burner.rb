@@ -77,7 +77,7 @@ class ClusterMember
   # @param siteFilter if false configure the clusters of all sites, if true configure only the clusters on this site
   # @param noDatabase if true nils the db object, it will crash if someone tries to use the cluster 'db' object
   #
-  def self.configure_cluster(serviceId: nil, siteFilter: true, noDatabase: false)
+  def self.configure_cluster(serviceId: nil, siteFilter: false, noDatabase: false)
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
