@@ -292,9 +292,13 @@ module SP
       #
       # @return When tmp_dir is set file URI otherwise file body.
       #
-      def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil)
+      def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil, hostname: nil)
 
-        upl_int_tmp_uri = URI.parse(config[:urls][:upload_internal_tmp])
+        if hostname.nil?
+          upl_int_tmp_uri = URI.parse(config[:urls][:upload_internal_tmp])
+        else
+          upl_int_tmp_uri = URI.parse(config[:cluster][:'file-servers'][hostname.to_sym])
+        end
 
         if alt_path.nil?
           path = upl_int_tmp_uri.path[1..-1]
