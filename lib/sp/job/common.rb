@@ -1003,6 +1003,28 @@ module SP
         redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
       end
 
+      def publish_notification(options = {}, publish_object)
+
+        options = {
+          service: "toconline",
+          type: 'notifications'
+        }.merge(options)
+
+        if options[:redis]
+          redis_client = options[:redis]
+        else
+          redis_client = $redis
+        end
+
+        redis_key = {
+          key: [options[:service], options[:type], options[:entity], options[:entity_id]].join(":"),
+          public_key: [options[:service], options[:entity], options[:entity_id]].join(":")
+        }
+
+        redis_client.publish redis_key[:public_key], "#{publish_object.to_json}"
+
+      end
+
       def manage_notification(options = {}, notification = {})
 
         options = {
