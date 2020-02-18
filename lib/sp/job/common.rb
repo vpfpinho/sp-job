@@ -824,6 +824,8 @@ module SP
 
       def after_perform_lock_cleanup (*args)
         disconnect_db_connections
+        # In case the job missed a send_response... clear the job_id to mark this job as completed! (Otherwise, process reloading will NOT work)
+        thread_data.job_id = nil
         check_gracefull_exit(dolog: true)
       end
 
