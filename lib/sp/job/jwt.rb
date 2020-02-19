@@ -64,19 +64,14 @@ module SP
       end
 
       # Submit a jwt for a job
-      def self.submit (url:, jwt:)
+      def self.submit (url:, jwt:, expect: { code: 200, content: { type: 'application/json' }})
         response = HttpClient.get_klass.post(
           url: url,
           headers: {
             'Content-Type' => 'application/text'
           },
           body: jwt,
-          expect: {
-            code: 200,
-            content: {
-              type: 'application/json'
-            }
-          }
+          expect: expect
         )
         response
       end
