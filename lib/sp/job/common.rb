@@ -1008,7 +1008,7 @@ module SP
       def publish_notification(options = {}, publish_object)
 
         options = {
-          service: "toconline",
+          service: config[:service_id],
           type: 'notifications'
         }.merge(options)
 
@@ -1028,9 +1028,8 @@ module SP
       end
 
       def manage_notification(options = {}, notification = {})
-
         options = {
-          service: "toconline",
+          service: config[:service_id],
           type: 'notifications',
           action: :new
         }.merge(options)
