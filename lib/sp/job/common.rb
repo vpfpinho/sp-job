@@ -835,6 +835,17 @@ module SP
           $thread_data.each do |thread, thread_data|
             unless thread_data.job_id.nil?
               jobs += 1
+              begin
+                if dolog
+                  logger.info 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
+                  logger.info thread_data.to_json
+                else
+                  puts 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
+                  puts thread_data.to_json
+                end
+              rescue => e
+                logger.info e
+              end
             end
           end
           if jobs == 0
