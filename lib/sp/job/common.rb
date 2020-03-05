@@ -1016,7 +1016,7 @@ module SP
         redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
       end
 
-      def publish_notification(options = {}, publish_object)
+      def publish_notification(publish_object, options = {})
 
         options = {
           service: config[:service_id],
