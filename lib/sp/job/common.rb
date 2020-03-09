@@ -271,6 +271,21 @@ module SP
         }
       end
 
+      #
+      # Rollbar or log a message.
+      #
+      # @param owner     Who owns this object.
+      # @param tube      Tube where error occurred.
+      # @param message Message to log.
+      # @param params  Extra params to log.
+      #
+      def rollbar_and_raise(message:, owner:, tube:, exception:)
+        if $rollbar
+          Rollbar.error("#{owner} // #{tube} // #{message}", exception)
+        end
+        raise exception
+      end
+
 
       #
       # Retrieve a previously uploaded public ( company or user ) file .
@@ -1372,39 +1387,57 @@ module SP
         payload[:auto_printable] ||= false
         payload[:documents]      ||= []
 
-        jwt = JWTHelper.jobify(
-          key: "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}",
-          tube: 'casper-print-queue',
-          payload: payload
-        )
-        tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        begin
+          jwt = JWTHelper.jobify(
+            key: "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}",
+            tube: 'casper-print-queue',
+            payload: payload
+          )
+        rescue => e
+          rollbar_and_raise(message: 'Error creating the JWT', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
+        end
 
-        pdf_response = HttpClient.post_to_file(
-          url: get_cdn_public_url,
-          headers: {
-            'Content-Type' => 'application/text'
-          },
-          body: jwt,
-          expect: {
-            code: 200,
-            content: {
-              type: 'application/pdf'
-            }
-          },
-          conn_options: {
-            connection_timeout: payload[:ttr],
-            request_timeout: payload[:ttr]
-          },
-          to: tmp_file
-        )
+        begin
+          tmp_file = Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".pdf")
+        rescue => e
+          rollbar_and_raise(message: 'Error creating the unique file', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
+        end
 
-        response = send_to_file_server(file_name: file_name,
-                                       src_file: tmp_file,
-                                       content_type: 'application/pdf',
-                                       access: access,
-                                       billing_type: billing_type,
-                                       billing_id: entity_id,
-                                       company_id: entity_id)
+        begin
+          pdf_response = HttpClient.post_to_file(
+            url: get_cdn_public_url,
+            headers: {
+              'Content-Type' => 'application/text'
+            },
+            body: jwt,
+            expect: {
+              code: 200,
+              content: {
+                type: 'application/pdf'
+              }
+            },
+            conn_options: {
+              connection_timeout: payload[:ttr],
+              request_timeout: payload[:ttr]
+            },
+            to: tmp_file
+          )
+        rescue => e
+          rollbar_and_raise(message: 'Error while printing the document', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
+        end
+
+        begin
+          response = send_to_file_server(file_name: file_name,
+                                         src_file: tmp_file,
+                                         content_type: 'application/pdf',
+                                         access: access,
+                                         billing_type: billing_type,
+                                         billing_id: entity_id,
+                                         company_id: entity_id)
+        rescue => e
+          rollbar_and_raise(message: 'Error on archive', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
+        end
+
         response
       end
 
