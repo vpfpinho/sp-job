@@ -75,17 +75,17 @@ module SP
       # @param with_refresh when true the refresh token is also created, when false just access
       # @return access_token or access_token and refresh token
       #
-      def create (patch:, with_refresh: false)
+      def create (patch:, with_refresh: false, duration: nil)
         session = patch.merge(@session_base)
         session[:created_at] = Time.new.iso8601
         if with_refresh
-          refresh_token = create_token(session: session, refresh_token: true)
+          refresh_token = create_token(session: session, refresh_token: true, duration: duration)
           session[:refresh_token] = refresh_token
         else
           session.delete(:refresh_token)
           refresh_token = nil
         end
-        access_token = create_token(session: session)
+        access_token = create_token(session: session, duration: duration)
         return access_token, refresh_token
       end
 
@@ -151,7 +151,7 @@ module SP
       #
       # @note Use null values on the patch to delete keys from the original session
       #
-      def merge (session:, patch:)
+      def merge (session:, patch:, duration: nil)
         refresh_token = session[:refresh_token]
         patch.each do |key, value|
           if value.nil?
@@ -160,7 +160,7 @@ module SP
             session[key] = value
           end
         end
-        return create(patch: session, with_refresh: refresh_token != nil)
+        return create(patch: session, with_refresh: refresh_token != nil, duration: duration)
       end
 
       #
@@ -229,7 +229,7 @@ module SP
             
       protected
 
-      def create_token (session:, refresh_token: false)
+      def create_token (session:, refresh_token: false, duration: nil)
         token = nil
         3.times do
           token = SecureRandom.hex(32)
@@ -245,7 +245,11 @@ module SP
             unless r.exists(key)
               r.pipelined do
                 r.hmset(key, hset)
-                r.expire(key, refresh_token ? @refresh_ttl : @access_ttl)
+                if duration.nil?
+                  r.expire(key, refresh_token ? @refresh_ttl : @access_ttl)
+                else
+                  r.expire(key, duration)
+                end
               end
               return token
             end
