@@ -63,7 +63,7 @@ module SP
                 je.backtrace.each_with_index do | l, i |
                   logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
                 end
-                Rollbar.error(e)
+                Rollbar.error(je)
               rescue => e
                 Rollbar.error(e)
               end
