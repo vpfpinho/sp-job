@@ -47,8 +47,6 @@ class ClusterMember
   #
   def initialize (configuration:, clusterConfiguration:, db: nil, noDatabase: false)
     @redis = Redis.new(:host => clusterConfiguration[:redis][:casper][:host], :port => clusterConfiguration[:redis][:casper][:port], :db => 0)
-    require 'byebug'
-    debugger
     @session = ::SP::Job::Session.new(configuration: configuration, redis: @redis, programName: $args[:program_name])
     if noDatabase
       @db = nil;
