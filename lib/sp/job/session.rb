@@ -31,8 +31,8 @@ module SP
       attr_reader :access_ttl
       attr_reader :refresh_ttl
 
-      def initialize (configuration:, serviceId:, multithread: false, programName:, redis:)
-        @sid           = serviceId
+      def initialize (configuration:, multithread: false, programName:, redis:)
+        @sid           = configuration[:service_id]
         @access_ttl    = configuration[:oauth2][:access_ttl]  || (1 * 3600)  # Duration of the access tokens
         @refresh_ttl   = configuration[:oauth2][:refresh_ttl] || (2 * 3600)  # Duration of the refresh tokens
         @tolerance_ttl = configuration[:oauth2][:deleted_ttl] || 30          # Time a deleted token will remain "alive"
