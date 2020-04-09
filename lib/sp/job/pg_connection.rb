@@ -31,6 +31,7 @@ module SP
       # Public Attributes
       #
       attr_accessor :connection
+      attr_accessor :treshold
       attr_reader :config
 
       #
