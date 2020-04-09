@@ -1166,6 +1166,22 @@ module SP
         email_addresses.split(',').map { |email| email.strip.downcase }.join(', ')
       end
 
+      def archive_email (email_html, entity_id)
+        access = "drw = entity_id == #{entity_id} && (role_mask & #{get_role_mask(['manager','accountant','company_accountant','payroller','transaction_accountant'])});"
+
+        tmp_file = SP::Job::Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".html")
+        File.open(tmp_file, 'wb') { |f| f.write(email_html) }
+
+        response = self.send_to_file_server(file_name: "#{entity_id}_email.html",
+                                            src_file: tmp_file,
+                                            content_type: 'text/html',
+                                            access: access,
+                                            billing_type: 'email',
+                                            billing_id: entity_id.to_i,
+                                            company_id: entity_id.to_i)
+        return response[:id]
+      end
+
       def send_email (args)
 
         if args.has_key?(:body) && args[:body] != nil
@@ -1198,6 +1214,12 @@ module SP
           email_body = args[:body]
         elsif args.has_key?(:template) && args[:template] != nil
           email_body = expand_mail_body args[:template]
+        elsif args.has_key?(:email_id) && args[:email_id] != nil
+          email_body = get_from_file_server(file_identifier: args[:email_id],
+                                            user_id: args[:session][:user_id],
+                                            entity_id: args[:session][:entity_id],
+                                            role_mask: args[:session][:role_mask],
+                                            module_mask: args[:session][:module_mask])
         end
 
         document = Roadie::Document.new email_body

@@ -68,6 +68,7 @@ module SP
           reply_to:     job[:reply_to],
           subject:      job[:subject],
           attachments:  job[:attachments],
+          email_id:     job[:email_id],
           session: {
             user_id: job[:user_id],
             entity_id: job[:entity_id],
