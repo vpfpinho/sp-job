@@ -31,7 +31,6 @@ module SP
       # Public Attributes
       #
       attr_accessor :connection
-      attr_accessor :treshold
       attr_reader :config
 
       #
@@ -76,8 +75,11 @@ module SP
       #
       # Close currenly open database connection.
       #
-      def disconnect ()
+      def disconnect (clear_post_connect_queries: false)
         @mutex.synchronize {
+          if clear_post_connect_queries
+            @config[:post_connect_queries] = nil
+          end
           _disconnect()
         }
       end
@@ -206,6 +208,19 @@ module SP
           end
         }
 
+      end
+
+      #
+      # Call this to add a query to post_connect_queries, and execute it immediately if connected
+      #
+      def add_post_connect_query(query)
+        @mutex.synchronize {
+          if nil != @connection 
+            @connection.exec(query)
+          end
+          @config[:post_connect_queries] ||= Array.new
+          @config[:post_connect_queries].push(query)
+        }
       end
 
       private
