@@ -1463,6 +1463,32 @@ module SP
         response
       end
 
+      def save_json_document (entity_id:, sharded_schema:, type:, key:, document: '{}')
+        json_object = document
+
+        if document.is_a?(Hash)
+          json_object = document.to_json
+        end
+
+        rs = db.exec(%Q[
+          INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document)
+          VALUES ('%<id>s', '%<type>s', %<company_id>d, '%<document>s')
+          RETURNING id, type, company_id
+        ], {
+          sharded_schema: sharded_schema,
+          id: key,
+          type: type,
+          company_id: entity_id,
+          document: json_object
+        })
+
+        if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status) && 1 == rs.ntuples
+          return rs.first
+        end
+
+        return false
+      end
+
       private
 
       def get_random_folder
