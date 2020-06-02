@@ -166,6 +166,17 @@ module SP
         return rv
       end
 
+      #
+      # Check if a token exists
+      #
+      # @param token the token to check
+      #
+      def exists (token) 
+        redis do |r|
+          r.exists("#{@sid}:oauth:access_token:#{token}")
+        end
+      end
+
       protected
 
       def create_token (session:, duration: nil)
