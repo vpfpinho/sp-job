@@ -1471,8 +1471,19 @@ module SP
         end
 
         rs = db.exec(%Q[
+          WITH _jd_upsert AS (
+                UPDATE %<sharded_schema>s.json_documents
+                  SET id = '%<id>s',
+                      type = '%<type>s',
+                      company_id = %<company_id>d,
+                      document = '%<document>s'
+                WHERE id = '%<id>s'
+                  AND type = '%<type>s'
+                  AND company_id = %<company_id>d
+            RETURNING id, type, company_id
+          )
           INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document)
-          VALUES ('%<id>s', '%<type>s', %<company_id>d, '%<document>s')
+          SELECT '%<id>s', '%<type>s', %<company_id>d, '%<document>s' WHERE NOT EXISTS (SELECT * FROM _jd_upsert)
           RETURNING id, type, company_id
         ], {
           sharded_schema: sharded_schema,
@@ -1482,8 +1493,12 @@ module SP
           document: json_object
         })
 
-        if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status) && 1 == rs.ntuples
-          return rs.first
+        if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status)
+          return {
+            id: key,
+            type: type,
+            entity_id: entity_id
+          }
         end
 
         return false
