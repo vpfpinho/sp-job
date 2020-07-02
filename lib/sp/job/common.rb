@@ -1141,8 +1141,13 @@ module SP
           valid_email_addresses.each do |email|
             begin
               domain = Mail::Address.new(email).domain
-              resolver.each_resource(domain, 'MX') {}
-            rescue Dnsruby::NXDomain => e
+              has_resource = false
+              resolver.each_resource(domain, 'MX') do |r|
+                has_resource = true
+                break;
+              end
+              mx_not_found << email if !has_resource
+            rescue Exception => e
               mx_not_found << email
             end
           end
