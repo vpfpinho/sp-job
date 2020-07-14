@@ -244,6 +244,7 @@ unless $config[:rollbar].nil?
   end
 
   Rollbar.configure do |config|
+    config.verify_ssl_peer = false
     config.access_token = $config[:rollbar][:token] if $config[:rollbar][:token]
     config.environment  = $config[:rollbar][:environment] if $config[:rollbar] && $config[:rollbar][:environment]
   end
