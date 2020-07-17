@@ -69,3 +69,14 @@ require 'sp/jsonapi/adapters/raw_db'
 require 'sp/jsonapi/adapters/db'
 
 require 'sp/jsonapi/model/base'
+
+$prefix = OS.mac? ? '/usr/local' : ''
+
+def script args
+  $args ||= {}
+  $args.merge!(args)
+  $args.merge!({ script: true, debug: true })
+  require 'sp/job/back_burner' # loads the job script
+  ClusterMember.configure_cluster(siteFilter: false)
+  yield(@script)
+end
