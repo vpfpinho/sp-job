@@ -216,16 +216,16 @@ end
 #
 # Initialize global data needed for configuration
 #
-$prefix           = OS.mac? ? '/usr/local' : ''
+$prefix         ||= OS.mac? ? '/usr/local' : ''
 $rollbar          = false
 $gracefull_exit   = false
-$args = {
-  stdout:           false,
-  log_level:        'info',
-  program_name:     File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME)),
-  config_file:      File.join($prefix, 'etc', 'jobs', 'main.conf.json'),
-  default_log_file: File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
-}
+$args ||= { }
+$args[:stdout           ] ||= false
+$args[:script           ] ||= false
+$args[:log_level        ] ||= 'info'
+$args[:program_name     ] ||= File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
+$args[:config_file      ] ||= File.join($prefix, 'etc', 'jobs', 'main.conf.json')
+$args[:default_log_file ] ||= File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 
 #
 # Parse command line arguments
@@ -491,7 +491,7 @@ $connected     = false
 #
 # Make sure the program name has key under jobs
 #
-unless $config[:jobs].key?($args[:program_name].to_sym)
+unless $config[:jobs].key?($args[:program_name].to_sym) || $args[:script] == true 
   puts "Fatal to run a job you must have a config entry jobs: #{$args[:program_name]}:"
   exit -1
 end
