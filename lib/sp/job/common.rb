@@ -729,6 +729,10 @@ module SP
               action: :update
             }
 
+            # Added role_mask and module_mask to notification message
+            message.merge!({ role_mask: td.current_job[:role_mask] }) if td.current_job[:role_mask]
+            message.merge!({ module_mask: td.current_job[:module_mask] }) if td.current_job[:module_mask]
+
             manage_notification(notification_options, message)
           end
         end
