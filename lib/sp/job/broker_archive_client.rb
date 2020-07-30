@@ -227,7 +227,12 @@ module SP
                 tmp_file_uri = uri
             end
 
-            @http.get_to_file(url: "#{@url}/#{id}", headers: make_request_headers(), to: tmp_file_uri)
+            @http.get_to_file(url: "#{@url}/#{id}", headers: make_request_headers(), to: tmp_file_uri,
+                expect: {
+                    code: 200
+                }
+            )
+
             return tmp_file_uri
         end
 
