@@ -240,7 +240,7 @@ module SP
       #
       # Initializer
       #
-      def initialize(protocol:, host:, port:, client_id:, client_secret:, redirect_uri:, scope:, options: {})
+      def initialize(protocol:, host:, port:, client_id:, client_secret:, redirect_uri:, scope:, options: {}, endpoints: nil)
         host = "#{protocol}://#{host}"
         if ( 'https' == protocol && 443 != port ) || ( 'http' == protocol && 80 != port )
           host += ":#{port}"
@@ -251,8 +251,13 @@ module SP
         @client                = ::OAuth2Client::Client.new(host, client_id, client_secret, options)
         @redirect_uri          = redirect_uri
         @scope                 = scope
-        @client.token_path     = '/oauth/token'
-        @client.authorize_path = '/oauth/auth'
+        if nil != endpoints
+          @client.token_path     = endpoints[:token]         || '/oauth/token'
+          @client.authorize_path = endpoints[:authorization] || '/oauth/auth'
+        else
+          @client.token_path     = '/oauth/token'
+          @client.authorize_path = '/oauth/auth'
+        end
       end
 
 
