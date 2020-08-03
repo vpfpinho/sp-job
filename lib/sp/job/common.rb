@@ -729,6 +729,10 @@ module SP
               action: :update
             }
 
+            # Added role_mask and module_mask to notification message
+            message.merge!({ role_mask: td.current_job[:role_mask] }) if td.current_job[:role_mask]
+            message.merge!({ module_mask: td.current_job[:module_mask] }) if td.current_job[:module_mask]
+
             manage_notification(notification_options, message)
           end
         end
@@ -1008,10 +1012,29 @@ module SP
 
       end
 
+      def search_on_member (redis_client, redis_key, pattern)
+        cursor = 0
+        grab_result = []
+        loop do
+          notification_exists = scan_on_member(redis_client, redis_key, cursor, pattern)
+          break if notification_exists.nil?
+          cursor = notification_exists.first
+          grab_result << notification_exists[1]
+
+          if notification_exists.first == '0'
+            find_result = grab_result.flatten.compact.first
+            logger_or_puts({action: 'found search on member', pattern: pattern}.to_json) if find_result
+            return find_result if find_result
+            break
+          end
+        end
+
+      end
+
       def clean_notifications (redis_client, redis_key, pattern)
         cursor = 0
         loop do
-          notification_exists = get_notifications_to_clean(redis_client, redis_key, cursor, pattern)
+          notification_exists = scan_on_member(redis_client, redis_key, cursor, pattern)
           break if notification_exists.nil?
 
           cursor = notification_exists.first
@@ -1027,7 +1050,7 @@ module SP
         end
       end
 
-      def get_notifications_to_clean (redis_client, redis_key, cursor, pattern)
+      def scan_on_member (redis_client, redis_key, cursor, pattern)
         redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
       end
 
@@ -1084,20 +1107,22 @@ module SP
           end
 
           redis_client.sadd redis_key[:key], "#{notification.to_json}"
+          logger_or_puts({ action: options[:action], key: redis_key[:key], object: notification }.to_json)
+
           redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
 
         elsif options[:action] == :update
+          find_search_on_member = search_on_member(redis_client, redis_key, "*id\":\"#{notification[:id]}\"*")
 
-          match_member = redis_client.sscan(redis_key[:key], 0, { match: "*#{notification[:id]}\"*" })
-
-          if match_member && match_member[1][0]
-
+          if find_search_on_member
             notification.merge!({id: notification[:id]}) if notification[:id]
             response_object = notification
 
-            redis_client.srem redis_key[:key], "#{match_member[1][0]}"
+            redis_client.srem redis_key[:key], "#{find_search_on_member}"
             notification.delete(:identity)
+
             redis_client.sadd redis_key[:key], "#{notification.to_json}"
+            logger_or_puts({ action: options[:action], key: redis_key[:key], object: notification }.to_json)
 
             redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
             # ap ["REDIS PUBLISH UPDATE", redis_key[:public_key], response_object.to_json]
@@ -1111,13 +1136,17 @@ module SP
           end
         else
 
-          match_member = redis_client.sscan(redis_key[:key], 0, { match: "*#{notification[:identity]}\"*" })
-          if match_member && match_member[1].any?
+          find_search_on_member = search_on_member(redis_client, redis_key, "*id\":\"#{notification[:identity]}\"*")
+
+          if find_search_on_member
             response_object = { id: notification[:identity], destroy: true } if notification[:identity]
-            redis_client.srem redis_key[:key], "#{match_member[1][0]}"
+            rem_response = redis_client.srem redis_key[:key], find_search_on_member
+            logger_or_puts({ action: 'delete', key: redis_key[:key], identity: notification[:identity], object: find_search_on_member, rem_response: rem_response }.to_json)
             redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
           else
-            puts 'nothing to destroy'
+            response_object = { id: notification[:identity], destroy: true } if notification[:identity]
+            redis_client.publish redis_key[:public_key], "#{response_object.to_json}"
+            logger_or_puts({not_found_in_member: true, action: 'delete', notification: notification}.to_json)
           end
 
         end
@@ -1510,6 +1539,17 @@ module SP
       end
 
       private
+
+
+      def logger_or_puts msg
+        # OUTPUT FOR JOBS OR RUBY CONSOLE
+        if logger
+          logger.debug " => #{msg}".yellow
+        else
+          puts " => #{msg}".yellow
+        end
+
+      end
 
       def get_random_folder
         ALPHABET[rand(26)] + ALPHABET[rand(26)]
