@@ -32,6 +32,7 @@ module SP
 
       def initialize (configuration:, multithread: false, programName:, redis:)
         @sid           = configuration[:service_id]
+        @@sid          = @sid
         @access_ttl    = configuration[:oauth2][:access_ttl]  || (1 * 3600)  # Duration of the access tokens
         @tolerance_ttl = configuration[:oauth2][:deleted_ttl] || 30          # Time a deleted token will remain "alive"
         @redis         = redis
@@ -77,6 +78,21 @@ module SP
         session[:created_at] = Time.new.iso8601
         access_token = create_token(session: session, duration: duration)
         return access_token
+      end
+
+      #
+      # Return the redis key used for the given access token 
+      #
+      def self.tokenToKey (token) 
+        "#{@@sid}:oauth:access_token:#{token}"
+      end
+
+      #
+      # Return the length key used for the given access token 
+      #
+      def self.prefixLength ()
+        @@prefixLength ||= "#{@@sid}:oauth:access_token:".length
+        @@prefixLength
       end
 
       #
