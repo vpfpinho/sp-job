@@ -91,7 +91,7 @@ module SP
       # Extract ids from the token
       #
       def self.tokenToIds (token)
-        idx = token.indexOf('_token:')
+        idx = token.index('_token:')
         if idx.nil?
           ['0','0','0','']
         else
