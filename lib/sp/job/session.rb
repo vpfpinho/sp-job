@@ -88,11 +88,15 @@ module SP
       end
 
       #
-      # Return the length key used for the given access token 
+      # Extract ids from the token
       #
-      def self.prefixLength ()
-        @@prefixLength ||= "#{@@sid}:oauth:access_token:".length
-        @@prefixLength
+      def self.tokenToIds (token)
+        idx = token.indexOf('_token:')
+        if idx.nil?
+          ['0','0','0','']
+        else
+          token[idx..-1].split('-')
+        end
       end
 
       #
@@ -107,8 +111,8 @@ module SP
           session = r.hgetall(key)
         end
         rv = Hash.new
-        session.each do |key,value|
-          rv[key.to_sym] = value
+        session.each do |_key,value|
+          rv[_key.to_sym] = value
         end
         return rv
       end
@@ -201,9 +205,9 @@ module SP
           token = "#{session[:cluster]}-#{session[:entity_id].to_i}-#{session[:user_id]}-#{SecureRandom.hex(32)}"
           key = "#{@sid}:oauth:access_token:#{token}"
           hset = []
-          session.each do |key, value|
+          session.each do |_key, value|
             unless value.nil?
-              hset << key
+              hset << _key
               hset << value.to_s
             end
           end
