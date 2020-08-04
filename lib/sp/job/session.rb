@@ -95,7 +95,7 @@ module SP
         if idx.nil?
           ['0','0','0','']
         else
-          token[idx..-1].split('-')
+          token[(idx+7)..-1].split('-')
         end
       end
 
