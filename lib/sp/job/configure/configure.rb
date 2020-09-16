@@ -604,7 +604,7 @@ def self.run_configure (args)
       # Now expand the template
       file_contents = expand_template(template)
 
-      m = /.*(nginx-broker|nginx-epaper)[^\/]*?\/conf.d\/(.*)\.conf$/.match(dst_file)
+      m = /.*(nginx-broker|nginx-epaper|nginx-cdb)[^\/]*?\/conf.d\/(.*)\.conf$/.match(dst_file)
       if m && m.size == 3
         # override destination path
         nginx_name  = m[1].gsub('-', '_')
