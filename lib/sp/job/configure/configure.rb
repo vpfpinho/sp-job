@@ -676,6 +676,8 @@ def self.run_configure (args)
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
+      @job_skip_cfg    = job.skip_config || false
+      @job_skip_srv    = job.skip_service || false
       @unified_config  = true
 
       if job
@@ -726,7 +728,11 @@ def self.run_configure (args)
           template = "#{@config.paths.working_directory}/jobs/default_conf.json.erb"
         end
         unless File.exists? template
-          throw "Missing #{template} => configuration file for #{@job_name}"
+          if false == @job_skip_cfg
+            throw "Missing #{template} => configuration file for #{@job_name}"
+          else
+            puts "    SKIPPING - config...".yellow
+          end
         end
       end
       if OS.mac?
@@ -746,39 +752,49 @@ def self.run_configure (args)
           unified_done = true
         end
       else
-        diff_and_write(contents: expand_template(template, pretty_json: true),
-                       path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
+        if false == @job_skip_cfg
+          diff_and_write(contents: expand_template(template, pretty_json: true),
+                        path: "#{@config.prefix}/etc/#{@job_name}/conf.json",
+                        diff: diff_before_copy,
+                        dry_run: dry_run
+          )
+        end
+      end
+
+      #
+      # service.erb?
+      #
+      if true == @job_skip_srv
+        puts "    SKIPPING - service config...".yellow
+      else
+        if File.exists? "#{@job_dir}/service.erb"
+          template = "#{@job_dir}/service.erb"
+        else
+          template = "#{@config.paths.working_directory}/jobs/default.service.erb"
+        end
+        unless File.exists? template
+          # last attempt - try sp-job/job/default.service.erb
+          template = "#{templates_fallback_dir}/default.service.erb"
+          if ! File.exists? template
+            throw "Missing service file for #{@job_name} ( #{template} )"
+          end
+        end
+        diff_and_write(contents: expand_template(template),
+                       path: "#{@config.prefix}/lib/systemd/system/#{@job_name}@.service",
                        diff: diff_before_copy,
                        dry_run: dry_run
         )
       end
 
-      if File.exists? "#{@job_dir}/service.erb"
-        template = "#{@job_dir}/service.erb"
-      else
-        template = "#{@config.paths.working_directory}/jobs/default.service.erb"
-      end
-      unless File.exists? template
-        # last attempt - try sp-job/job/default.service.erb
-        template = "#{templates_fallback_dir}/default.service.erb"
-        if ! File.exists? template
-          throw "Missing service file for #{@job_name} ( #{template} )"
-        end
-      end
-
-      diff_and_write(contents: expand_template(template),
-                     path: "#{@config.prefix}/lib/systemd/system/#{@job_name}@.service",
-                     diff: diff_before_copy,
-                     dry_run: dry_run
-      )
-
+      #
       # logrotate.erb?
+      #
       if File.exists? "#{@job_dir}/logrotate.erb"
         template = "#{@job_dir}/logrotate.erb"
       else
         template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
         if ! File.exists? template
-          # last attempt - try sp-job/job/default.service.erb
+          # last attempt - try sp-job/job/default.logrotate.erb
           template = "#{templates_fallback_dir}/default.logrotate.erb"
         end
       end
