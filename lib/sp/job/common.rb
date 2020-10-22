@@ -479,9 +479,9 @@ module SP
         end
       end
 
-      def generate_jwt(entity_id:, archive_id: , private_key:)
+      def generate_public_link_jwt(entity_id:, archive_id: , private_key:, validity: (3600 * 24 * 7))
         now = Time.now.getutc.to_i
-        exp = now + (3600 * 24 * 7)
+        exp = now + validity
 
         jwt = ::SP::Job::JWTHelper.encode(
           key: private_key,
