@@ -479,7 +479,7 @@ module SP
         end
       end
 
-      def generate_public_link_jwt(entity_id:, archive_id: , private_key:, validity: (3600 * 24 * 7))
+      def generate_public_link_jwt(entity_id:, archive_id: , private_key:, validity: (3600 * 24 * 365 * 12)) # 12 years
         now = Time.now.getutc.to_i
         exp = now + validity
 
