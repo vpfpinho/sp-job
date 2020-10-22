@@ -479,6 +479,24 @@ module SP
         end
       end
 
+      def generate_jwt(entity_id:, archive_id: , private_key:)
+        now = Time.now.getutc.to_i
+        exp = now + (3600 * 24 * 7)
+
+        jwt = ::SP::Job::JWTHelper.encode(
+          key: private_key,
+          payload: {
+              exp: exp,
+              iat: now,
+              nbf: now,
+              archive: {
+                file_id: archive_id,
+                entity_id: entity_id
+              }
+          }
+        )
+      end
+
       #
       # Submit jwt
       #
