@@ -676,8 +676,8 @@ def self.run_configure (args)
       @job_working_dir = @config.paths.working_directory
       @job_environment = nil
       @job_threads     = nil
-      @job_skip_cfg    = job.skip_config || false
-      @job_skip_srv    = job.skip_service || false
+      @job_skip_cfg    = nil != job ? ( job.skip_config  || false ) : false
+      @job_skip_srv    = nil != job ? ( job.skip_service || false ) : false
       @unified_config  = true
 
       if job
