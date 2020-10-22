@@ -490,7 +490,7 @@ module SP
               iat: now,
               nbf: now,
               archive: {
-                file_id: archive_id,
+                id: archive_id,
                 entity_id: entity_id
               }
           }
