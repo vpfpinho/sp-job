@@ -172,7 +172,7 @@ module SP
       # parameters defined by the JOB object
       #
       def get_jsonapi_parameters
-        HashWithIndifferentAccess.new(JSON.parse(thread_data.jsonapi.parameters.to_json))
+        JSON.parse(thread_data.jsonapi.parameters.to_json, symbolize_names: true)
       end
 
 
