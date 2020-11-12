@@ -1508,6 +1508,97 @@ module SP
         response
       end
 
+      ###
+      ### PRINT AND ARCHIVE VIA SEQUENCER ###
+      ###
+      def print_and_archive_via_sequencer (payload:, entity_id:, access:, file_name: '', billing_type:)
+        #
+        # set payloads
+        #
+        begin
+          # patch print payload
+          print_payload = payload
+          print_payload[:tube]           ||= 'casper-print-queue'
+          print_payload[:ttr]            ||= 300
+          print_payload[:validity]       ||= 500
+          print_payload[:auto_printable] ||= false
+          print_payload[:documents]      ||= []
+          # set archive payload
+          archive_payload = {
+            ttr: 120,
+            validity: 240,
+            tube: 'pdf-archivist',
+            payload: {
+              billing: {
+                id: entity_id,
+                type: billing_type
+              },
+              access: access,
+              entity_id: entity_id,
+              uri: "$.responses[0].redirect.protocol + '://' + $.responses[0].redirect.host + ':' + $.responses[0].redirect.port + '/' + $.responses[0].redirect.file"
+            },
+          }
+          if nil != file_name && file_name.length > 0
+            archive_payload.merge!({name: file_name})
+          end
+          # set sequencer payload
+          sequencer_payload = {
+              ttr: ( print_payload[:ttr] + archive_payload[:ttr] ),
+              validity: ( print_payload[:validity] + archive_payload[:validity] ),
+              jobs: [  print_payload, archive_payload ],
+              tube: 'sequencer-live',
+          }
+        rescue => e
+          rollbar_and_raise(message: 'An error occurred while creating P&A sequence payload', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
+        end
+        logger.debug "SEQUENCER PAYLOAD:"
+        logger.debug ap sequencer_payload
+
+        #
+        # "submit job" via JWT - synchronous HTTP request
+        #
+        # set JWT
+        begin
+          jwt = JWTHelper.jobify(
+            key: "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}",
+            tube: 'sequencer-live',
+            payload: sequencer_payload
+          )
+        rescue => e
+          rollbar_and_raise(message: 'An error occurred while creating a JWT for P&A sequence', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
+        end
+        # perform HTTP request
+        begin
+          response = HttpClient.post(
+            url: get_cdn_public_url,
+            headers: {
+              'Content-Type' => 'application/json'
+            },
+            body: jwt,
+            expect: {
+              code: 200,
+              content: {
+                type: 'application/json; charset=utf-8'
+              }
+            },
+            conn_options: {
+              connection_timeout: sequencer_payload[:ttr],
+              request_timeout: sequencer_payload[:ttr]
+            }
+          )
+        rescue EasyHttpClient::Error => he
+          logger.error "#{ap he.detail}".red
+          logger.error ap he.response
+          rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: he)
+        rescue => e
+          logger.error ap e
+          rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
+        end
+        # done - on success, archive response is expected
+        response
+      end
+      ### ###
+
       def save_json_document (entity_id:, sharded_schema:, type:, key:, document: '{}')
         json_object = document
 
