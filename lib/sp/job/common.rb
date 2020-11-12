@@ -144,7 +144,7 @@ module SP
         td = thread_data
         if td.jsonapi.nil?
           require 'sp/job/job_db_adapter' # TODO suck in the base class from SP-DUH
-          if RUBY_ENGINE == 'jruby'
+          unless Kernel.const_defined?("::SP::Duh")
             td.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
           else
             # TODO this needs sp-duh to be "manually" required in MRI
@@ -160,7 +160,7 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
+        unless Kernel.const_defined?("::SP::Duh")  # TODO suck in the base class from SP-DUH
           thread_data.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(params))
         else
           thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
