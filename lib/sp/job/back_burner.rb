@@ -645,13 +645,14 @@ Backburner.configure do |config|
   if 'jruby' == RUBY_ENGINE
     $stdout = config.logger
     $stderr = config.logger
+    __ruby_engine = '[JAVA]'
   end
 
   if OS.mac? && 'jruby' != RUBY_ENGINE
     $stdout.sync = true
   end
 
-  logger.info "Ruby Version .. #{RUBY_VERSION}"
+  logger.info "Ruby Version .. #{RUBY_VERSION} #{__ruby_engine}"
   logger.info "Log file ...... #{$args[:log_file]}"
   logger.info "Config file ... #{File.expand_path($args[:config_file])}"
   logger.info "PID ........... #{Process.pid}"
