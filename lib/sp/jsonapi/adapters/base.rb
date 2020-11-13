@@ -118,7 +118,7 @@ module SP
           def params_for_query(params)
             query = ""
 
-            if params.any? #!params.blank?
+            if (params != '' && params != nil) #!params.blank?
               case
                 when params.is_a?(Array)
                   # query = params.join('&')
