@@ -63,14 +63,14 @@ class ClusterMember
     @number = clusterConfiguration[:number]
     @config = clusterConfiguration
   end
-  
+
   #
   # Returns the global logger object, borrowed from common.rb
   #
   def self.logger
     Backburner.configuration.logger
   end
-  
+
   #
   # Creates the global structure that contains the cluster configuration
   #
@@ -81,7 +81,7 @@ class ClusterMember
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
-      if siteFilter != false 
+      if siteFilter != false
         next if $config[:runs_on_site] != nil && $config[:runs_on_site] != cfg[:site]
       end
 
@@ -257,7 +257,7 @@ end
 #
 # Create PID file for this jobs instance
 #
-if  OS.mac?
+if OS.mac?
   Dir.mkdir("#{$prefix}/var/run/jobs") unless Dir.exist? "#{$prefix}/var/run/jobs"
 end
 File.write("#{$prefix}/var/run/jobs/#{$args[:program_name]}#{$args[:index].nil? ? '' : '.' + $args[:index]}.pid", Process.pid)
@@ -491,16 +491,16 @@ $connected     = false
 #
 # Make sure the program name has key under jobs
 #
-unless $config[:jobs].key?($args[:program_name].to_sym) || $args[:script] == true 
+unless $config[:jobs].key?($args[:program_name].to_sym) || $args[:script] == true
   puts "Fatal to run a job you must have a config entry jobs: #{$args[:program_name]}:"
   exit -1
 end
 
 #
-# Check if the job runs on specifc machine or a on cluster member, if runs_on is empty we must be running 
+# Check if the job runs on specifc machine or a on cluster member, if runs_on is empty we must be running
 # on a cluster member i.e. cluser: members: [$config[:runs_on_cluster]]
 #
-if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on] 
+if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
   runs_on   = $config[:jobs][$args[:program_name].to_sym][:runs_on]
 elsif config[:project] != nil && $config[:project][:id]
   runs_on = $config[:project][:id]
@@ -512,7 +512,7 @@ unless runs_on.nil?
   # We are on specific machine like cdb, fs etc
   $cluster_config = $config[:cluster][runs_on.to_sym]
 else
-  # We are on member (usually an application (web) server) 
+  # We are on member (usually an application (web) server)
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
 end
 
@@ -647,6 +647,11 @@ Backburner.configure do |config|
     $stderr = config.logger
   end
 
+  if OS.mac? && 'jruby' != RUBY_ENGINE
+    $stdout.sync = true
+  end
+
+  logger.info "Ruby Version .. #{RUBY_VERSION}"
   logger.info "Log file ...... #{$args[:log_file]}"
   logger.info "Config file ... #{File.expand_path($args[:config_file])}"
   logger.info "PID ........... #{Process.pid}"
@@ -689,7 +694,7 @@ unless $cluster_config.nil? || $cluster_config[:db].nil?
 end
 
 #
-# Direct connection to the CDB is LEGACY!!! 
+# Direct connection to the CDB is LEGACY!!!
 # Only connect directly to the CDB if not running on the CDB project the cluster has a CDB DB connection information
 #
 $cdb = nil
