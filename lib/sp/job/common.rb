@@ -1511,7 +1511,7 @@ module SP
       ###
       ### PRINT AND ARCHIVE VIA SEQUENCER ###
       ###
-      def print_and_archive_via_sequencer (payload:, entity_id:, access:, file_name: '', billing_type:)
+      def print_and_archive_via_sequencer(payload:, entity_id:, access:, file_name: '', billing_type:)
         #
         # set payloads
         #
@@ -1533,6 +1533,7 @@ module SP
                 id: entity_id,
                 type: billing_type
               },
+              name: print_payload[:documents][0][:name],
               access: access,
               entity_id: entity_id,
               uri: "$.responses[0].redirect.protocol + '://' + $.responses[0].redirect.host + ':' + $.responses[0].redirect.port + '/' + $.responses[0].redirect.file"
@@ -1543,10 +1544,18 @@ module SP
           end
           # set sequencer payload
           sequencer_payload = {
+              tube: 'sequencer-live',
               ttr: ( print_payload[:ttr] + archive_payload[:ttr] ),
               validity: ( print_payload[:validity] + archive_payload[:validity] ),
-              jobs: [  print_payload, archive_payload ],
-              tube: 'sequencer-live',
+              jobs: [
+                {
+                  tube: print_payload[:tube],
+                  ttr: print_payload[:ttr],
+                  validity: print_payload[:validity],
+                  payload: print_payload
+                },
+                archive_payload
+              ]
           }
         rescue => e
           rollbar_and_raise(message: 'An error occurred while creating P&A sequence payload', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
@@ -1594,45 +1603,62 @@ module SP
           logger.error ap e
           rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
         end
+        # done - log
+        logger.debug "P&A V/A RESPONSE:"
+        logger.debug ap response
         # done - on success, archive response is expected
-        response
+        JSON.parse(response[:body], symbolize_names: true)
       end
       ### ###
 
-      def save_json_document (entity_id:, sharded_schema:, type:, key:, document: '{}')
-        json_object = document
+      def save_json_document (entity_id:, sharded_schema:, type:, key:, document: nil, data: nil)
+        j_document = document
+        j_data     = data
 
-        if document.is_a?(Hash)
-          json_object = document.to_json
+        if !document.nil? && document.is_a?(Hash)
+          j_document = document.to_json
+        end
+
+        if !data.nil? && data.is_a?(Hash)
+          j_data = data.to_json
         end
 
         rs = db.exec(%Q[
           WITH _jd_upsert AS (
                 UPDATE %<sharded_schema>s.json_documents
-                  SET id = '%<id>s',
-                      type = '%<type>s',
-                      company_id = %<company_id>d,
-                      document = '%<document>s'
-                WHERE id = '%<id>s'
-                  AND type = '%<type>s'
-                  AND company_id = %<company_id>d
-            RETURNING id, type, company_id
+                   SET id = '%<id>s',
+                       type = '%<type>s',
+                       company_id = %<company_id>d,
+                       %<document_update>s,
+                       %<data_update>s
+                 WHERE id = '%<id>s'
+                   AND type = '%<type>s'
+                   AND company_id = %<company_id>d
+             RETURNING id, type, company_id
           )
-          INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document)
-          SELECT '%<id>s', '%<type>s', %<company_id>d, '%<document>s' WHERE NOT EXISTS (SELECT * FROM _jd_upsert)
-          RETURNING id, type, company_id
+          INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document, data)
+          SELECT '%<id>s',
+                 '%<type>s',
+                 %<company_id>d,
+                 '%<document_insert>s',
+                 '%<data_insert>s'
+           WHERE NOT EXISTS (SELECT * FROM _jd_upsert)
+       RETURNING id, type, company_id
         ], {
           sharded_schema: sharded_schema,
-          id: key,
-          type: type,
-          company_id: entity_id,
-          document: json_object
+          id:              key,
+          type:            type,
+          company_id:      entity_id,
+          document_update: document.nil? ? 'document = document' : "document = '#{j_document}'",
+          data_update:     data.nil? ? 'data = data' : "data = '#{j_data}'",
+          document_insert: document.nil? ? '{}' : j_document,
+          data_insert:     data.nil? ? '{}' : j_data
         })
 
         if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status)
           return {
-            id: key,
-            type: type,
+            id:        key,
+            type:      type,
             entity_id: entity_id
           }
         end
