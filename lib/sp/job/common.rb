@@ -1599,40 +1599,54 @@ module SP
       end
       ### ###
 
-      def save_json_document (entity_id:, sharded_schema:, type:, key:, document: '{}')
-        json_object = document
+      def save_json_document (entity_id:, sharded_schema:, type:, key:, document: nil, data: nil)
+        j_document = document
+        j_data     = data
 
-        if document.is_a?(Hash)
-          json_object = document.to_json
+        if !document.nil? && document.is_a?(Hash)
+          j_document = document.to_json
+        end
+
+        if !data.nil? && data.is_a?(Hash)
+          j_data = data.to_json
         end
 
         rs = db.exec(%Q[
           WITH _jd_upsert AS (
                 UPDATE %<sharded_schema>s.json_documents
-                  SET id = '%<id>s',
-                      type = '%<type>s',
-                      company_id = %<company_id>d,
-                      document = '%<document>s'
-                WHERE id = '%<id>s'
-                  AND type = '%<type>s'
-                  AND company_id = %<company_id>d
-            RETURNING id, type, company_id
+                   SET id = '%<id>s',
+                       type = '%<type>s',
+                       company_id = %<company_id>d,
+                       %<document_update>s,
+                       %<data_update>s
+                 WHERE id = '%<id>s'
+                   AND type = '%<type>s'
+                   AND company_id = %<company_id>d
+             RETURNING id, type, company_id
           )
-          INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document)
-          SELECT '%<id>s', '%<type>s', %<company_id>d, '%<document>s' WHERE NOT EXISTS (SELECT * FROM _jd_upsert)
-          RETURNING id, type, company_id
+          INSERT INTO %<sharded_schema>s.json_documents (id, type, company_id, document, data)
+          SELECT '%<id>s',
+                 '%<type>s',
+                 %<company_id>d,
+                 '%<document_insert>s',
+                 '%<data_insert>s'
+           WHERE NOT EXISTS (SELECT * FROM _jd_upsert)
+       RETURNING id, type, company_id
         ], {
           sharded_schema: sharded_schema,
-          id: key,
-          type: type,
-          company_id: entity_id,
-          document: json_object
+          id:              key,
+          type:            type,
+          company_id:      entity_id,
+          document_update: document.nil? ? 'document = document' : "document = '#{j_document}'",
+          data_update:     data.nil? ? 'data = data' : "data = '#{j_data}'",
+          document_insert: document.nil? ? '{}' : j_document,
+          data_insert:     data.nil? ? '{}' : j_data
         })
 
         if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status)
           return {
-            id: key,
-            type: type,
+            id:        key,
+            type:      type,
             entity_id: entity_id
           }
         end
