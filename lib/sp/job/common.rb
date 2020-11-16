@@ -1533,14 +1533,13 @@ module SP
                 id: entity_id,
                 type: billing_type
               },
-              name: print_payload[:documents][0][:name],
               access: access,
               entity_id: entity_id,
               uri: "$.responses[0].redirect.protocol + '://' + $.responses[0].redirect.host + ':' + $.responses[0].redirect.port + '/' + $.responses[0].redirect.file"
             },
           }
           if nil != file_name && file_name.length > 0
-            archive_payload.merge!({name: file_name})
+            archive_payload[:payload].merge!({name: file_name})
           end
           # set sequencer payload
           sequencer_payload = {
