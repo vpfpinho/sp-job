@@ -1511,7 +1511,7 @@ module SP
       ###
       ### PRINT AND ARCHIVE VIA SEQUENCER ###
       ###
-      def print_and_archive_via_sequencer (payload:, entity_id:, access:, file_name: '', billing_type:)
+      def print_and_archive_via_sequencer(payload:, entity_id:, access:, file_name: '', billing_type:)
         #
         # set payloads
         #
@@ -1533,6 +1533,7 @@ module SP
                 id: entity_id,
                 type: billing_type
               },
+              name: print_payload[:documents][0][:name],
               access: access,
               entity_id: entity_id,
               uri: "$.responses[0].redirect.protocol + '://' + $.responses[0].redirect.host + ':' + $.responses[0].redirect.port + '/' + $.responses[0].redirect.file"
@@ -1543,10 +1544,18 @@ module SP
           end
           # set sequencer payload
           sequencer_payload = {
+              tube: 'sequencer-live',
               ttr: ( print_payload[:ttr] + archive_payload[:ttr] ),
               validity: ( print_payload[:validity] + archive_payload[:validity] ),
-              jobs: [  print_payload, archive_payload ],
-              tube: 'sequencer-live',
+              jobs: [
+                {
+                  tube: print_payload[:tube],
+                  ttr: print_payload[:ttr],
+                  validity: print_payload[:validity],
+                  payload: print_payload
+                },
+                archive_payload
+              ]
           }
         rescue => e
           rollbar_and_raise(message: 'An error occurred while creating P&A sequence payload', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
@@ -1594,8 +1603,11 @@ module SP
           logger.error ap e
           rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive_via_sequencer', tube: thread_data.job_tube, exception: e)
         end
+        # done - log
+        logger.debug "P&A V/A RESPONSE:"
+        logger.debug ap response
         # done - on success, archive response is expected
-        response
+        JSON.parse(response[:body], symbolize_names: true)
       end
       ### ###
 
