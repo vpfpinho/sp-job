@@ -54,6 +54,7 @@ require 'sp/job/int_api_client'
 require 'sp/job/central_api_client'
 require 'sp/job/broker_archive_client'
 require 'sp/job/mime_types'
+require 'sp/job/hash'
 
 
 # JSONAPI library classes

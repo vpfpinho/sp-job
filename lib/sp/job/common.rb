@@ -1356,7 +1356,7 @@ module SP
       def pg_server_error (e)
         raise e if e.is_a?(::SP::Job::JobCancelled)
         base_exception = e
-        while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
+        while base_exception.respond_to?(:cause) && !base_exception.cause.to_s.strip.empty?
           base_exception = base_exception.cause
         end
 
