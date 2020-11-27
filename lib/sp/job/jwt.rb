@@ -32,11 +32,12 @@ module SP
   		end #self.encodeJWT
 
       # key: Path of the private key to be used on encoding
-      # jwt_validity: Must be set in hours
+      # jwt_validity: Must be set in hours, how long the JWT will last
       # tube: Name of the tube
       # ttr: Job max execution time in seconds
+      # validity: max time the job can wait in queue before starting
       # payload: Data to be used on the job
-      def self.jobify(key:, jwt_validity: 24, tube:, ttr: 8600, payload:)
+      def self.jobify(key:, jwt_validity: 24, tube:, ttr: 8600, validity: 180, payload:)
         # UTC timestamp
         now        = Time.now.getutc.to_i
         # Expire
@@ -58,6 +59,7 @@ module SP
           job: {
             tube: tube,
             ttr: ttr,
+            validity: validity,
             payload: job_payload
           }
         })
