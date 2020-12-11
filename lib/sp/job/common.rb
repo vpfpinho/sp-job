@@ -1164,6 +1164,21 @@ module SP
 
       end
 
+      def email_address_valid? (email)
+        return false if email.match(RFC822::EMAIL).nil?
+        begin
+          resolver = Dnsruby::DNS.new
+          domain = Mail::Address.new(email).domain
+          has_resource = false
+          resolver.each_resource(domain, 'MX') do |r|
+            has_resource = true
+          end
+          return has_resource
+        rescue ::Exception => e
+          return false
+        end
+      end
+
       def email_addresses_valid? (email_addresses)
         begin
           raise ::ArgumentError.new 'A lista de emails tem de estar preenchida' if email_addresses.nil? || email_addresses.empty?
@@ -1191,11 +1206,12 @@ module SP
               mx_not_found << email
             end
           end
-
+          
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{mx_not_found.join(', ')}" if mx_not_found.length > 0
 
           return { valid: true }
         rescue ::Exception => e
+          debugger
           return {
             valid: false,
             error: {
