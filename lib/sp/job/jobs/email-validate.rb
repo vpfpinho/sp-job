@@ -57,9 +57,9 @@ class EmailValidate
         id: '0', 
         type: 'email-validate', 
         attributes: { 
-            valid: valid, 
-            email: email 
-          }
+          valid: valid, 
+          email: email 
+        }
       }
     })
     
