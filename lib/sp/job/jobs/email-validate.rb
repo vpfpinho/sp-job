@@ -29,19 +29,29 @@ class EmailValidate
     @@tube_options
   end
       
+  #
+  # Uses regex and DNS MX record query to validate an email domain
+  #
+  # @param job the only key required is :urn with an email parameter
+  # @return json api faked response
+  #
   def self.perform (job)
       
+    # disassemble the URN ..
     uri    = URI(job[:urn])
     params = URI::decode_www_form(uri.query).to_h
     email  = params['email']
+
+    # ... Validate!
     valid  = email_address_valid?(email)
-    
     if valid 
       logger.info "email #{email} is valid".cyan
     else
       logger.info "email #{email} is *NOT* valid".yellow
     end
 
+    # ... send response 
+    # TODO morph this to be simpler on casper socket jget
     send_response(response: { 
       data: {
         id: '0', 
