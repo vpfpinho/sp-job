@@ -1687,7 +1687,7 @@ module SP
       def logger_or_puts msg
         # OUTPUT FOR JOBS OR RUBY CONSOLE
         if logger
-          logger.debug " => #{msg}".yellow
+          logger.info " => #{msg}".yellow
         else
           puts " => #{msg}".yellow
         end
