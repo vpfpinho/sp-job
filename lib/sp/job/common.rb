@@ -1167,13 +1167,15 @@ module SP
       def email_address_valid? (email)
         return false if email.match(RFC822::EMAIL).nil?
         begin
-          resolver = Dnsruby::DNS.new
-          domain = Mail::Address.new(email).domain
-          has_resource = false
-          resolver.each_resource(domain, 'MX') do |r|
-            has_resource = true
+          if RUBY_ENGINE == 'jruby'
+            resolver = Dnsruby::DNS.new
+            domain = Mail::Address.new(email).domain
+            has_resource = false
+            resolver.each_resource(domain, 'MX') do |r|
+              has_resource = true
+            end
+            return has_resource
           end
-          return has_resource
         rescue ::Exception => e
           return false
         end
@@ -1189,7 +1191,7 @@ module SP
 
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{diff_email_addresses.join(', ')}" if diff_email_addresses.length > 0
 
-          resolver = Dnsruby::DNS.new
+          resolver = Dnsruby::DNS.new if RUBY_ENGINE == 'jruby'
 
           mx_not_found = []
 
@@ -1206,7 +1208,7 @@ module SP
               mx_not_found << email
             end
           end
-          
+
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{mx_not_found.join(', ')}" if mx_not_found.length > 0
 
           return { valid: true }
@@ -1473,13 +1475,13 @@ module SP
       # @param access the archived file permission rights
       # @param file_name external name of the file as seen by the user / front-end
       # @param billing_type the billing category that will be "charged" with archived file
-      # 
+      #
       # @return symbolized file server response, namely:
       #    id: i.e. the internal file identifier in the file server
       #    'content-type': the content type, application/pdf,
       #    'content-length': size in bytes of the archived PDF
-      #    name: human name of the file  
-      # 
+      #    name: human name of the file
+      #
       def print_and_archive (payload:, entity_id:, access:, file_name: '', billing_type:)
         #
         # set payloads
