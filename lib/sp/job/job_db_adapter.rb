@@ -1,7 +1,7 @@
 module SP
   module Job
 
-    if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
+    unless Kernel.const_defined?("::SP::Duh")  # TODO suck in the base class from SP-DUH
       class JobDbAdapter < ::SP::JSONAPI::Adapters::Db
 
         private

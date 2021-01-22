@@ -112,12 +112,13 @@ module SP
           def url_with_params_for_query(path, params)
             query = params_for_query(params)
             query_url = url(path)
-            query.blank? ? query_url : query_url + (query_url.include?('?') ? '&' : '?') + query
+            (query == '' || query == nil) ? query_url : query_url + (query_url.include?('?') ? '&' : '?') + query
           end
 
           def params_for_query(params)
             query = ""
-            if !params.blank?
+
+            if (params != '' && params != nil) #!params.blank?
               case
                 when params.is_a?(Array)
                   # query = params.join('&')
@@ -138,7 +139,7 @@ module SP
           end
 
           def params_for_body(params)
-            params.blank? ?  '' : params.to_json.gsub("'","''")
+            (params == '' || params == nil) ?  '' : params.to_json.gsub("'","''")
           end
 
           # unwrap_response SHOULD be implemented by each specialized adapter, and returns the request result as a JSONAPI string or hash and raises an exception if there was an error

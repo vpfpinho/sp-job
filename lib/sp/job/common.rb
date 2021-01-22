@@ -144,7 +144,7 @@ module SP
         td = thread_data
         if td.jsonapi.nil?
           require 'sp/job/job_db_adapter' # TODO suck in the base class from SP-DUH
-          if RUBY_ENGINE == 'jruby'
+          unless Kernel.const_defined?("::SP::Duh")
             td.jsonapi = SP::JSONAPI::Service.new($pg, 'https://jsonapi.developer.com', SP::Job::JobDbAdapter)
           else
             # TODO this needs sp-duh to be "manually" required in MRI
@@ -160,7 +160,7 @@ module SP
       # parameters defined by the JOB object
       #
       def set_jsonapi_parameters (params)
-        if RUBY_ENGINE == 'jruby'  # TODO suck in the base class from SP-DUH
+        unless Kernel.const_defined?("::SP::Duh")  # TODO suck in the base class from SP-DUH
           thread_data.jsonapi.set_jsonapi_parameters(SP::JSONAPI::ParametersNotPicky.new(params))
         else
           thread_data.jsonapi.set_jsonapi_parameters(SP::Duh::JSONAPI::ParametersNotPicky.new(params))
@@ -172,7 +172,7 @@ module SP
       # parameters defined by the JOB object
       #
       def get_jsonapi_parameters
-        HashWithIndifferentAccess.new(JSON.parse(thread_data.jsonapi.parameters.to_json))
+        JSON.parse(thread_data.jsonapi.parameters.to_json, symbolize_names: true)
       end
 
 
@@ -1164,6 +1164,21 @@ module SP
 
       end
 
+      def email_address_valid? (email)
+        return false if email.match(RFC822::EMAIL).nil?
+        begin
+          resolver = Dnsruby::DNS.new
+          domain = Mail::Address.new(email).domain
+          has_resource = false
+          resolver.each_resource(domain, 'MX') do |r|
+            has_resource = true
+          end
+          return has_resource
+        rescue ::Exception => e
+          return false
+        end
+      end
+
       def email_addresses_valid? (email_addresses)
         begin
           raise ::ArgumentError.new 'A lista de emails tem de estar preenchida' if email_addresses.nil? || email_addresses.empty?
@@ -1191,7 +1206,7 @@ module SP
               mx_not_found << email
             end
           end
-
+          
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{mx_not_found.join(', ')}" if mx_not_found.length > 0
 
           return { valid: true }
@@ -1356,7 +1371,7 @@ module SP
       def pg_server_error (e)
         raise e if e.is_a?(::SP::Job::JobCancelled)
         base_exception = e
-        while base_exception.respond_to?(:cause) && !base_exception.cause.blank?
+        while base_exception.respond_to?(:cause) && !base_exception.cause.to_s.strip.empty?
           base_exception = base_exception.cause
         end
 
@@ -1624,7 +1639,7 @@ module SP
       def logger_or_puts msg
         # OUTPUT FOR JOBS OR RUBY CONSOLE
         if logger
-          logger.debug " => #{msg}".yellow
+          logger.info " => #{msg}".yellow
         else
           puts " => #{msg}".yellow
         end

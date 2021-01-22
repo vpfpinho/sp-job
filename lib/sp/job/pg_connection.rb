@@ -215,7 +215,7 @@ module SP
       #
       def add_post_connect_query(query)
         @mutex.synchronize {
-          if nil != @connection 
+          if nil != @connection
             @connection.exec(query)
           end
           @config[:post_connect_queries] ||= Array.new

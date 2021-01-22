@@ -26,7 +26,7 @@ module SP
           errors = get_result_errors()
           @status = (errors.map { |error| error[:status].to_i }.max) || 403
           @message = errors.first[:detail]
-          super(@message, nested)
+          nested ? super(@message, nested) : super(@message)
         end
 
         def internal_error
@@ -50,7 +50,7 @@ module SP
 
         private
 
-          def get_result_errors() ; (result.is_a?(Hash) ? result : HashWithIndifferentAccess.new(JSON.parse(result)))[:errors] ; end
+          def get_result_errors() ; (result.is_a?(Hash) ? result : (JSON.parse(result, symbolize_names: true)))[:errors] ; end
 
       end
 
