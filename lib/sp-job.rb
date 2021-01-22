@@ -36,7 +36,7 @@ require 'json'
 require 'mail'
 require 'uri'
 require 'securerandom'
-require 'dnsruby'
+require 'dnsruby' if RUBY_ENGINE == 'jruby'
 
 require 'sp/job'
 require 'sp/job/version'
