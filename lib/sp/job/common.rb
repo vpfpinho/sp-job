@@ -1167,15 +1167,13 @@ module SP
       def email_address_valid? (email)
         return false if email.match(RFC822::EMAIL).nil?
         begin
-          if RUBY_ENGINE == 'jruby'
-            resolver = Dnsruby::DNS.new
-            domain = Mail::Address.new(email).domain
-            has_resource = false
-            resolver.each_resource(domain, 'MX') do |r|
-              has_resource = true
-            end
-            return has_resource
+          resolver = Dnsruby::DNS.new
+          domain = Mail::Address.new(email).domain
+          has_resource = false
+          resolver.each_resource(domain, 'MX') do |r|
+            has_resource = true
           end
+          return has_resource
         rescue ::Exception => e
           return false
         end
@@ -1191,7 +1189,7 @@ module SP
 
           raise ::Exception.new "Os seguintes endereços de email não são válidos: #{diff_email_addresses.join(', ')}" if diff_email_addresses.length > 0
 
-          resolver = Dnsruby::DNS.new if RUBY_ENGINE == 'jruby'
+          resolver = Dnsruby::DNS.new
 
           mx_not_found = []
 

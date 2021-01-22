@@ -36,7 +36,7 @@ require 'json'
 require 'mail'
 require 'uri'
 require 'securerandom'
-require 'dnsruby' unless Kernel.const_defined?('::SP::Duh')
+require 'dnsruby'
 
 require 'sp/job'
 require 'sp/job/version'
