@@ -1617,9 +1617,9 @@ module SP
           type:            type,
           company_id:      entity_id,
           document_update: document.nil? ? 'document = document' : "document = '#{j_document}'",
-          data_update:     data.nil? ? 'data = data' : "data = '#{j_data}'",
+          data_update:     data.nil? ? 'data = data' : "data = '#{db.connection.escape_string(j_data)}'",
           document_insert: document.nil? ? '{}' : j_document,
-          data_insert:     data.nil? ? '{}' : j_data
+          data_insert:     data.nil? ? '{}' : db.connection.escape_string(j_data)
         })
 
         if 'PGRES_TUPLES_OK' == rs.res_status(rs.result_status)
