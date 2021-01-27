@@ -51,15 +51,15 @@ module SP
       #
       # One shot code that configures the converter into class variables
       #
-      @@upload = URI.parse(config[:urls][:upload_internal])
-      if @@upload.host == 'localhost' || @@upload.host == '127.0.0.1' || @@upload.host == config[:machine][:internal_ip]
+      upload = URI.parse(config[:urls][:upload_internal])
+      if OS.mac?
         @@ssh = ''
         @@src = config[:paths][:temporary_uploads]
         @@dst = config[:paths][:uploads_storage]
       else
-        @@ssh = "ssh #{@@upload.host} "
+        @@ssh = (upload.host == 'localhost' || upload.host == '127.0.0.1') ? '' : "ssh #{upload.host} "
         @@src = config[:paths][:remote_temporary_uploads]
-        @@dst  = config[:paths][:remote_uploads_storage]
+        @@dst = config[:paths][:remote_uploads_storage]
       end
 
       @@tube_options = default_tube_options()
