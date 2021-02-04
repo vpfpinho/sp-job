@@ -42,12 +42,12 @@ class EmailValidate
     params = URI::decode_www_form(uri.query).to_h
     email  = params['email']
 
-    # ... Validate!
+    # ... Validate! ...
     valid  = email_address_valid?(email)
     if valid 
-      logger.info "email #{email} is valid".cyan
+      logger.info "-- email #{email} is valid".cyan
     else
-      logger.info "email #{email} is *NOT* valid".yellow
+      logger.info "-- email #{email} is *NOT* valid".yellow
     end
 
     # ... send response 

@@ -1169,11 +1169,14 @@ module SP
         begin
           resolver = Dnsruby::DNS.new
           domain = Mail::Address.new(email).domain
-          has_resource = false
+          
           resolver.each_resource(domain, 'MX') do |r|
-            has_resource = true
+            return true
           end
-          return has_resource
+          resolver.each_resource(domain, 'A') do |r|
+            return true
+          end
+          return false
         rescue ::Exception => e
           return false
         end
@@ -1200,6 +1203,12 @@ module SP
               resolver.each_resource(domain, 'MX') do |r|
                 has_resource = true
                 break;
+              end
+              unless has_resource
+                resolver.each_resource(domain, 'A') do |r|
+                  has_resource = true
+                  break;
+                end  
               end
               mx_not_found << email if !has_resource
             rescue Exception => e
