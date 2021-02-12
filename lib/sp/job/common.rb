@@ -750,6 +750,10 @@ module SP
       end
 
       def send_response (args)
+        _send_response(args)
+      end
+
+      def _send_response (args)
         td = thread_data
         args[:status]       ||= 'completed'
         args[:action]       ||= 'response'
@@ -910,7 +914,7 @@ module SP
         logger.error(args)
         if td.tube_options[:simpleapi]
           args[:response] ||= { error: args[:message] }
-          send_response(args)
+          _send_response(args)
         else
           update_progress(args)
           signal_job_termination(td)
