@@ -38,12 +38,14 @@ module SP
         _send_response(args)
       end
 
-      def raise_error(args)
-        send_error(args[:status_code] || 500, args[:message])
+      def raise_error (args)
+        send_error(args[:status_code] || 500, args[:simple_message] || args[:message])
+        raise ::SP::Job::JobException.new(args: args, job: thread_data.current_job)
       end
     
-      def report_error(args)
-        send_error(args[:status_code] || 400, args[:message])
+      def report_error (args)
+        send_error(args[:status_code] || 400, args[:simple_message] || args[:message])
+        raise ::SP::Job::JobAborted.new(args: args, job: thread_data.current_job)
       end
 
       #
@@ -64,6 +66,7 @@ module SP
       # @param message the message that will 
       #
       def send_error (status, message)
+        logger.info "Failed with status #{status}, #{message}".yellow
         _send_response(
           content_type: 'application/vnd.api+json;charset=utf-8',
           status_code: status,

@@ -479,24 +479,6 @@ module SP
         end
       end
 
-      def generate_public_link_jwt(entity_id:, archive_id: , private_key:, validity: (3600 * 24 * 365 * 12)) # 12 years
-        now = Time.now.getutc.to_i
-        exp = now + validity
-
-        jwt = ::SP::Job::JWTHelper.encode(
-          key: private_key,
-          payload: {
-              exp: exp,
-              iat: now,
-              nbf: now,
-              archive: {
-                id: archive_id,
-                entity_id: entity_id
-              }
-          }
-        )
-      end
-
       #
       # Submit jwt
       #
