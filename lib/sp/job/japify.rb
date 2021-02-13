@@ -26,6 +26,10 @@ module SP
   module Job
     module Japify
 
+      #
+      # Replace default send response to serialize the response object
+      # as inside a json:api object response
+      #      
       def send_response (args)
         args[:content_type] = 'application/vnd.api+json;charset=utf-8'
         args[:response] = { 
@@ -38,13 +42,19 @@ module SP
         _send_response(args)
       end
 
+      #
+      # Replace default raise error so that errors are serialized json:api style
+      #
       def raise_error (args)
-        send_error(args[:status_code] || 500, args[:simple_message] || args[:message])
+        send_error(args[:status_code] || 500, args[:simple_message] || args[:message], args[:code])
         raise ::SP::Job::JobException.new(args: args, job: thread_data.current_job)
       end
     
+      #
+      # Replace default report error so that errors are serialized json:api style
+      #
       def report_error (args)
-        send_error(args[:status_code] || 400, args[:simple_message] || args[:message])
+        send_error(args[:status_code] || 400, args[:simple_message] || args[:message], args[:code])
         raise ::SP::Job::JobAborted.new(args: args, job: thread_data.current_job)
       end
 
@@ -63,9 +73,10 @@ module SP
       # Send error JSON api style
       #
       # @param status_code the HTTP status code
-      # @param message the message that will 
+      # @param message the message that will be returned with error
+      # @param code the report code
       #
-      def send_error (status, message)
+      def send_error (status, message, code = nil)
         logger.info "Failed with status #{status}, #{message}".yellow
         _send_response(
           content_type: 'application/vnd.api+json;charset=utf-8',
@@ -73,7 +84,7 @@ module SP
           response: {
             errors: [{
               status: status.to_s,
-              code: 'JA000',
+              code: code || 'JA000',
               detail: message
             }]
           }
