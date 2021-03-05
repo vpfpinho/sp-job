@@ -1526,6 +1526,10 @@ module SP
         logger.debug "SEQUENCER PAYLOAD:"
         logger.debug ap sequencer_payload
 
+        synchronous_print(sequencer_payload)
+      end
+
+      def synchronous_print(sequencer_payload)
         #
         # "submit job" via JWT - synchronous HTTP request
         #
