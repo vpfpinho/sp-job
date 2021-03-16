@@ -723,7 +723,8 @@ module SP
             }
 
             # Added role_mask and module_mask to notification message
-            message.merge!({ role_mask: td.current_job[:role_mask] }) if td.current_job[:role_mask]
+            # Clearing notifications for employees
+            message.merge!({ role_mask: td.current_job[:role_mask].to_i & ~1 }) if td.current_job[:role_mask]
             message.merge!({ module_mask: td.current_job[:module_mask] }) if td.current_job[:module_mask]
 
             manage_notification(notification_options, message)
@@ -1194,7 +1195,7 @@ module SP
                 resolver.each_resource(domain, 'A') do |r|
                   has_resource = true
                   break;
-                end  
+                end
               end
               mx_not_found << email if !has_resource
             rescue Exception => e
