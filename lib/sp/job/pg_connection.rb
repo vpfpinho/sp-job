@@ -147,6 +147,22 @@ module SP
       end
 
       #
+      # Escape an SQL string using the roman catholic method
+      #
+      # @param text the string to escape
+      # @return escaped string
+      #
+      def escape (text)
+        @mutex.synchronize {
+          if nil == @connection
+            _connect()
+          end
+          _check_life_span()
+          @connection.escape_string(text)
+        }
+      end
+
+      #
       # Call this to check if the database is not a production database where it's
       # dangerous to make development stuff. It checks the presence of a magic parameter
       # on the PG configuration that marks the database as a development arena
