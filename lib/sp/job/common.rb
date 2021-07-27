@@ -1532,26 +1532,18 @@ module SP
 
       def synchronous_print(sequencer_payload)
         #
-        # "submit job" via JWT - synchronous HTTP request
+        # "submit job" via jobify module to sequencer-live tube - synchronous HTTP request
         #
         # set JWT
-        begin
-          jwt = JWTHelper.jobify(
-            key: "#{$config[:paths][:private_key]}/#{$config[:nginx_broker][:private_key] || 'nginx-broker'}",
-            tube: 'sequencer-live',
-            payload: sequencer_payload
-          )
-        rescue => e
-          rollbar_and_raise(message: 'An error occurred while creating a JWT for P&A sequence', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
-        end
+    
         # perform HTTP request
         begin
           response = HttpClient.post(
-            url: get_cdn_public_url,
+            url: "#{config[:urls][:internal_jobify]}/sequencer-live",
             headers: {
               'Content-Type' => 'application/json'
             },
-            body: jwt,
+            body: sequencer_payload,
             expect: {
               code: 200,
               content: {
