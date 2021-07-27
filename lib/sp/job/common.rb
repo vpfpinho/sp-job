@@ -1543,7 +1543,7 @@ module SP
             headers: {
               'Content-Type' => 'application/json'
             },
-            body: sequencer_payload,
+            body: sequencer_payload.to_json,
             expect: {
               code: 200,
               content: {
