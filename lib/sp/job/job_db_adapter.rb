@@ -8,7 +8,8 @@ module SP
 
           # Implement the JSONAPI request by direct querying of the JSONAPI function in the database
           def do_request_on_the_db(method, path, params)
-            jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
+
+            jsonapi_query = %Q[ SET statement_timeout = '60min'; SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'); ]
 
             response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, subentity_schema, subentity_prefix
             response.first if response.first
