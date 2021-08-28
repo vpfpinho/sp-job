@@ -48,6 +48,50 @@ module SP
         { broker: false, transient: false, raw_response: false, min_progress: 3, bury: true, disconnect_db: false, simpleapi: false }
       end
 
+      #
+      # Returns object with the platform definitions taking into account the brand(ing)
+      #
+      def platform_configuration
+        td = thread_data
+        unless td.platform_configuration
+          load_platform_configuration(td)
+        end
+        td.platform_configuration
+      end
+
+      #
+      # Returns color schema taking into account the brand(ing)
+      #
+      def color_scheme
+        td = thread_data
+        unless td.color_scheme
+          load_platform_configuration(td)
+        end
+        td.color_scheme
+      end
+
+      #
+      # Lazily load color scheme and platform spec into thread data
+      # 
+      # Give priority to the brand key patched from session data, if that fails fallback to x_brand inserted by the front-end
+      #
+      def load_platform_configuration (thread_data)
+        begin
+          if config && config[:brands]
+            brand = thread_data.current_job[:brand] || thread_data.current_job[:x_brand]
+            unless brand.nil?
+              thread_data.platform_configuration = config[:brands][brand.to_sym][:'platform-configuration']
+              thread_data.color_scheme           = config[:brands][brand.to_sym][:'color-scheme']
+            end
+          end
+        rescue Exception => e
+          raise 'No Platform Configuration'
+        end
+      end
+
+      # TODO this shitty thread unsafe hook will be removed soon
+      # TODO this shitty thread unsafe hook will be removed soon
+      # TODO this shitty thread unsafe hook will be removed soon
       def prepend_platform_configuration (job)
         begin
           if config && config[:brands] && job && job[:x_brand]
@@ -584,16 +628,23 @@ module SP
           td.tube_options[:transient] = true
         end
 
-        td.report_time_stamp    = 0
-        td.exception_reported   = false
-        td.job_id               = job[:id]
-        td.publish_key          = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        td.job_key              = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
-        td.job_tube             = (job[:tube] || $args[:program_name])
+        td.report_time_stamp      = 0
+        td.exception_reported     = false
+        td.job_id                 = job[:id]
+        td.publish_key            = $config[:service_id] + ':' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        td.job_key                = $config[:service_id] + ':jobs:' + (job[:tube] || $args[:program_name]) + ':' + job[:id]
+        td.job_tube               = (job[:tube] || $args[:program_name])
+        td.platform_configuration = nil
+        td.color_scheme           = nil
+        td.job_data               = nil
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         exists = redis do |r|
-          r.exists(td.job_key)
+          if r.respond_to? 'exists?'
+            r.exists?(td.job_key)
+          else
+            r.exists(td.job_key)
+          end
         end
         unless exists
           # Signal job termination
