@@ -89,20 +89,6 @@ module SP
         end
       end
 
-      # TODO this shitty thread unsafe hook will be removed soon
-      # TODO this shitty thread unsafe hook will be removed soon
-      # TODO this shitty thread unsafe hook will be removed soon
-      def prepend_platform_configuration (job)
-        begin
-          if config && config[:brands] && job && job[:x_brand]
-            @platform_configuration = config[:brands][job[:x_brand].to_sym][:"platform-configuration"]
-            @color_scheme           = config[:brands][job[:x_brand].to_sym][:"color-scheme"]
-          end
-        rescue Exception => e
-          raise 'No Platform Configuration'
-        end
-      end
-
       def exclude_member(member_number)
         $excluded_members.include? member_number
       end
@@ -636,7 +622,7 @@ module SP
         td.job_tube               = (job[:tube] || $args[:program_name])
         td.platform_configuration = nil
         td.color_scheme           = nil
-        td.job_data               = nil
+        td.job_data               = {}
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         exists = redis do |r|
