@@ -647,7 +647,7 @@ module SP
         td.job_tube               = (job[:tube] || $args[:program_name])
         td.platform_configuration = nil
         td.color_scheme           = nil
-        td.job_data               = nil
+        td.job_data               = {}
 
         # Make sure the job is still allowed to run by checking if the key exists in redis
         exists = redis do |r|
