@@ -350,6 +350,19 @@ def self.get_config (args)
   end
 
   #
+  # Resolve project and user relative paths on certificates configuration
+  #
+  (conf['certificates'] || []).each do |key, values|
+    values.each do |name, path|
+      if path.start_with? '$project'
+        conf['certificates'][key][name] = path.sub('$project', conf['paths']['project'] || @project)
+      elsif path.start_with? '$user_home'
+        conf['certificates'][key][name] = path.sub('$user_home', @user_home)
+      end
+    end
+  end
+
+  #
   # Read optional brand information
   #
   if conf['product']
