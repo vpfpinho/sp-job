@@ -72,7 +72,7 @@ module SP
 
       #
       # Lazily load color scheme and platform spec into thread data
-      # 
+      #
       # Give priority to the brand key patched from session data, if that fails fallback to x_brand inserted by the front-end
       #
       def load_platform_configuration (thread_data)
@@ -309,6 +309,17 @@ module SP
         raise exception
       end
 
+      #
+      # Retrieve a unique file on tmp/DATE folder. This files are automatically erased after days_after time.
+      #
+      # @param days_after
+      # @param extension
+      #
+      # @return unique file URI for a file on tmp/DATE.
+      #
+      def get_unique_file(tmp_dir: 'tmp', days_after: 2, extension: '')
+        Unique::File.create("/#{tmp_dir}/#{(Date.today + days_after).strftime('%Y-%m-%d')}", extension)
+      end
 
       #
       # Retrieve a previously uploaded public ( company or user ) file .
@@ -345,7 +356,7 @@ module SP
         end
 
         org_file_url = "#{upl_int_tmp_uri.scheme}://#{upl_int_tmp_uri.host}:#{upl_int_tmp_uri.port}/#{path}/#{file}"
-        tmp_file_uri = Unique::File.create("/#{tmp_dir || 'tmp'}/#{(Date.today + 2).to_s}", 'dl')
+        tmp_file_uri = get_unique_file(tmp_dir: tmp_dir, extension: 'dl')
 
         response = HttpClient.get_to_file(url: org_file_url, to: tmp_file_uri)
 
@@ -1193,7 +1204,7 @@ module SP
         begin
           resolver = Dnsruby::DNS.new
           domain = Mail::Address.new(email).domain
-          
+
           resolver.each_resource(domain, 'MX') do |r|
             return true
           end
@@ -1572,7 +1583,7 @@ module SP
         # "submit job" via jobify module to sequencer-live tube - synchronous HTTP request
         #
         # set JWT
-    
+
         # perform HTTP request
         begin
           response = HttpClient.post(
