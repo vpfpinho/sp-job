@@ -78,7 +78,7 @@ module SP
       def load_platform_configuration (thread_data)
         begin
           if config && config[:brands]
-            brand = thread_data.current_job[:brand] || thread_data.current_job[:x_brand]
+            brand = thread_data.current_job[:brand] || thread_data.current_job[:x_brand] || config[:product]
             unless brand.nil?
               thread_data.platform_configuration = config[:brands][brand.to_sym][:'platform-configuration']
               thread_data.color_scheme           = config[:brands][brand.to_sym][:'color-scheme']
