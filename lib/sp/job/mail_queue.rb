@@ -63,6 +63,7 @@ module SP
           default_from: @@tube_options[:from],
           body:         job[:body],
           template:     job[:template],
+          cdn_url:      job[:cdn_url],
           to:           job[:to],
           cc:           job[:cc],
           reply_to:     job[:reply_to],

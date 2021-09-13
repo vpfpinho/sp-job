@@ -521,6 +521,23 @@ module SP
       end
 
       #
+      # Get a file from cdn
+      #
+      # @param cdn_url
+      #
+      # NOTE: Only works with files that are not binary
+      def get_from_cdn (cdn_url:)
+
+        puts cdn_url
+        raise 'missing cdn_url' if cdn_url.nil?
+
+        # returning 'normalized' response
+        HttpClient.get_klass.get(
+          url: cdn_url
+        )
+      end
+
+      #
       # Submit jwt
       #
       def submit_jwt (url, jwt)
@@ -1324,6 +1341,8 @@ module SP
                                             entity_id: args[:session][:entity_id],
                                             role_mask: args[:session][:role_mask],
                                             module_mask: args[:session][:module_mask])
+        elsif args.has_key?(:cdn_url) && args[:cdn_url] != nil
+          email_body = get_from_cdn(cdn_url: args[:cdn_url])[:body]
         end
 
         document = Roadie::Document.new email_body
