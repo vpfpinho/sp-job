@@ -528,13 +528,10 @@ module SP
       # NOTE: Only works with files that are not binary
       def get_from_cdn (cdn_url:)
 
-        puts cdn_url
         raise 'missing cdn_url' if cdn_url.nil?
 
         # returning 'normalized' response
-        HttpClient.get_klass.get(
-          url: cdn_url
-        )
+        HttpClient.get_klass.get( url: cdn_url )
       end
 
       #
