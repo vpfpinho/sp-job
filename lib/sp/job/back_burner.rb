@@ -321,7 +321,7 @@ module Backburner
       param_log = ''
       args = args[0]
       [ :user_id, :entity_id, :entity_schema, :sharded_schema, :subentity_id, :subentity_prefix, :subentity_schema, :action].each do |key|
-        if args.has_key?(key) && !(args[key].nil? || args[key].empty?)
+        if args.has_key?(key) && !(args[key].nil? || args[key].to_s.empty?)
           param_log += "#{key}: #{args[key]},"
         end
       end
