@@ -322,6 +322,17 @@ module SP
       end
 
       #
+      # Retrieve the cdn internal link for a file on tmp/DATE folder.
+      #
+      # @param path
+      #
+      # @return cdn internal link for the file
+      #
+      def get_cdn_internal_for(path)
+        "#{config[:urls][:cdn_internal]}/#{path.split('/')[-2..-1].join('/')}"
+      end
+
+      #
       # Retrieve a previously uploaded public ( company or user ) file .
       #
       # @param file
