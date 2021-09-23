@@ -193,7 +193,7 @@ module SP
       #
       def exists (token) 
         redis do |r|
-          r.exists("#{@sid}:oauth:access_token:#{token}")
+          r.exists?("#{@sid}:oauth:access_token:#{token}")
         end
       end
 
@@ -212,7 +212,7 @@ module SP
             end
           end
           redis do |r|
-            unless r.exists(key)
+            unless r.exists?(key)
               r.pipelined do
                 r.hmset(key, hset)
                 if duration.nil?
