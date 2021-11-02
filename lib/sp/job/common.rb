@@ -333,6 +333,45 @@ module SP
       end
 
       #
+      # Retrieve the cdn internal link for a file on tmp/DATE folder, based on th respective template and variables.
+      #
+      # @param path
+      #
+      # @return cdn internal link for the file
+      #
+      def cdn_for_template(template, variables)
+        get_cdn_internal_for(get_tmp_file_for_template(template, variables))
+      end
+
+      #
+      # Creates and loads a tmp file based on the template and respective variables
+      #
+      # @param path
+      #
+      # @return tmp file path generated
+      #
+      def get_tmp_file_for_template (template, variables)
+        tempfile = File.open(get_unique_file(extension: '.eml'), 'wb')
+        tempfile.write load_content_from_template(template, variables)
+        tempfile.flush
+        tempfile.close
+        tempfile.path
+      end
+
+      #
+      # Loads the content for a specific template
+      #
+      # @param content based on a template and respective variables.
+      #
+      # @return content binded between a template and respective variables
+      #
+      def load_content_from_template (template, variables)
+        template = ERB.new(File.read(template))
+        erb_binding = OpenStruct.new(variables).instance_eval { binding }
+        template.result(erb_binding)
+      end
+
+      #
       # Retrieve a previously uploaded public ( company or user ) file .
       #
       # @param file
