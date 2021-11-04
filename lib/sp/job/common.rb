@@ -1573,6 +1573,40 @@ module SP
       end
 
       #
+      # Prints massive payloads without causing beanstalk issues
+      # Uses cpq-deflator (zip) or cpq-amalgamator (download or print)
+      # 
+      # @param casper-print-queue payload
+      # @param action zip / download / print
+      # @return cpq-deflator/cpq-amalgamator job id
+      #
+      def massive_print (payload:, action: 'download')
+        tempfile = File.open(get_unique_file(extension: '.json'), 'wb')
+        tempfile.write payload.to_json
+        tempfile.flush
+        tempfile.close
+
+        payload = {
+          job: {
+            :url => get_cdn_internal_for(tempfile.path),
+            :ttr => 300, # TODO
+            :validity => 300 # TODO
+          },
+          validity: 86400 # TODO
+        }
+
+        if action == 'zip'
+          payload[:tube] = 'cpq-deflator'
+        elsif action == 'download' || action == 'print'
+          payload[:tube] = 'cpq-amalgamator'
+        else
+          report_error(message: 'Invalid action')
+        end
+                
+        return submit_job payload
+      end
+
+      #
       # Print and archive (via sequencer)
       #
       # Prints the requested PDF and archives it on the entity file server with the set access permissions,
