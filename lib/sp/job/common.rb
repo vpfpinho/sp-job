@@ -317,7 +317,7 @@ module SP
       #
       # @return unique file URI for a file on tmp/DATE.
       #
-      def get_unique_file(tmp_dir: 'tmp', days_after: 2, name: '', extension: '')
+      def get_unique_file(tmp_dir: 'tmp', days_after: 2, name: nil, extension: '')
         Unique::File.create_n(folder: "/#{tmp_dir}/#{(Date.today + days_after).strftime('%Y-%m-%d')}", name: name, extension: extension)
       end
 
