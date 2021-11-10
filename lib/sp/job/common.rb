@@ -1588,11 +1588,11 @@ module SP
 
         payload = {
           job: {
-            :url => get_cdn_internal_for(tempfile.path),
-            :ttr => 300, # TODO
-            :validity => 300 # TODO
+            url: get_cdn_internal_for(tempfile.path),
+            ttr: 360, 
+            validity: 100 
           },
-          validity: 86400 # TODO
+          validity: 100
         }
 
         if action == 'zip'
