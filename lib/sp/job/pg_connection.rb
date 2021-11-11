@@ -244,6 +244,10 @@ module SP
       def _connect ()
         _disconnect()
         @connection = PG.connect(@config[:conn_str])
+        application_name = @config[:conn_str].match(/application_name=(.*)/im)
+        unless application_name.nil?
+          @connection.exec("SET application_name TO \"#{application_name[1]}\"")
+        end
         if @config[:post_connect_queries]
           @config[:post_connect_queries].each do |query|
             @connection.exec(query)
