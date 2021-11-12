@@ -691,7 +691,7 @@ def self.run_configure (args)
       @job_threads     = nil
       @job_skip_cfg    = nil != job ? ( job.skip_config  || false ) : false
       @job_skip_srv    = nil != job ? ( job.skip_service || false ) : false
-      @job_skip_logr   = nil != job ? ( job.skip_log     || false ) : false
+      @job_skip_logr   = nil != job ? ( job.skip_logr || false ) : false
       @unified_config  = true
 
       if job
