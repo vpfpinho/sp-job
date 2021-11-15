@@ -691,6 +691,7 @@ def self.run_configure (args)
       @job_threads     = nil
       @job_skip_cfg    = nil != job ? ( job.skip_config  || false ) : false
       @job_skip_srv    = nil != job ? ( job.skip_service || false ) : false
+      @job_skip_logr   = nil != job ? ( job.skip_logr || false ) : false
       @unified_config  = true
 
       if job
@@ -802,23 +803,26 @@ def self.run_configure (args)
       #
       # logrotate.erb?
       #
-      if File.exists? "#{@job_dir}/logrotate.erb"
-        template = "#{@job_dir}/logrotate.erb"
+      if true == @job_skip_logr
+        puts "    SKIPPING - logrotated config...".yellow
       else
-        template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
-        if ! File.exists? template
-          # last attempt - try sp-job/job/default.logrotate.erb
-          template = "#{templates_fallback_dir}/default.logrotate.erb"
+        if File.exists? "#{@job_dir}/logrotate.erb"
+          template = "#{@job_dir}/logrotate.erb"
+        else
+          template = "#{@config.paths.working_directory}/jobs/default.logrotate.erb"
+          if ! File.exists? template
+            # last attempt - try sp-job/job/default.logrotate.erb
+            template = "#{templates_fallback_dir}/default.logrotate.erb"
+          end
+        end
+        if File.exists? template
+          diff_and_write(contents: expand_template(template),
+                         path: "#{@config.prefix}/etc/logrotate.d/#{@job_name}",
+                         diff: diff_before_copy,
+                         dry_run: dry_run
+          )
         end
       end
-      if File.exists? template
-        diff_and_write(contents: expand_template(template),
-                       path: "#{@config.prefix}/etc/logrotate.d/#{@job_name}",
-                       diff: diff_before_copy,
-                       dry_run: dry_run
-        )
-      end
-
     end
   end
 
