@@ -65,6 +65,16 @@ module SP
         })
       end
 
+      def self.validate(public_key:, jwt:)
+        JWT.decode(
+          jwt,
+          public_key,
+          true,
+          algorithms: 'RS256',
+          verify_iss: true,
+        )
+      end
+
       # Submit a jwt for a job
       def self.submit (url:, jwt:, expect: { code: 200, content: { type: 'application/json' }})
         response = HttpClient.get_klass.post(
