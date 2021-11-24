@@ -52,7 +52,7 @@ module SP
                 work_one_job(connection)
               rescue Beaneater::NotFoundError => bnfe
                 # Do nothing if try to delete the task and it´s not found
-              rescue Beaneater::DeadlineSoonError => dse 
+              rescue Beaneater::DeadlineSoonError => dse
                 # By default there is nothing we can do to speed up
               rescue Backburner::Job::JobTimeout => jte
                 # What to do?

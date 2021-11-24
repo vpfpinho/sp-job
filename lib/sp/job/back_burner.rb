@@ -186,8 +186,8 @@ module SP
       end
     end
 
-    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job, 
-                                  :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options, 
+    class ThreadData < Struct.new(:job_status, :report_time_stamp, :exception_reported, :job_id, :publish_key, :job_key, :current_job,
+                                  :job_notification, :jsonapi, :job_tube, :notification_lock, :notification_lock_key, :tube_options,
                                   :job_data, :cdb_api, :vault_api, :index, :cdn_sideline, :broker_archive_client, :color_scheme, :platform_configuration)
       def initialize
         self.job_status = {}
@@ -578,6 +578,10 @@ unless $config[:rollbar].nil?
       config.default_logger = lambda { $rollbar_logger }
     end
   end
+end
+
+if $setup_callback != nil
+  $setup_callback.call
 end
 
 Backburner.configure do |config|
