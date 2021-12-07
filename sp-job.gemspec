@@ -53,5 +53,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rspec', '~> 3.0'
 
   # @ cloudware
-  spec.add_dependency 'configure'
+  spec.add_dependency 'configure', '~>2.0.0'
 end
