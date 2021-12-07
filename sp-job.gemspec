@@ -26,7 +26,7 @@ Gem::Specification.new do |spec|
     f.match(%r{^(test|spec|features)/})
   end
   spec.bindir        = 'bin'
-  spec.executables   = ['queue-job', 'unique-file', 'configure']
+  spec.executables   = ['queue-job', 'unique-file']
   spec.require_paths = ['lib']
   spec.add_dependency 'os'
   spec.add_dependency 'ffi'
@@ -52,4 +52,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
 
+  # @ cloudware
+  spec.add_dependency 'configure'
 end
