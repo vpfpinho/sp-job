@@ -25,6 +25,8 @@ module SP
   module Job
     module Common
 
+      include SP::Job::Lock
+
       ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
       class Exception < StandardError
@@ -953,6 +955,7 @@ module SP
 
       def after_perform_lock_cleanup (*args)
         disconnect_db_connections
+        release_locks
         # In case the job missed a send_response... clear the job_id to mark this job as completed! (Otherwise, process reloading will NOT work)
         thread_data.job_id = nil
         check_gracefull_exit(dolog: true)
@@ -1575,7 +1578,7 @@ module SP
       #
       # Prints massive payloads without causing beanstalk issues
       # Uses cpq-deflator (zip) or cpq-amalgamator (download or print)
-      # 
+      #
       # @param casper-print-queue payload
       # @param action zip / download / print
       # @return cpq-deflator/cpq-amalgamator job id
@@ -1589,8 +1592,8 @@ module SP
         payload = {
           job: {
             url: get_cdn_internal_for(tempfile.path),
-            ttr: 360, 
-            validity: 100 
+            ttr: 360,
+            validity: 100
           },
           validity: 100
         }
@@ -1602,7 +1605,7 @@ module SP
         else
           report_error(message: 'Invalid action')
         end
-                
+
         return submit_job payload
       end
 
@@ -1759,6 +1762,23 @@ module SP
 
       private
 
+      def report_duplicated_job(title: nil, sub_title: nil, message: nil)
+
+        notice_title     = title || 'Tarefa duplicada'
+        notice_sub_title = sub_title || 'Não é permitido realizar mais do que uma tarefa do mesmo tipo em simultâneo.'
+        notice_message   = message || 'Acompanhe a evolução da tarefa em curso na área de notificações, logo que a tarefa em curso termine poderá submeter o novo pedido'
+
+        message = <<-HTML
+          <div class="custom-message">
+            <casper-icon class="error-icon" icon="fa-light:exclamation-circle"></casper-icon>
+            <h2>#{notice_title}</h2>
+            <span>#{notice_sub_title}</span>
+            <div style="flex-grow: 2.0;"></div>
+            <casper-notice title="Aviso" type="warning">#{notice_message}</casper-notice>
+          </div>
+        HTML
+        report_error(message: message, custom: true, response: { conflict_in_tube: true})
+      end
 
       def logger_or_puts msg
         # OUTPUT FOR JOBS OR RUBY CONSOLE
