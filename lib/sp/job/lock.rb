@@ -97,6 +97,7 @@ module SP
 
         # if lock was set then no job was running, set expire. else return false
         if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
+          release_locks
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
         _lock_key
