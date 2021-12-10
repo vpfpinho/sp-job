@@ -41,18 +41,20 @@ module SP
 
       end # class Exception
 
-      def exclusive_lock(key:, entity: true, entity_id: nil, user: false, user_id: nil, actions: nil, timeout: nil, message: nil, cleanup: true)
-        raise 'No key'             if key.nil?
-        raise 'No entity id'       if entity && entity_id.nil?
-        raise 'No user id'         if user && user_id.nil?
-        raise 'No timeout defined' if timeout.nil?
+      def exclusive_lock(key:, entity: true, entity_id: nil, user: false, user_id: nil, username: nil, email: nil, actions: nil, timeout: nil, message: nil, cleanup: true)
+        raise 'No key'              if key.nil?
+        raise 'No entity id'        if entity && entity_id.nil?
+        raise 'No user id'          if user && user_id.nil?
+        raise 'No timeout defined'  if timeout.nil?
+        raise 'No username defined' if username.nil?
+        raise 'No email defined'    if email.nil?
 
-        Thread.current[:lock_data] ||= { lock_keys: [] }
+        Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
 
         # get key for asked lock
         [actions || 'full_lock'].flatten.each do |action|
           # check if the key already exists on redis
-          Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, message, timeout)
+          Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
         end
 
         Thread.current[:lock_data][:lock_keys]
@@ -70,30 +72,46 @@ module SP
       end
 
       def exclusive_unlock(lock_key)
-        $redis.del(lock_key)
+        redis do |r|
+          r.del(lock_key)
+        end
       end
 
       private
 
-      def redis_lock_key(key, entity_id, action, user_id, message, timeout)
+      def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
         _lock_key = get_redis_lock_key(key, entity_id, action, user_id)
+        Thread.current[:lock_data][:generated_keys] << _lock_key
 
         # if lock was set then no job was running, set expire. else return false
-        if !get_exclusive_redis_lock(_lock_key, timeout)
+        if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
         _lock_key
       end
 
-      def get_exclusive_redis_lock(lock_key, timeout)
-        lock = $redis.setnx(lock_key, "{\"end_time\": #{expiration_time_for_exclusive_lock(timeout)}}")
-        $redis.expire(lock_key, timeout)
+      def get_exclusive_redis_lock(lock_key, timeout, username, email, action)
+        lock = nil
+        redis do |r|
+          lock = r.setnx(lock_key, {
+            email: email,
+            username: username,
+            started_at: format_time(Time.now),
+            lock_until: expiration_time_for_exclusive_lock(timeout),
+            action: action
+          }.to_json)
+          r.expire(lock_key, timeout)
+        end
         lock
       end
 
       def expiration_time_for_exclusive_lock(timeout)
-        clock = Time.now + timeout
-        %Q[ "#{clock.hour}:#{sprintf('%02i', (clock.min))}" ]
+        time = Time.now + timeout
+        format_time(time)
+      end
+
+      def format_time(time)
+        %Q[ "#{time.hour}:#{sprintf('%02i', (time.min))}" ]
       end
 
       def get_redis_lock_key(key, entity_id, action, user_id)
@@ -111,6 +129,39 @@ module SP
         Thread.current[:lock_data][:lock_keys].each do |key|
           exclusive_unlock(key)
         end
+      end
+
+      def report_duplicated_job(title: nil, sub_title: nil, message: nil)
+
+        notice_title     =     title || 'Tarefa duplicada'
+        notice_sub_title = sub_title || 'Não é permitido realizar mais do que uma tarefa do mesmo tipo em simultâneo.'
+        notice_message   =   message || 'Acompanhe a evolução da tarefa em curso na área de notificações, logo que a tarefa em curso termine poderá submeter o novo pedido'
+
+        message = <<-HTML
+          <div class="custom-message">
+            <casper-icon class="error-icon" icon="fa-light:exclamation-circle"></casper-icon>
+            <h2>#{replace_keys(notice_title)}</h2>
+            <span>#{replace_keys(notice_sub_title)}</span>
+            <div style="flex-grow: 2.0;"></div>
+            <casper-notice title="Aviso" type="warning">#{replace_keys(notice_message)}</casper-notice>
+          </div>
+        HTML
+        report_error(message: message, custom: true, response: { conflict_in_tube: true})
+      end
+
+      def replace_keys(message)
+        _message = message
+        _key = Thread.current[:lock_data][:generated_keys][0]
+        _value = nil
+
+        redis do |r|
+          _value = JSON.parse(r.get(_key))
+        end
+
+        ['email', 'username', 'action', 'started_at', 'lock_until'].each do |keyword|
+          _message = _message.gsub("${#{keyword}}", _value[keyword])
+        end
+        _message
       end
 
     end
