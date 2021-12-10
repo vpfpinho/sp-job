@@ -41,7 +41,11 @@ module SP
 
       end # class Exception
 
-      def exclusive_lock(key:, entity: true, entity_id: nil, user: false, user_id: nil, username: nil, email: nil, actions: nil, timeout: nil, message: nil, cleanup: true)
+      def exclusive_lock(key:,
+                         entity: true, entity_id: nil,
+                         user: false, user_id: nil, username: nil, email: nil,
+                         actions: nil, timeout: nil, cleanup: true,
+                         title: nil, sub_title: nil, message: nil)
         raise 'No key'              if key.nil?
         raise 'No entity id'        if entity && entity_id.nil?
         raise 'No user id'          if user && user_id.nil?
@@ -49,15 +53,23 @@ module SP
         raise 'No username defined' if username.nil?
         raise 'No email defined'    if email.nil?
 
-        Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
+        begin
+          Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
 
-        # get key for asked lock
-        [actions || 'full_lock'].flatten.each do |action|
-          # check if the key already exists on redis
-          Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
+          # get key for asked lock
+          [actions || 'full_lock'].flatten.each do |action|
+            # check if the key already exists on redis
+            Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
+          end
+
+          return Thread.current[:lock_data][:lock_keys]
+        rescue ::SP::Job::Lock::Exception => e
+          if cleanup
+            report_duplicated_job(title: title, sub_title: sub_title, message: message)
+          else
+            raise e
+          end
         end
-
-        Thread.current[:lock_data][:lock_keys]
       end
 
       def exclusive_unlock(key:, entity: true, entity_id: nil, user: false, user_id: nil, actions: nil)
