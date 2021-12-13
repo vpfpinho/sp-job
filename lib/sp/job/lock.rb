@@ -27,6 +27,32 @@ module SP
   module Job
     module Lock
 
+      class DefinedLocks
+        ACCOUNTING = 'accounting'
+
+        def self.get_locks
+          [ ::SP::Job::Lock::DefinedLocks::ACCOUNTING ]
+        end
+      end
+
+      class Placeholder
+        EMAIL      = 'email'
+        USERNAME   = 'username'
+        ACTION     = 'action'
+        STARTED_AT = 'started_at'
+        LOCK_UNTIL = 'lock_until'
+
+        def self.get_placeholders
+          [
+            ::SP::Job::Lock::Placeholder::EMAIL,
+            ::SP::Job::Lock::Placeholder::USERNAME,
+            ::SP::Job::Lock::Placeholder::ACTION,
+            ::SP::Job::Lock::Placeholder::STARTED_AT,
+            ::SP::Job::Lock::Placeholder::LOCK_UNTIL
+          ]
+        end
+      end
+
       class Exception < StandardError
 
         attr_accessor :status_code
@@ -52,6 +78,8 @@ module SP
         raise 'No timeout defined'  if timeout.nil?
         raise 'No username defined' if username.nil?
         raise 'No email defined'    if email.nil?
+
+        raise 'Invalid lock'        if !::SP::Job::Lock::DefinedLocks.get_locks.include?(key)
 
         begin
           Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
@@ -110,7 +138,7 @@ module SP
             email: email,
             username: username,
             started_at: format_time(Time.now),
-            lock_until: expiration_time_for_exclusive_lock(timeout),
+            lock_until: format_time(Time.now + timeout),
             action: action
           }.to_json)
           r.expire(lock_key, timeout)
@@ -124,7 +152,7 @@ module SP
       end
 
       def format_time(time)
-        %Q[ "#{time.hour}:#{sprintf('%02i', (time.min))}" ]
+        %Q[ #{time.strftime("%d/%m/%Y %k:%M")} ]
       end
 
       def get_redis_lock_key(key, entity_id, action, user_id)
@@ -171,8 +199,8 @@ module SP
           _value = JSON.parse(r.get(_key))
         end
 
-        ['email', 'username', 'action', 'started_at', 'lock_until'].each do |keyword|
-          _message = _message.gsub("${#{keyword}}", _value[keyword])
+        ::SP::Job::Lock::Placeholder.get_placeholders.each do |keyword|
+          _message = _message.gsub("${#{keyword}}", _value[keyword].to_s)
         end
         _message
       end
