@@ -121,13 +121,14 @@ module SP
 
       def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
         _lock_key = get_redis_lock_key(key, entity_id, action, user_id)
-        Thread.current[:lock_data][:generated_keys] << _lock_key
 
         # if lock was set then no job was running, set expire. else return false
         if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
           release_locks
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
+
+        Thread.current[:lock_data][:generated_keys] << _lock_key
         _lock_key
       end
 
