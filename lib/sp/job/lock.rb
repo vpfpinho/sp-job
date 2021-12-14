@@ -191,7 +191,7 @@ module SP
             <casper-notice title="Aviso" type="warning">#{replace_keys(notice_message)}</casper-notice>
           </div>
         HTML
-        report_error(message: message, custom: true, response: { conflict_in_tube: true})
+        report_error(message: message, custom: true, response: { conflict_in_tube: true}, simple_message:replace_keys(notice_message)  )
       end
 
       def replace_keys(message)
