@@ -82,6 +82,7 @@ module SP
         raise 'Invalid lock'        if !::SP::Job::Lock::DefinedLocks.get_locks.include?(key)
 
         begin
+          puts "==> [#{Thread.current}] Exclusive lock requested for #{key}"
           Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
 
           # get key for asked lock
@@ -113,6 +114,7 @@ module SP
 
       def exclusive_unlock(lock_key)
         redis do |r|
+          puts "==> [#{Thread.current}] Releasing lock #{lock_key}"
           r.del(lock_key)
         end
       end
