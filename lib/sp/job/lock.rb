@@ -121,14 +121,14 @@ module SP
 
       def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
         _lock_key = get_redis_lock_key(key, entity_id, action, user_id)
+        Thread.current[:lock_data][:generated_keys] << _lock_key
 
         # if lock was set then no job was running, set expire. else return false
         if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
-          release_locks
+          release_locks(_lock_key)
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
 
-        Thread.current[:lock_data][:generated_keys] << _lock_key
         _lock_key
       end
 
@@ -166,9 +166,10 @@ module SP
         _lock_key
       end
 
-      def release_locks
+      def release_locks(excape = nil)
         return if Thread.current[:lock_data].nil? || Thread.current[:lock_data][:lock_keys].nil?
         Thread.current[:lock_data][:lock_keys].each do |key|
+          next if key == excape
           exclusive_unlock(key)
         end
       end
@@ -193,16 +194,19 @@ module SP
 
       def replace_keys(message)
         _message = message
-        _key = Thread.current[:lock_data][:generated_keys][0]
+        _key = Thread.current[:lock_data][:generated_keys].last
         _value = nil
 
         redis do |r|
           _value = JSON.parse(r.get(_key))
         end
 
-        ::SP::Job::Lock::Placeholder.get_placeholders.each do |keyword|
-          _message = _message.gsub("${#{keyword}}", _value[keyword].to_s)
+        if !_value.nil?
+          ::SP::Job::Lock::Placeholder.get_placeholders.each do |keyword|
+            _message = _message.gsub("${#{keyword}}", _value[keyword].to_s)
+          end
         end
+
         _message
       end
 
