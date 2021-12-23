@@ -83,7 +83,9 @@ module SP
 
         begin
           puts "==> [#{Thread.current}] Exclusive lock requested for #{key}"
-          Thread.current[:lock_data] ||= { lock_keys: [], generated_keys: [] }
+          Thread.current[:lock_data] ||= {}
+          Thread.current[:lock_data][:lock_keys] ||= []
+          Thread.current[:lock_data][:last_generated_key] = nil # neste ponto isto deve ser apagado
 
           # get key for asked lock
           [actions || 'full_lock'].flatten.each do |action|
@@ -123,11 +125,11 @@ module SP
 
       def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
         _lock_key = get_redis_lock_key(key, entity_id, action, user_id)
-        Thread.current[:lock_data][:generated_keys] << _lock_key
+        Thread.current[:lock_data][:last_generated_key] = _lock_key
 
         # if lock was set then no job was running, set expire. else return false
         if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
-          release_locks(_lock_key)
+          release_locks # (_lock_key)
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
 
@@ -168,12 +170,14 @@ module SP
         _lock_key
       end
 
-      def release_locks(excape = nil)
+      def release_locks() # excape = nil)
         return if Thread.current[:lock_data].nil? || Thread.current[:lock_data][:lock_keys].nil?
         Thread.current[:lock_data][:lock_keys].each do |key|
-          next if key == excape
+         #next if key == excape
           exclusive_unlock(key)
         end
+        puts 'HARD RESET lock_data'
+        Thread.current[:lock_data][:lock_keys] = nil
       end
 
       def report_duplicated_job(title: nil, sub_title: nil, message: nil)
@@ -196,7 +200,7 @@ module SP
 
       def replace_keys(message)
         _message = message
-        _key = Thread.current[:lock_data][:generated_keys].last
+        _key = Thread.current[:lock_data][:last_generated_key]
         _value = nil
 
         redis do |r|
