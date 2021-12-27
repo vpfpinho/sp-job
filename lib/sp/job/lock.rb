@@ -137,6 +137,7 @@ module SP
       end
 
       def get_exclusive_redis_lock(lock_key, timeout, username, email, action)
+        additional_safety_period = 3600
         lock = nil
         redis do |r|
           lock = r.setnx(lock_key, {
@@ -146,7 +147,7 @@ module SP
             lock_until: format_time(Time.now + timeout),
             action: action
           }.to_json)
-          r.expire(lock_key, timeout)
+          r.expire(lock_key, timeout + additional_safety_period)
         end
         lock
       end
