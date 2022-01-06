@@ -183,31 +183,37 @@ module SP
 
       def report_duplicated_job(title: nil, sub_title: nil, message: nil)
 
-        notice_title     =     title || 'Tarefa duplicada'
-        notice_sub_title = sub_title || 'Não é permitido realizar mais do que uma tarefa do mesmo tipo em simultâneo.'
-        notice_message   =   message || 'Acompanhe a evolução da tarefa em curso na área de notificações, logo que a tarefa em curso termine poderá submeter o novo pedido'
+        default_title     = 'Tarefa duplicada'
+        default_sub_title = 'Não é permitido realizar mais do que uma tarefa do mesmo tipo em simultâneo.'
+        default_message   = 'Acompanhe a evolução da tarefa em curso na área de notificações, logo que a tarefa em curso termine poderá submeter o novo pedido'
 
-        message = <<-HTML
+        html_message = <<-HTML
           <div class="custom-message">
             <casper-icon class="error-icon" icon="fa-light:exclamation-circle"></casper-icon>
-            <h2>#{replace_keys(notice_title)}</h2>
-            <span>#{replace_keys(notice_sub_title)}</span>
+            <h2>#{replace_keys(title, default_title)}</h2>
+            <span>#{replace_keys(sub_title, default_sub_title)}</span>
             <div style="flex-grow: 2.0;"></div>
-            <casper-notice title="Aviso" type="warning">#{replace_keys(notice_message)}</casper-notice>
+            <casper-notice title="Aviso" type="warning">#{replace_keys(message, default_message)}</casper-notice>
           </div>
         HTML
-        report_error(message: message, custom: true, response: { conflict_in_tube: true}, simple_message:replace_keys(notice_message)  )
+
+        report_error(message: html_message, custom: true, response: { conflict_in_tube: true}, simple_message: replace_keys(message, default_message))
       end
 
-      def replace_keys(message)
+      def replace_keys(message, default)
+        return default unless message
         _message = message
+
         _key = Thread.current[:lock_data][:last_generated_key]
-        _value = nil
+        return default unless _key
 
+        _json_string = nil
         redis do |r|
-          _value = JSON.parse(r.get(_key))
+          _json_string = r.get(_key)
         end
+        return default unless _json_string
 
+        _value = JSON.parse(_json_string)
         if !_value.nil?
           ::SP::Job::Lock::Placeholder.get_placeholders.each do |keyword|
             _message = _message.gsub("${#{keyword}}", _value[keyword].to_s)
