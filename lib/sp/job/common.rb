@@ -929,6 +929,7 @@ module SP
       def on_failure_for_all_jobs (e, *args)
         job = thread_data.current_job
         begin
+          release_locks
           if job[:notification]
             if (e.is_a?(::SP::Job::JobAborted))
               _message = eval(e.message)[:args][:message]
