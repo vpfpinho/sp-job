@@ -147,7 +147,9 @@ module SP
             lock_until: format_time(Time.now + timeout),
             action: action
           }.to_json)
-          r.expire(lock_key, timeout + additional_safety_period)
+          if lock
+            r.expire(lock_key, timeout + additional_safety_period)
+          end
         end
         lock
       end
