@@ -29,9 +29,13 @@ module SP
 
       class DefinedLocks
         ACCOUNTING = 'accounting'
+        DOC_COMMUNICATION = 'doc_communication'
 
         def self.get_locks
-          [ ::SP::Job::Lock::DefinedLocks::ACCOUNTING ]
+          [
+            ::SP::Job::Lock::DefinedLocks::ACCOUNTING,
+            ::SP::Job::Lock::DefinedLocks::DOC_COMMUNICATION
+          ]
         end
       end
 
