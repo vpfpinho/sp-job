@@ -1498,7 +1498,7 @@ module SP
         else
           file = File.join(path.split('/')[2..-1])
         end
-
+        
         now = Time.now.getutc.to_i
         exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
 
@@ -1521,17 +1521,9 @@ module SP
           }
         )
 
-        cluster_url = URI.parse($cluster_config[:url])
-
-        protocol = $config[:cdn][:public_link][:protocol] || cluster_url.scheme
-        host     = $config[:cdn][:public_link][:host]     || cluster_url.host
-        port     = $config[:cdn][:public_link][:port]     || cluster_url.port
-        path     = $config[:cdn][:public_link][:path]     || 'downloads'
-
-        url = "#{protocol}://#{host}"
-        url += ":#{port}" if ! [80, 443].include?(port)
-        url += "/#{path}/#{jwt}"
-        url
+        cluster_url = URI.parse($cluster_config.app_url(thread_data.current_job[:brand])
+        cluster_url.path = "/downloads/#{jwt}"
+        cluster_url.to_s
       end
 
       def file_identifier_to_url (id, filename)

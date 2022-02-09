@@ -32,6 +32,7 @@ class ClusterMember
 
   attr_reader :redis     # TODO TODO remove this after the conquest of lisbon goes live!!!!
 
+  
   attr_reader :session   # access to session driver
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
@@ -62,6 +63,13 @@ class ClusterMember
     end
     @number = clusterConfiguration[:number]
     @config = clusterConfiguration
+  end
+
+  #
+  # Returns the application url for this cluster
+  #
+  def app_url (brand)
+    $config[:urls][:brands][brand.to_sym || $config[:product]][:app_url].sub('<cluster>', @number.to_s)
   end
 
   #
