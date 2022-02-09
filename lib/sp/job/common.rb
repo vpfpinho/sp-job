@@ -1521,7 +1521,7 @@ module SP
           }
         )
 
-        cluster_url = URI.parse($cluster_config.app_url(thread_data.current_job[:brand])
+        cluster_url = URI.parse($cluster_config.app_url(thread_data.current_job[:brand]))
         cluster_url.path = "/downloads/#{jwt}"
         cluster_url.to_s
       end
