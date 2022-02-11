@@ -66,13 +66,6 @@ class ClusterMember
   end
 
   #
-  # Returns the application url for this cluster
-  #
-  def app_url (brand)
-    $config[:urls][:brands][brand.to_sym || $config[:product]][:app_url].sub('<cluster>', @number.to_s)
-  end
-
-  #
   # Returns the global logger object, borrowed from common.rb
   #
   def self.logger
@@ -132,9 +125,9 @@ class ClusterMember
     job[:validity] = validity
     redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
     @session.redis do |r|
-      r.pipelined do
-        r.hset(redis_key, 'status', '{"status":"queued"}')
-        r.expire(redis_key, validity)
+      r.pipelined do |pipeline|
+        pipeline.hset(redis_key, 'status', '{"status":"queued"}')
+        pipeline.expire(redis_key, validity)
       end
       @beaneater ||= Beaneater.new "#{@config[:beanstalkd][:host]}:#{@config[:beanstalkd][:port]}"
       @beaneater.tubes[tube].put job.to_json, ttr: ttr
@@ -236,6 +229,7 @@ $args[:log_level        ] ||= 'info'
 $args[:program_name     ] ||= File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
 $args[:config_file      ] ||= File.join($prefix, 'etc', 'jobs', 'main.conf.json')
 $args[:default_log_file ] ||= File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
+$app_urls = {}
 
 #
 # Parse command line arguments

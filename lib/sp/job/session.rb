@@ -213,12 +213,12 @@ module SP
           end
           redis do |r|
             unless r.exists?(key)
-              r.pipelined do
-                r.hmset(key, hset)
+              r.pipelined do |pipeline|
+                pipeline.hmset(key, hset)
                 if duration.nil?
-                  r.expire(key, @access_ttl)
+                  pipeline.expire(key, @access_ttl)
                 else
-                  r.expire(key, duration)
+                  pipeline.expire(key, duration)
                 end
               end
               return token

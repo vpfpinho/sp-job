@@ -165,6 +165,23 @@ module SP
       end
 
       #
+      # Returns the public application URL for the given brand and cluster
+      #
+      # @param brand - the brand needed if the machine suports multiple brands
+      # @param cluster - the cluster number defaults to current cluster
+      #
+      def app_url (brand: nil, cluster: nil)
+        brand   ||= config[:product]
+        cluster ||= config[:runs_on_cluster]
+        url = $app_urls[brand+cluster.to_s]
+        if url.nil?
+          url = $config[:urls][:brands][brand.to_sym][:app_url].sub('<cluster>', cluster.to_s)
+          $app_urls[brand+cluster.to_s] = url
+        end
+        url
+      end
+
+      #
       # Returns the object you should use to perform JSON api requests
       #
       # jsonapi.get! (resource, params)
@@ -660,9 +677,9 @@ module SP
         job[:tube] = tube
         job[:validity] = validity
         redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
-        $redis.pipelined do
-          $redis.hset(redis_key, 'status', '{"status":"queued"}')
-          $redis.expire(redis_key, validity)
+        $redis.pipelined do |pipeline|
+          pipeline.hset(redis_key, 'status', '{"status":"queued"}')
+          pipeline.expire(redis_key, validity)
         end
         $beaneater.tubes[tube].put job.to_json, ttr: ttr
         "#{tube}:#{job[:id]}"
@@ -1049,9 +1066,9 @@ module SP
           if td.tube_options[:transient] == true
             $redis.publish td.publish_key, td.job_notification.to_json
           else
-            $redis.pipelined do
-              $redis.publish td.publish_key, td.job_notification.to_json
-              $redis.hset    td.job_key, 'status', td.job_status.to_json
+            $redis.pipelined do |pipeline|
+              pipeline.publish td.publish_key, td.job_notification.to_json
+              pipeline.hset    td.job_key, 'status', td.job_status.to_json
             end
           end
         else
@@ -1059,9 +1076,9 @@ module SP
             if td.tube_options[:transient] == true
               $redis.publish td.publish_key, td.job_notification.to_json
             else
-              $redis.pipelined do
-                $redis.publish td.publish_key, td.job_notification.to_json
-                $redis.hset    td.job_key, 'status', td.job_status.to_json
+              $redis.pipelined do |pipeline|
+                pipeline.publish td.publish_key, td.job_notification.to_json
+                pipeline.hset    td.job_key, 'status', td.job_status.to_json
               end
             end
           }
@@ -1502,8 +1519,8 @@ module SP
         now = Time.now.getutc.to_i
         exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
 
-        download_uri = URI.parse($config[:urls][:download_internal])
-        private_key = "#{$config[:paths][:private_key]}/#{$config[:cdn][:public_link][:private_key]}"
+        download_uri = URI.parse(config[:urls][:download_internal])
+        private_key = config[:certificates][:broker][:private]
         jwt = ::SP::Job::JWTHelper.encode(
           key: private_key,
           payload: {
@@ -1521,7 +1538,7 @@ module SP
           }
         )
 
-        cluster_url = URI.parse($cluster_config.app_url(thread_data.current_job[:brand]))
+        cluster_url = URI.parse(app_url(brand: thread_data.current_job[:brand]))
         cluster_url.path = "/downloads/#{jwt}"
         cluster_url.to_s
       end
@@ -1767,17 +1784,6 @@ module SP
 
       def get_random_folder
         ALPHABET[rand(26)] + ALPHABET[rand(26)]
-      end
-
-      def get_cdn_public_url
-        cdn_public_url = "#{config[:cdn][:public_link][:protocol]}://#{config[:cdn][:public_link][:host]}"
-        if config[:cdn][:public_link][:port] && 80 != config[:cdn][:public_link][:port]
-        	cdn_public_url += ":#{config[:cdn][:public_link][:port]}"
-        end
-        if config[:cdn][:public_link][:path]
-        	cdn_public_url += "/#{config[:cdn][:public_link][:path]}"
-        end
-        cdn_public_url
       end
 
     end # Module Common
