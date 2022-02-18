@@ -505,6 +505,8 @@ end
 #
 if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
   runs_on   = $config[:jobs][$args[:program_name].to_sym][:runs_on]
+elsif config[:role] != nil
+  runs_on = $config[:role]
 elsif config[:project] != nil && $config[:project][:id]
   runs_on = $config[:project][:id]
 else
