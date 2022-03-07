@@ -38,6 +38,8 @@ module SP
             role_mask: (job[:role_mask].to_i | SP::Job::ROLE_IS_JOB),
             user_id:    job[:user_id],
             user_email: job[:user_email],
+            brand:      job[:brand],
+            product:    job[:product]
           }
         )
         @job = job.dup
@@ -50,6 +52,8 @@ module SP
                 role_mask: (job[:role_mask].to_i | SP::Job::ROLE_IS_JOB),
                 user_id:    job[:user_id],
                 user_email: job[:user_email],
+                brand:      job[:brand],
+                product:    job[:product]
               }
         )
         @job = job.dup
