@@ -91,10 +91,11 @@ class ClusterMember
 
       # create the objects necessary to access this cluster
       cfg[:db][:conn_str] = pg_conn_str(cfg[:db])
-      if cfg[:number] == $config[:runs_on_cluster]
+      if cfg[:number] == $config[:runs_on_cluster] && nil == $config[:runs_on]
         if $cluster_config
           $cluster_config[:db][:conn_str] = cfg[:db][:conn_str]
         end
+        # reuse current PG connection to it's own cluster
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, db: $pg, noDatabase: noDatabase)
       else
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, noDatabase: noDatabase)
@@ -227,7 +228,9 @@ $args[:stdout           ] ||= false
 $args[:script           ] ||= false
 $args[:log_level        ] ||= 'info'
 $args[:program_name     ] ||= File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
+# [B] - TODO: KILL THIS
 $args[:config_file      ] ||= File.join($prefix, 'etc', 'jobs', 'main.conf.json')
+# [E] - TODO: KILL THIS
 $args[:default_log_file ] ||= File.join($prefix, 'var', 'log', 'jobs', "#{File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))}.log")
 $app_urls = {}
 
@@ -503,23 +506,27 @@ end
 # Check if the job runs on specifc machine or a on cluster member, if runs_on is empty we must be running
 # on a cluster member i.e. cluser: members: [$config[:runs_on_cluster]]
 #
-if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
+if $config[:runs_on]
+  runs_on = $config[:runs_on]
+# [B] - TODO: KILL THIS
+elsif $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:runs_on]
   runs_on   = $config[:jobs][$args[:program_name].to_sym][:runs_on]
-elsif config[:role] != nil
-  runs_on = $config[:role]
 elsif config[:project] != nil && $config[:project][:id]
   runs_on = $config[:project][:id]
+# [E] - TODO: KILL THIS
 else
   runs_on = nil
 end
 
+# [B] - TODO: REVIEW THIS
 unless runs_on.nil?
-  # We are on specific machine like cdb, fs etc
+  # We are on a specific machine like cdb, fs etc
   $cluster_config = $config[:cluster][runs_on.to_sym]
 else
-  # We are on member (usually an application (web) server)
+  # We are on a member (usually an application (web) server)
   $cluster_config = $config[:cluster][:members].find{ |clt| clt[:number] == $config[:runs_on_cluster] }
 end
+# [E] - TODO: REVIEW THIS
 
 if $config[:jobs][$args[:program_name].to_sym] && $config[:jobs][$args[:program_name].to_sym][:options]
   $config[:options] = $config[:jobs][$args[:program_name].to_sym][:options]
