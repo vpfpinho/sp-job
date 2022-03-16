@@ -715,7 +715,7 @@ end
 # Only connect directly to the CDB if not running on the CDB project the cluster has a CDB DB connection information
 #
 $cdb = nil
-if runs_on.nil? # && config[:cluster][:cdb].instance_of?(Hash) && config[:cluster][:members].instance_of?(Array)
+if runs_on.nil? && config[:cluster][:cdb].instance_of?(Hash) && config[:cluster][:members].instance_of?(Array)
   config[:cluster][:cdb][:db][:conn_str] = pg_conn_str(config[:cluster][:cdb][:db])
   $cdb = ::SP::Job::PGConnection.new(owner: $PROGRAM_NAME, config: config[:cluster][:cdb][:db], multithreaded: $multithreading)
   logger.info "Central DB .... #{$cdb.config[:host]}:#{$cdb.config[:port]}(#{$cdb.config[:dbname]})"
