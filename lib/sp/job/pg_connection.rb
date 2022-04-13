@@ -285,6 +285,22 @@ module SP
         end
       end
 
+      #
+      # Prepare a PosgreSQL connection.
+      #
+      # @param db  db config
+      # @param app application name
+      # @param sslmode: require, disable, verify-ca, verify-full
+      #        see Table 31-1. SSL Mode Descriptions @ https://www.postgresql.org/docs/9.1/libpq-ssl.html 
+      #
+      def self.PostgreSQLConnectionString(db:, app:, sslmode: nil)
+        if nil != sslmode
+          return "postgres://#{db[:user]}:#{db[:password]}@#{db[:host]}:#{db[:port]}/#{db[:dbname]}?sslmode=#{sslmode}&application_name=#{app}"
+        else
+          return "postgres://#{db[:user]}:#{db[:password]}@#{db[:host]}:#{db[:port]}/#{db[:dbname]}?sslmode=#{db[:sslmode] || 'prefer'}&application_name=#{app}"
+        end
+      end
+
     end # end class 'PGConnection'
 
   end # module 'Job'
