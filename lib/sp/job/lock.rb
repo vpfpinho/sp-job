@@ -30,11 +30,13 @@ module SP
       class DefinedLocks
         ACCOUNTING = 'accounting'
         DOC_COMMUNICATION = 'doc_communication'
+        COMMERCIAL = 'commercial'
 
         def self.get_locks
           [
             ::SP::Job::Lock::DefinedLocks::ACCOUNTING,
-            ::SP::Job::Lock::DefinedLocks::DOC_COMMUNICATION
+            ::SP::Job::Lock::DefinedLocks::DOC_COMMUNICATION,
+            ::SP::Job::Lock::DefinedLocks::COMMERCIAL,
           ]
         end
       end
@@ -75,7 +77,7 @@ module SP
                          entity: true, entity_id: nil,
                          user: false, user_id: nil, username: nil, email: nil,
                          actions: nil, timeout: nil, cleanup: true,
-                         title: nil, sub_title: nil, message: nil)
+                         title: nil, sub_title: nil, message: nil, job_id: nil)
         raise 'No key'              if key.nil?
         raise 'No entity id'        if entity && entity_id.nil?
         raise 'No user id'          if user && user_id.nil?
@@ -94,7 +96,7 @@ module SP
           # get key for asked lock
           [actions || 'full_lock'].flatten.each do |action|
             # check if the key already exists on redis
-            Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
+            Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout, job_id)
           end
 
           return Thread.current[:lock_data][:lock_keys]
@@ -127,12 +129,12 @@ module SP
 
       private
 
-      def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout)
+      def redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout, job_id)
         _lock_key = get_redis_lock_key(key, entity_id, action, user_id)
         Thread.current[:lock_data][:last_generated_key] = _lock_key
 
         # if lock was set then no job was running, set expire. else return false
-        if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action)
+        if !get_exclusive_redis_lock(_lock_key, timeout, username, email, action, job_id)
           release_locks # (_lock_key)
           raise ::SP::Job::Lock::Exception.new(status_code: 500, body: message)
         end
@@ -140,8 +142,8 @@ module SP
         _lock_key
       end
 
-      def get_exclusive_redis_lock(lock_key, timeout, username, email, action)
-        additional_safety_period = 3600
+      def get_exclusive_redis_lock(lock_key, timeout, username, email, action, job_id)
+        additional_safety_period = 120
         lock = nil
         redis do |r|
           lock = r.setnx(lock_key, {
@@ -149,10 +151,17 @@ module SP
             username: username,
             started_at: format_time(Time.now),
             lock_until: format_time(Time.now + timeout),
-            action: action
+            action: action,
+            job_id: job_id
           }.to_json)
           if lock
             r.expire(lock_key, timeout + additional_safety_period)
+          elsif job_id
+            current_lock = r.get(lock_key)
+            if current_lock
+              same_job_id = JSON.parse(current_lock)['job_id'].to_s == job_id.to_s
+              lock = current_lock if same_job_id
+            end
           end
         end
         lock
