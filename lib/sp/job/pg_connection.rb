@@ -261,14 +261,16 @@ module SP
           return
         end
 
-        if @id_cache.size
-          @connection.exec("DEALLOCATE ALL")
-          @id_cache = {}
+        begin
+          if @id_cache.size
+            @id_cache = {}
+            @connection.exec("DEALLOCATE ALL")
+          end
+        ensure
+          @connection.close
+          @connection = nil
+          @counter = 0
         end
-
-        @connection.close
-        @connection = nil
-        @counter = 0
       end
 
       #
