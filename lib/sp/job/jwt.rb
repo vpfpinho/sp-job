@@ -65,6 +65,20 @@ module SP
         })
       end
 
+      # @note To allow caching by nginx we need to "break the jwt" with slashes to have a valid cache path
+      # so the CTO decided to break every 100 chars starting at 40 the portion that is variable
+      # All this magic must match the rules made in nginx's public_document.location
+      def self.slashify(jwt:)
+        slashy_jwt = String.new(jwt[0..39], capacity: jwt.size + (jwt.size / 100) + 10)
+        s = 40
+        while s < jwt.size
+          slashy_jwt << '/'
+          slashy_jwt << jwt[s..(s + 99)]
+          s += 100
+        end
+        slashy_jwt
+      end
+
       def self.validate(public_key:, jwt:)
         JWT.decode(
           jwt,
