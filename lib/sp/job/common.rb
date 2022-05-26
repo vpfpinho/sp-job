@@ -1515,7 +1515,7 @@ module SP
         else
           file = File.join(path.split('/')[2..-1])
         end
-        
+
         now = Time.now.getutc.to_i
         exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
 
@@ -1688,10 +1688,11 @@ module SP
         logger.debug "SEQUENCER PAYLOAD:"
         logger.debug ap sequencer_payload
 
-        synchronous_print(sequencer_payload)
+        synchronous_job(sequencer_payload)
       end
 
-      def synchronous_print(sequencer_payload)
+      def synchronous_job(sequencer_payload, expect = { code: 200 }, owner = 'synchronous_job')
+
         #
         # "submit job" via jobify module to sequencer-live tube - synchronous HTTP request
         #
@@ -1705,12 +1706,7 @@ module SP
               'Content-Type' => 'application/json'
             },
             body: sequencer_payload.to_json,
-            expect: {
-              code: 200,
-              content: {
-                type: 'application/json; charset=utf-8'
-              }
-            },
+            expect: expect,
             conn_options: {
               connection_timeout: sequencer_payload[:ttr],
               request_timeout: sequencer_payload[:ttr]
@@ -1719,13 +1715,13 @@ module SP
         rescue EasyHttpClient::Error => he
           logger.error "#{ap he.detail}".red
           logger.error ap he.response
-          rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive', tube: thread_data.job_tube, exception: he)
+          rollbar_and_raise(message: 'An error occurred while performing an operation', owner: owner, tube: thread_data.job_tube, exception: he)
         rescue => e
-          logger.error ap e
-          rollbar_and_raise(message: 'An error occurred while performing a P&A operation', owner: 'print_and_archive', tube: thread_data.job_tube, exception: e)
+          logger.info "RAISE GENERIC: #{ap e}".red
+          rollbar_and_raise(message: 'An error occurred while performing an operation', owner: owner, tube: thread_data.job_tube, exception: e)
         end
         # done - log
-        logger.debug "P&A V/A RESPONSE:"
+        logger.debug "RESPONSE:"
         logger.debug ap response
         # done - on success, archive response is expected
         JSON.parse(response[:body], symbolize_names: true)
