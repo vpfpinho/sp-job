@@ -410,7 +410,7 @@ module SP
       #
       # @return When tmp_dir is set file URI otherwise file body.
       #
-      def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil, hostname: nil)
+      def get_from_temporary_uploads(file:, tmp_dir:, alt_path: nil, hostname: nil, extension: 'dl')
 
         if hostname.nil?
           upl_int_tmp_uri = URI.parse(config[:urls][:upload_internal_tmp])
@@ -425,7 +425,7 @@ module SP
         end
 
         org_file_url = "#{upl_int_tmp_uri.scheme}://#{upl_int_tmp_uri.host}:#{upl_int_tmp_uri.port}/#{path}/#{file}"
-        tmp_file_uri = get_unique_file(tmp_dir: tmp_dir, extension: 'dl')
+        tmp_file_uri = get_unique_file(tmp_dir: tmp_dir, extension: extension)
 
         response = HttpClient.get_to_file(url: org_file_url, to: tmp_file_uri)
 
