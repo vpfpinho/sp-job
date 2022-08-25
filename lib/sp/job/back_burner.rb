@@ -53,9 +53,6 @@ class ClusterMember
       @db = nil;
     else
       if db.nil?
-        if $config[:options] && $config[:options][:post_connect_queries]
-          clusterConfiguration[:db][:post_connect_queries] =  $config[:options][:post_connect_queries]
-        end
         @db = ::SP::Job::PGConnection.new(owner: 'back_burner', config: clusterConfiguration[:db])
       else
         @db = db
@@ -554,9 +551,6 @@ $verbose_log   = $config[:options] && $config[:options][:verbose_log] == true
 $beaneater     = Beaneater.new "#{$cluster_config[:beanstalkd][:host]}:#{$cluster_config[:beanstalkd][:port]}"
 if $cluster_config[:db]
   $cluster_config[:db][:conn_str] = pg_conn_str($cluster_config[:db])
-  if $config[:options] && $config[:options][:post_connect_queries]
-    $cluster_config[:db][:post_connect_queries] =  $config[:options][:post_connect_queries]
-  end
   $pg = ::SP::Job::PGConnection.new(owner: $args[:program_name], config: $cluster_config[:db], multithreaded: $multithreading)
   if $verbose_log
     $pg.exec("SET log_min_duration_statement TO 0;")

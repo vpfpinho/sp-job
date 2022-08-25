@@ -929,6 +929,18 @@ module SP
 
       def disconnect_db_connections
         td = thread_data
+
+        if !$cdb.nil?
+          # logger.debug "disconnect_if_has_post_connect_queries central db"
+          $cdb.disconnect_if_has_post_connect_queries
+        end
+        $cluster_members.each do | number, member |
+          if !member.db.nil?
+            # logger.debug "disconnect_if_has_post_connect_queries cluster member #{number}"
+            member.db.disconnect_if_has_post_connect_queries
+          end
+        end
+
         if td.tube_options[:disconnect_db] == true
           if !$cdb.nil?
             # logger.debug "disconnect central db"

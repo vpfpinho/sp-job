@@ -47,6 +47,7 @@ module SP
         @treshold   = -1
         @counter    = 0
         @id_cache   = {}
+        @post_connect_queries = nil
         min = @config[:min_queries_per_conn]
         max = @config[:max_queries_per_conn]
         if (!max.nil? && max > 0) || (!min.nil? && min > 0)
@@ -78,9 +79,20 @@ module SP
       def disconnect (clear_post_connect_queries: false)
         @mutex.synchronize {
           if clear_post_connect_queries
-            @config[:post_connect_queries] = nil
+            @post_connect_queries = nil
           end
           _disconnect()
+        }
+      end
+
+      #
+      # Close currenly open database connection if post_connect_queries were added.
+      #
+      def disconnect_if_has_post_connect_queries ()
+        @mutex.synchronize {
+          if @post_connect_queries != nil
+            disconnect(clear_post_connect_queries: true)
+          end
         }
       end
 
@@ -234,8 +246,8 @@ module SP
           if nil != @connection
             @connection.exec(query)
           end
-          @config[:post_connect_queries] ||= Array.new
-          @config[:post_connect_queries].push(query)
+          @post_connect_queries ||= Array.new
+          @post_connect_queries.push(query)
         }
       end
 
@@ -248,8 +260,8 @@ module SP
         unless application_name.nil?
           @connection.exec("SET application_name TO \"#{application_name[1]}\"")
         end
-        if @config[:post_connect_queries]
-          @config[:post_connect_queries].each do |query|
+        if @post_connect_queries
+          @post_connect_queries.each do |query|
             @connection.exec(query)
           end
         end
