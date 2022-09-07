@@ -1371,7 +1371,7 @@ module SP
         email_addresses.split(',').map { |email| email.strip.downcase }.join(', ')
       end
 
-      def archive_email (email_html, entity_id)
+      def archive_email (email_html, entity_id, billing_type='email')
         access = "drw = entity_id == #{entity_id} && (role_mask & #{get_role_mask(['manager','accountant','company_accountant','payroller','transaction_accountant'])});"
 
         tmp_file = SP::Job::Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".html")
@@ -1381,7 +1381,7 @@ module SP
                                             src_file: tmp_file,
                                             content_type: 'text/html',
                                             access: access,
-                                            billing_type: 'email',
+                                            billing_type: billing_type,
                                             billing_id: entity_id.to_i,
                                             company_id: entity_id.to_i)
         return response[:id]
