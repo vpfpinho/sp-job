@@ -1618,10 +1618,11 @@ module SP
         payload = {
           job: {
             url: get_cdn_internal_for(tempfile.path),
-            ttr: 360,
-            validity: 100
+            ttr: payload[:ttr] || 360,
+            validity: payload[:validity] || 100
           },
-          validity: 100
+          ttr: payload[:ttr] || 360,
+          validity: payload[:validity] || 100
         }
 
         if action == 'zip'
