@@ -104,6 +104,15 @@ module SP
       # @return query result.
       #
       def execp (query, *args)
+
+        if @xss_validators.length != 0
+          _xss_validate(query)
+          args.each do |arg|
+            puts arg.yellow
+            _xss_validate(arg)
+          end
+        end
+
         @mutex.synchronize {
           if nil == @connection
             _connect()
@@ -151,9 +160,9 @@ module SP
           end
           _check_life_span()
           if args.length > 0
-            @connection.exec(sprintf(query, *args))
+            @connection.exec(_xss_validate(sprintf(query, *args)))
           else
-            @connection.exec(query)
+            @connection.exec(_xss_validate(query))
           end
         }
       end
@@ -235,13 +244,12 @@ module SP
             @transaction_open = false
           end
         }
-
       end
 
       #
       # Call this to add a query to post_connect_queries, and execute it immediately if connected
       #
-      def add_post_connect_query(query)
+      def add_post_connect_query (query)
         @mutex.synchronize {
           if nil != @connection
             @connection.exec(query)
@@ -265,6 +273,7 @@ module SP
             @connection.exec(query)
           end
         end
+        _init_xss_validator();
       end
 
       def _disconnect ()
@@ -305,13 +314,46 @@ module SP
       # @param db  db config
       # @param app application name
       # @param sslmode: require, disable, verify-ca, verify-full
-      #        see Table 31-1. SSL Mode Descriptions @ https://www.postgresql.org/docs/9.1/libpq-ssl.html 
+      #        see Table 31-1. SSL Mode Descriptions @https://www.postgresql.org/docs/9.1/libpq-ssl.html 
       #
       def self.PostgreSQLConnectionString(db:, app:, sslmode: nil)
         if nil != sslmode
           return "postgres://#{db[:user]}:#{db[:password]}@#{db[:host]}:#{db[:port]}/#{db[:dbname]}?sslmode=#{sslmode}&application_name=#{app}"
         else
           return "postgres://#{db[:user]}:#{db[:password]}@#{db[:host]}:#{db[:port]}/#{db[:dbname]}?sslmode=#{db[:sslmode] || 'prefer'}&application_name=#{app}"
+        end
+      end
+
+      def _xss_validate (str)
+        if @xss_validators.length == 0
+          return str
+        end
+        decoded = CGI.unescape(str)
+        @xss_validators.each do |validator|
+          if decoded.match validator
+            raise "invalid value: #{str}"
+          end
+        end
+        str
+      end
+
+      def _init_xss_validator ()
+        @xss_validators = []
+        begin
+          rs = @connection.exec("SELECT current_setting('cloudware.xss_validators', TRUE)")
+          if rs.ntuples == 1
+            validators = JSON.parse(rs.first['current_setting'])
+
+            #puts validators.to_s.green
+
+            validators.each do |validator|
+              re = Regexp.new(validator, Regexp::IGNORECASE | Regexp::EXTENDED)
+              @xss_validators << re
+              puts "Loaded xss validation rulei: #{re.to_s.yellow}"
+            end
+          end
+        rescue => e
+          # soft failure there is no xss validation
         end
       end
 
