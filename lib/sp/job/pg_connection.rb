@@ -105,6 +105,8 @@ module SP
       # @param args all the args for the query
       # @return query result.
       #
+      # @note only the args are checked against xss validation, query must be clean
+      #
       def execp (query, *args)
         @mutex.synchronize {
           if nil == @connection
@@ -137,7 +139,6 @@ module SP
           end
 
           if @xss_validators.length != 0
-            _xss_validate(query)
             args.each do |arg|
               _xss_validate(arg)
             end
@@ -148,11 +149,13 @@ module SP
       end
 
       #
-      # Execute a normal SQL statement.
+      # Execute a normal SQL statement with xss validation
       #
       # @param query the SQL query with data binding
       # @param args all the args for the query
       # @return query result.
+      #
+      # @note in sprintf style the query is not validated
       #
       def exec (query, *args)
         @mutex.synchronize {
@@ -161,9 +164,36 @@ module SP
           end
           _check_life_span()
           if args.length > 0
-            @connection.exec(_xss_validate(sprintf(query, *args)))
+            if @xss_validators.length != 0
+              args.each do |arg|
+                _xss_validate(arg)
+              end
+            end
+            @connection.exec(sprintf(query, *args))
           else
-            @connection.exec(_xss_validate(query))
+            _xss_validate(query)
+            @connection.exec(query)
+          end
+        }
+      end
+
+      #
+      # Execute a normal SQL statement bypassing xss validations
+      #
+      # @param query the SQL query with data binding
+      # @param args all the args for the query
+      # @return query result.
+      #
+      def unsafe_exec (query, *args)
+        @mutex.synchronize {
+          if nil == @connection
+            _connect()
+          end
+          _check_life_span()
+          if args.length > 0
+            @connection.exec(sprintf(query, *args))
+          else
+            @connection.exec(query)
           end
         }
       end
