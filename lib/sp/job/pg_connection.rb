@@ -27,11 +27,13 @@ module SP
 
     class PGConnection
 
+
       #
       # Public Attributes
       #
       attr_accessor :connection
-      attr_reader :config
+      attr_reader   :config
+      attr_reader   :xss_validators
 
       #
       # Prepare database connection configuration.
@@ -104,15 +106,6 @@ module SP
       # @return query result.
       #
       def execp (query, *args)
-
-        if @xss_validators.length != 0
-          _xss_validate(query)
-          args.each do |arg|
-            puts arg.yellow
-            _xss_validate(arg)
-          end
-        end
-
         @mutex.synchronize {
           if nil == @connection
             _connect()
@@ -142,6 +135,14 @@ module SP
           else
             id = @id_cache[query]
           end
+
+          if @xss_validators.length != 0
+            _xss_validate(query)
+            args.each do |arg|
+              _xss_validate(arg)
+            end
+          end
+
           @connection.exec_prepared(id, args)
         }
       end
@@ -328,7 +329,7 @@ module SP
         if @xss_validators.length == 0
           return str
         end
-        decoded = CGI.unescape(str)
+        decoded = CGI.unescape(str.to_s)
         @xss_validators.each do |validator|
           if decoded.match validator
             raise "invalid value: #{str}"
@@ -343,17 +344,13 @@ module SP
           rs = @connection.exec("SELECT current_setting('cloudware.xss_validators', TRUE)")
           if rs.ntuples == 1
             validators = JSON.parse(rs.first['current_setting'])
-
-            #puts validators.to_s.green
-
             validators.each do |validator|
-              re = Regexp.new(validator, Regexp::IGNORECASE | Regexp::EXTENDED)
+              re = Regexp.new(validator, Regexp::IGNORECASE | Regexp::EXTENDED | Regexp::MULTILINE)
               @xss_validators << re
-              puts "Loaded xss validation rulei: #{re.to_s.yellow}"
             end
           end
         rescue => e
-          # soft failure there is no xss validation
+          # soft failure when there is no xss validation
         end
       end
 
