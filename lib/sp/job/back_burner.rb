@@ -32,7 +32,6 @@ class ClusterMember
 
   attr_reader :redis     # TODO TODO remove this after the conquest of lisbon goes live!!!!
 
-  
   attr_reader :session   # access to session driver
   attr_reader :db        # database connection
   attr_reader :number    # cluster number, 1, 2 ...
@@ -151,7 +150,6 @@ module SP
   module Job
 
     class JobCancelled < ::StandardError
-
     end
 
     class JobAborted < ::StandardError
@@ -537,11 +535,11 @@ end
 if $config[:options] && $config[:options][:threads].to_i > 1
   raise 'Multithreading is not supported in MRI/CRuby' unless RUBY_ENGINE == 'jruby'
   $redis_mutex = Mutex.new
-  $roolbar_mutex = Mutex.new
+  $rollbar_mutex = Mutex.new
   $multithreading = true
 else
   $redis_mutex = nil
-  $roolbar_mutex = ::SP::Job::FauxMutex.new
+  $rollbar_mutex = ::SP::Job::FauxMutex.new
   $multithreading = false
 end
 
@@ -624,7 +622,6 @@ Backburner.configure do |config|
         end
       end
     end
-
     send_to_rollbar(exception: e)
 
     # Signal job termination
@@ -736,6 +733,24 @@ Signal.trap('SIGUSR2') {
   $gracefull_exit = true
   check_gracefull_exit(dolog: false)
 }
+
+#
+# Make logger and rollbar available to all PG Connection objects
+#
+unless $pg.nil?
+  $pg.rollbar = Rollbar
+  $pg.logger  = logger
+end
+unless $cdb.nil?
+  $cdb.rollbar = $rollbar ? Rollbar : nil
+  $cdb.logger  = logger
+end
+unless $cluster_members.nil?
+  $cluster_members.each do |number, cluster|
+    cluster.db.rollbar = Rollbar
+    cluster.db.logger  = logger
+  end
+end
 
 #
 # Open a second thread that will listen to cancellation and other "signals"

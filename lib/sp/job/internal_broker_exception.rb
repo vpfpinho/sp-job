@@ -80,7 +80,7 @@ class InternalBrokerException
   # @param e Exception
   #
   def self.rollbar(job_id:, job_body:, exception:)
-    $roolbar_mutex.synchronize {
+    $rollbar_mutex.synchronize {
       if $rollbar
         if exception.instance_of? ::SP::Job::JobException
           exception.job[:password] = '<redacted>'

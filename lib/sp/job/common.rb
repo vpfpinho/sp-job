@@ -285,7 +285,7 @@ module SP
       def send_to_rollbar(exception:, level: :error)
         td = thread_data
         # Report exception to rollbar
-        $roolbar_mutex.synchronize {
+        $rollbar_mutex.synchronize {
           if $rollbar
             begin
               extra_params = {}

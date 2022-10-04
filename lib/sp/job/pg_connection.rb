@@ -25,8 +25,10 @@ require 'openssl'
 module SP
   module Job
 
-    class PGConnection
+    class XssAttack < ::StandardError
+    end
 
+    class PGConnection
 
       #
       # Public Attributes
@@ -34,6 +36,8 @@ module SP
       attr_accessor :connection
       attr_reader   :config
       attr_reader   :xss_validators
+      attr_writer   :logger
+      attr_writer   :rollbar
 
       #
       # Prepare database connection configuration.
@@ -63,6 +67,8 @@ module SP
           end
         end
         @transaction_open = false
+        @rollbar = nil
+        @logger  = nil
       end
 
       #
@@ -362,7 +368,10 @@ module SP
         decoded = CGI.unescape(str.to_s)
         @xss_validators.each do |validator|
           if decoded.match validator
-            raise "invalid value: #{str}"
+            @logger&.info "XssAttack #{str}".yellow
+            e = XssAttack.new("invalid value: #{str.gsub('<', '?').gsub('>','?')}")
+            @rollbar&.send(:error, e, "owner: #{@owner} str: #{str}")
+            raise e
           end
         end
         str
@@ -373,14 +382,17 @@ module SP
         begin
           rs = @connection.exec("SELECT current_setting('cloudware.xss_validators', TRUE)")
           if rs.ntuples == 1
-            validators = JSON.parse(rs.first['current_setting'])
-            validators.each do |validator|
-              re = Regexp.new(validator, Regexp::IGNORECASE | Regexp::EXTENDED | Regexp::MULTILINE)
-              @xss_validators << re
+            validators = rs.first['current_setting']
+            if validators != nil && validators != ''
+              validators = JSON.parse(validators)
+              validators.each do |validator|
+                re = Regexp.new(validator, Regexp::IGNORECASE | Regexp::EXTENDED | Regexp::MULTILINE)
+                @xss_validators << re
+              end
             end
           end
         rescue => e
-          # soft failure when there is no xss validation
+          raise e
         end
       end
 
