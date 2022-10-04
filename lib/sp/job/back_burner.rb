@@ -561,7 +561,6 @@ $beanstalk_url = "beanstalk://#{$cluster_config[:beanstalkd][:host]}:#{$cluster_
 # Configure rollbar
 #
 unless $config[:rollbar].nil?
-
   if $config[:rollbar][:enabled] == false
     $rollbar = false
   else
@@ -738,7 +737,7 @@ Signal.trap('SIGUSR2') {
 # Make logger and rollbar available to all PG Connection objects
 #
 unless $pg.nil?
-  $pg.rollbar = Rollbar
+  $pg.rollbar = $rollbar ? Rollbar : nil
   $pg.logger  = logger
 end
 unless $cdb.nil?
@@ -747,7 +746,7 @@ unless $cdb.nil?
 end
 unless $cluster_members.nil?
   $cluster_members.each do |number, cluster|
-    cluster.db.rollbar = Rollbar
+    cluster.db.rollbar = $rollbar ? Rollbar : nil
     cluster.db.logger  = logger
   end
 end
