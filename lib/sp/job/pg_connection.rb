@@ -378,6 +378,7 @@ module SP
       end
 
       def _init_xss_validator ()
+        return if @xss_validators.is_a?(Array)
         @xss_validators = []
         begin
           rs = @connection.exec("SELECT current_setting('cloudware.xss_validators', TRUE)")
