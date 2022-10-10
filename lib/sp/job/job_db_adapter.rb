@@ -10,14 +10,14 @@ module SP
           def do_request_on_the_db(method, path, params)
             jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
-            response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, subentity_schema, subentity_prefix
+            response = service.connection.unsafe_exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, subentity_schema, subentity_prefix
             response.first if response.first
           end
 
           def explicit_do_request_on_the_db(exp_subentity_schema, exp_subentity_prefix, method, path, params)
             jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
-            response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, exp_subentity_schema, exp_subentity_prefix
+            response = service.connection.unsafe_exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, exp_subentity_schema, exp_subentity_prefix
             response.first if response.first
           end
 
@@ -40,14 +40,14 @@ module SP
           def do_request_on_the_db(method, path, params)
             jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
-            response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, subentity_schema, subentity_prefix
+            response = service.connection.unsafe_exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, subentity_schema, subentity_prefix
             response.first if response.first
           end
 
           def explicit_do_request_on_the_db(exp_subentity_schema, exp_subentity_prefix, method, path, params)
             jsonapi_query = %Q[ SELECT * FROM public.jsonapi('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') ]
 
-            response = service.connection.exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, exp_subentity_schema, exp_subentity_prefix
+            response = service.connection.unsafe_exec jsonapi_query, method, (method == 'GET' ? url_with_params_for_query(path, params) : url(path)), (method == 'GET' ? '' : params_for_body(params)), user_id, entity_id, entity_schema, sharded_schema, exp_subentity_schema, exp_subentity_prefix
             response.first if response.first
           end
 
