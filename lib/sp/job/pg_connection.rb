@@ -105,7 +105,7 @@ module SP
       end
 
       #
-      # Execute a prepared SQL statement.
+      # Execute a prepared SQL statement with XSS validation
       #
       # @param query the SQL query with data binding
       # @param args all the args for the query
@@ -150,6 +150,48 @@ module SP
             end
           end
 
+          @connection.exec_prepared(id, args)
+        }
+      end
+
+      #
+      # Execute a prepared SQL statement bypassing XSS validation
+      #
+      # @param query the SQL query with data binding
+      # @param args all the args for the query
+      # @return query result.
+      #
+      #
+      def unsafe_execp (query, *args)
+        @mutex.synchronize {
+          if nil == @connection
+            _connect()
+          end
+          _check_life_span()
+          unless @id_cache.has_key? query
+            id = "p#{Digest::MD5.hexdigest(query)}"
+            begin
+              @connection.prepare(id, query)
+            rescue PG::DuplicatePstatement => ds
+              tmp_debug_str = ""
+              @id_cache.each do | k, v |
+                if v == id || k == query
+                  tmp_debug_str += "#{v}: #{k}\n"
+                  break
+                end
+              end
+              if 0 == tmp_debug_str.length
+                  tmp_debug_str = "~~~\nAll Entries:\n" + @id_cache.to_s
+              else
+                  tmp_debug_str = "~~~\nCached Entry:\n#{tmp_debug_str}"
+              end
+              tmp_debug_str += "~~~\nNew Entry: #{id}:#{query}\n"
+              raise "#{ds.message}\n#{tmp_debug_str}"
+            end
+            @id_cache[query] = id
+          else
+            id = @id_cache[query]
+          end
           @connection.exec_prepared(id, args)
         }
       end
@@ -351,7 +393,7 @@ module SP
       # @param db  db config
       # @param app application name
       # @param sslmode: require, disable, verify-ca, verify-full
-      #        see Table 31-1. SSL Mode Descriptions @https://www.postgresql.org/docs/9.1/libpq-ssl.html 
+      #        see Table 31-1. SSL Mode Descriptions @https://www.postgresql.org/docs/9.1/libpq-ssl.html
       #
       def self.PostgreSQLConnectionString(db:, app:, sslmode: nil)
         if nil != sslmode
