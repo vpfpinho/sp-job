@@ -32,8 +32,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'ffi'
   spec.add_dependency 'redis'
   spec.add_dependency 'backburner'
-  # TODO: remove beaneater limitation, added because 1.1.2 would cause replacement of : by _ and ruin json
-  spec.add_dependency 'beaneater', '1.1.1'
   spec.add_dependency 'pg'            unless RUBY_ENGINE == 'jruby'
   spec.add_dependency 'jruby-pg'      if     RUBY_ENGINE == 'jruby'
   spec.add_dependency 'curb'          unless RUBY_ENGINE == 'jruby'
