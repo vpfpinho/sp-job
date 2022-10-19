@@ -209,7 +209,7 @@ def pg_conn_str (config, app_name = nil)
   if app_name.nil?
     app_name = "application_name=#{$args[:program_name]}"
   end
-  return "host=#{config[:host]} port=#{config[:port]} dbname=#{config[:dbname]} user=#{config[:user]}#{config[:password] && config[:password].size != 0 ? ' password='+ config[:password] : '' } #{app_name}"
+  return "sslmode=#{config[:sslmode] || 'disable'} host=#{config[:host]} port=#{config[:port]} dbname=#{config[:dbname]} user=#{config[:user]}#{config[:password] && config[:password].size != 0 ? ' password='+ config[:password] : '' } #{app_name}"
 end
 
 #
