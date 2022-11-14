@@ -20,12 +20,14 @@ module SP
         attr_reader :status
         attr_reader :result
         attr_reader :message
+        attr_reader :code
 
         def initialize(result, nested = $!)
           @result = result
           errors = get_result_errors()
           @status = (errors.map { |error| error[:status].to_i }.max) || 403
           @message = errors.first[:detail]
+          @code = errors.first[:code]
           nested ? super(@message, nested) : super(@message)
         end
 
@@ -34,7 +36,7 @@ module SP
           if errors.length != 1
             @result.to_json
           else
-            errors.first[:meta]['internal-error'] if errors.first[:meta]
+            errors.first[:meta][:'internal-error'] if errors.first[:meta]
           end
         end
 
@@ -53,7 +55,6 @@ module SP
           def get_result_errors() ; (result.is_a?(Hash) ? result : (JSON.parse(result, symbolize_names: true)))[:errors] ; end
 
       end
-
     end
   end
 end
