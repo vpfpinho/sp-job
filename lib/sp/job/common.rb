@@ -675,7 +675,7 @@ module SP
         ttr      = args[:ttr]      || 60
         job[:id] ||= get_next_job_id
         job[:tube] = tube
-        job[:ttr] = ttr
+        job[:ttr] ||= ttr
         job[:validity] = validity
         redis_key = "#{$config[:service_id]}:jobs:#{tube}:#{job[:id]}"
         $redis.pipelined do |pipeline|
