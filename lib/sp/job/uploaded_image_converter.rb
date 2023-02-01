@@ -54,7 +54,7 @@ module SP
       upload = URI.parse(config[:urls][:upload_internal])
       if OS.mac?
         @@ssh = ''
-        @@src = config[:paths][:temporary_uploads]
+        @@src = config[:paths][:uploads_tmp]
         @@dst = config[:paths][:uploads_storage]
       else
         @@ssh = (upload.host == 'localhost' || upload.host == '127.0.0.1') ? '' : "ssh #{upload.host} "
