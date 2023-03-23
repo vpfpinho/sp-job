@@ -410,9 +410,9 @@ module SP
         decoded = CGI.unescape(str.to_s)
         @xss_validators.each do |validator|
           if decoded.match validator
-            @logger&.info "XssAttack #{str}".yellow
+            @logger && @logger.info("XssAttack #{str}").yellow
             e = XssAttack.new("invalid value: #{str.gsub('<', '?').gsub('>','?')}")
-            @rollbar&.send(:error, e, "owner: #{@owner} str: #{str}")
+            @rollbar && @rollbar.send(:error, e, "owner: #{@owner} str: #{str}")
             raise e
           end
         end
