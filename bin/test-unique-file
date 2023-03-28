@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+#
+# Copyright (c) 2011-2017 Cloudware S.A. All rights reserved.
+#
+# This file is part of sp-job.
+#
+# sp-job is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# sp-job is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with sp-job.  If not, see <http://www.gnu.org/licenses/>.
+#
+# encoding: utf-8
+#
+
+require 'bundler/setup'
+require 'sp/job'
+require 'sp/job/lock'
+require 'sp/job/unique_file'
+require 'sp/job/common'
+require 'syslog/logger'
+require 'date'
+
+extend SP::Job::Common
+
+puts "UniqueFile Test for #{RUBY_PLATFORM}"
+
+(1..3).each do | n |
+  tmp = get_unique_file(name: "guf_#{n}", extension: 'test')
+  puts "%-15s: %3d: %s" % ['get_unique_file', n, tmp]
+end
+
+(4..6).each do | n |
+  tmp = get_unique_file(tmp_dir: '/tmp/', name: "guf_#{n}", extension: 'test')
+  puts "%-15s: %3d: %s" % ['get_unique_file', n, tmp]
+end
+
+(7..9).each do | n |
+  tmp = SP::Job::Unique::File.create("/tmp/#{(Date.today + 2).to_s}", ".html")
+  puts "%-15s: %3d: %s" % ['create', n, tmp]
+end
+
+(10..12).each do | n |
+  tmp = SP::Job::Unique::File.create_n(folder: "/tmp/#{(Date.today + 2).to_s}", name: 'cn', extension: "html")
+  puts "%-15s: %3d: %s" % ['create_n', n, tmp]
+end

@@ -46,26 +46,18 @@ module SP
         # @return Absolute file path
         #
         def self.create (a_folder, a_extension)
+
           FileUtils.mkdir_p(a_folder) if !Dir.exist?(a_folder)
-          fd = ::SP::Job::Unique::File.mkstemps("#{a_folder}/XXXXXX#{a_extension}", a_extension.length)
-          return nil if fd < 0
+          
+          _name = "#{a_folder}/_XXXXXX#{a_extension}"
 
-          ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
-          if OS.mac?
-            r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
-          else
-            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
-            if r > 0 && r < 8192
-              r = 0
-            end
+          fd = ::SP::Job::Unique::File.mkstemps(_name, a_extension.length)
+
+          if fd < 0
+            return nil
           end
-          ::SP::Job::Unique::File.close(fd)
-          return nil if r != 0
-          return nil if ptr.null?
 
-          rv = ptr.read_string.force_encoding('UTF-8')
-
-          return rv
+          return _name
         end
 
         #
@@ -77,30 +69,23 @@ module SP
         # @return Absolute file path
         #
         def self.create_n (folder:, name:, extension:)
+
           FileUtils.mkdir_p(folder) if !Dir.exist?(folder)
+
           if nil != name
-            fd = ::SP::Job::Unique::File.mkstemps("#{folder}/#{name}.XXXXXX.#{extension}", extension.length + 1)
+            _name = ::File.expand_path(::File.join(folder, "#{name}.XXXXXX.#{extension}"))
           else
-            fd = ::SP::Job::Unique::File.mkstemps("#{folder}/XXXXXX.#{extension}", extension.length + 1)
+            _name = ::File.expand_path(::File.join(folder, "XXXXXX.#{extension}"))
           end
-          return nil if fd < 0
 
-          ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
-          if OS.mac?
-            r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
-          else
-            r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
-            if r > 0 && r < 8192
-              r = 0
-            end
+          fd = ::SP::Job::Unique::File.mkstemps(_name, extension.length + 1)
+
+          if fd < 0
+            return nil
           end
-          ::SP::Job::Unique::File.close(fd)
-          return nil if r != 0
-          return nil if ptr.null?
 
-          rv = ptr.read_string.force_encoding('UTF-8')
-
-          return rv
+          return _name
+   
         end
 
       end

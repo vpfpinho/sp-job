@@ -21,6 +21,9 @@
 #
 # encoding: utf-8
 #
+
+require 'pathname'
+
 module SP
   module Job
     module Common
@@ -336,8 +339,9 @@ module SP
       #
       # @return unique file URI for a file on tmp/DATE.
       #
-      def get_unique_file(tmp_dir: 'tmp', days_after: 2, name: nil, extension: '')
-        Unique::File.create_n(folder: "/#{tmp_dir}/#{(Date.today + days_after).strftime('%Y-%m-%d')}", name: name, extension: extension)
+      def get_unique_file(tmp_dir: '/tmp', days_after: 2, name: nil, extension: '')       
+        _tmp_dir = "#{::Pathname.new(tmp_dir).cleanpath}/#{(Date.today + days_after).strftime('%Y-%m-%d')}"
+        Unique::File.create_n(folder: _tmp_dir, name: name, extension: extension)
       end
 
       #
