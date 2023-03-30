@@ -339,7 +339,7 @@ module SP
       #
       # @return unique file URI for a file on tmp/DATE.
       #
-      def get_unique_file(tmp_dir: '/tmp', days_after: 2, name: nil, extension: '')       
+      def get_unique_file(tmp_dir: '/tmp', days_after: 2, name: nil, extension: '')
         _tmp_dir = "#{::Pathname.new(tmp_dir).cleanpath}/#{(Date.today + days_after).strftime('%Y-%m-%d')}"
         Unique::File.create_n(folder: _tmp_dir, name: name, extension: extension)
       end
@@ -1531,11 +1531,7 @@ module SP
       end
 
       def file_to_downloadable_url (path, expiration = nil)
-        if OS.mac?
-          file = File.join(path.split('/')[3..-1])
-        else
-          file = File.join(path.split('/')[2..-1])
-        end
+        file = File.join(path.split('/')[2..-1])
 
         now = Time.now.getutc.to_i
         exp = expiration.nil? ? now + (3600 * 24 * 7) : now + expiration
