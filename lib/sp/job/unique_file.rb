@@ -57,6 +57,19 @@ module SP
             return nil
           end
 
+          if 'jruby' == RUBY_ENGINE
+            ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
+            if OS.mac?
+              r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
+            else
+              r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
+              if r > 0 && r < 8192
+                r = 0
+              end
+            end
+            _name = ptr.read_string.force_encoding('UTF-8')
+          end
+
           return _name
         end
 
@@ -82,6 +95,19 @@ module SP
 
           if fd < 0
             return nil
+          end
+
+          if 'jruby' == RUBY_ENGINE
+            ptr = FFI::MemoryPointer.new(:char, 8192)     # Assumes max path is less that this
+            if OS.mac?
+              r = ::SP::Job::Unique::File.fcntl(fd, 50, ptr) # 50 is F_GETPATH in OSX
+            else
+              r = ::SP::Job::Unique::File.readlink("/proc/self/fd/#{fd}", ptr, 8192)
+              if r > 0 && r < 8192
+                r = 0
+              end
+            end
+            _name = ptr.read_string.force_encoding('UTF-8')
           end
 
           return _name
