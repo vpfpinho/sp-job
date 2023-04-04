@@ -70,6 +70,8 @@ module SP
             _name = ptr.read_string.force_encoding('UTF-8')
           end
 
+          ::SP::Job::Unique::File.close(fd)
+
           return _name
         end
 
@@ -109,6 +111,8 @@ module SP
             end
             _name = ptr.read_string.force_encoding('UTF-8')
           end
+
+          ::SP::Job::Unique::File.close(fd)
 
           return _name
    
