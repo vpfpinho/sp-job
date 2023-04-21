@@ -803,24 +803,34 @@ class ReloadHandler
   end
 
   def self.perform (job)
+    ap "ENTRY PERFORM"
+    ap job
     $workers_mutex.synchronize {
       $workers.each do | worker |
         if worker.object_id == job[:worker]
           job[:ignore].each do | tube |
             logger.info  " • Worker ##{worker.object_id} will ignore tube #{tube}"
-            worker.connection.beanstalk.tubes.ignore(tube)
+            # worker.connection.beanstalk.tubes.ignore(tube)
+            ap "$beaneater: #{$beaneater}"
+            $beaneater.tubes.ignore(tube)
           end
         end
       end
     }
+    ap "EXIT MUTEX"
     # signal job completed
     send_response({})
     # give time to beanstalk process job finalization
     Thread.new do
-      sleep 5
-        $gracefull_exit = true
-        check_gracefull_exit(dolog: false)
+      for value in (5).downto(1)
+        ap "value: #{value}"
+        sleep 1
       end
+
+      # sleep 5
+      $gracefull_exit = true
+      check_gracefull_exit(dolog: false)
+    end
   end
 
 end # of class 'ReloadHandler'
@@ -840,7 +850,7 @@ module Backburner
       install_reload_signal_handler(ctx)
       ::Backburner.work(tubes)
     end
- end
+  end
 end
   
 ap "MAIN : #{Thread.current} ~> #{$args[:program_name]}-reload"
@@ -861,10 +871,12 @@ def install_reload_signal_handler(ctx)
             ignore = ignore - ["#{$args[:program_name]}-reload"]
             ctx.submit_job(job: { worker: worker.object_id, ignore: ignore }, tube: "#{$args[:program_name]}-reload")
           end
-        }          
+        }
+        ap "BANANAS"
       rescue Exception => e
         # Forward unexpected exceptions to the main thread for proper handling
-        logger.fatal e.to_s.red
+        ap "EXCEPTION"
+        ctx.logger.fatal e.to_s.red
         Thread.main.raise(e)
       end
     }

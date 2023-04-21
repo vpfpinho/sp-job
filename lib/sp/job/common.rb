@@ -996,11 +996,15 @@ module SP
         disconnect_db_connections
         release_locks
         # In case the job missed a send_response... clear the job_id to mark this job as completed! (Otherwise, process reloading will NOT work)
+        logger.info "called in after_perform_lock_cleanup: #{thread_data.job_id} | #{Thread.current}"
         thread_data.job_id = nil
+        ap thread_data
+        # log_job_end(thread_data.job_tube) # TODO: WE WERE HERE (!!!)
         check_gracefull_exit(dolog: true)
       end
 
       def check_gracefull_exit (dolog: false)
+        # require 'ruby-debug'; debugger
         if $gracefull_exit
           jobs = 0
           $thread_data.each do |thread, thread_data|
@@ -1010,9 +1014,10 @@ module SP
                 if dolog
                   logger.info 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
                   logger.info thread_data.to_json
-                else
-                  puts 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
-                  puts thread_data.to_json
+                # else
+                #   ap "ELSE"
+                #   logger.info 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
+                #   logger.info thread_data.to_json
                 end
               rescue => e
                 logger.info e
@@ -1023,8 +1028,8 @@ module SP
             message =  'SIGUSR2 requested no jobs are running exiting now'
             if dolog
               logger.info message
-            else
-              puts message
+            # else
+            #   puts message
             end
             $beaneater.close
             exit 0
@@ -1032,8 +1037,8 @@ module SP
             message = "SIGUSR2 requested but #{jobs} jobs are still running"
             if dolog
               logger.info message
-            else
-              puts message
+            # else
+            #   puts message
             end
           end
         end

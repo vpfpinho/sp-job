@@ -29,6 +29,13 @@ module SP
 
       @@thread_counter = 0
 
+      def initialize(tube_names=nil)
+        super(tube_names)
+        $workers_mutex.synchronize {
+          $workers << self
+        }
+      end
+
       # Used to prepare job queues before processing jobs.
       # Setup beanstalk tube_names and watch all specified tubes for jobs.
       #
@@ -67,7 +74,7 @@ module SP
               rescue => e
                 Rollbar.error(e)
               end
-
+              logger.info "JOB FINISHED -> Thread for #{tube_names.join(',')} #{Thread.current}"
               unless connection.connected?
                 log_error "Connection to beanstalk closed, exiting now"
                 Kernel.exit
