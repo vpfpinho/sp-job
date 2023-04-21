@@ -729,6 +729,7 @@ $thread_data[Thread.current] = ::SP::Job::ThreadData.new
 # Signal handler
 #
 Signal.trap('SIGUSR2') {
+  ap "DEFAULT SIGNAL HANDLER @ #{Thread.current}"
   $gracefull_exit = true
   check_gracefull_exit(dolog: false)
 }
@@ -783,3 +784,89 @@ $cancel_thread = Thread.new {
     Thread.main.raise(e)
   end
 }
+
+
+$workers_mutex = Mutex.new
+$workers_mutex.synchronize {
+  $workers = []
+}
+
+class ReloadHandler
+  extend SP::Job::Common
+
+  def self.tube_options
+    { transient: true }
+  end
+
+  def self.thread_job
+    thread_data.job_data
+  end
+
+  def self.perform (job)
+    $workers_mutex.synchronize {
+      $workers.each do | worker |
+        if worker.object_id == job[:worker]
+          job[:ignore].each do | tube |
+            logger.info  " • Worker ##{worker.object_id} will ignore tube #{tube}"
+            worker.connection.beanstalk.tubes.ignore(tube)
+          end
+        end
+      end
+    }
+    # signal job completed
+    send_response({})
+    # give time to beanstalk process job finalization
+    Thread.new do
+      sleep 5
+        $gracefull_exit = true
+        check_gracefull_exit(dolog: false)
+      end
+  end
+
+end # of class 'ReloadHandler'
+
+eval <<DYNAMIC
+  class #{$args[:program_name].split('-').collect(&:capitalize).join}Reload < ReloadHandler
+    # ...or substitute other stuff in here.
+  end
+DYNAMIC
+
+module Backburner
+
+
+  class << self
+    def work2(ctx:, tubes:)
+      tubes << "#{$args[:program_name]}-reload"
+      install_reload_signal_handler(ctx)
+      ::Backburner.work(tubes)
+    end
+ end
+end
+  
+ap "MAIN : #{Thread.current} ~> #{$args[:program_name]}-reload"
+
+public
+def install_reload_signal_handler(ctx)
+  Signal.trap('SIGUSR2') {
+    ap "NEW SIGNAL HANDLER @ #{Thread.current}"
+    Thread.new {
+      ap "SIGNAL THREAD : #{Thread.current}"
+      begin
+        $workers_mutex.synchronize {
+          $workers.each_with_index do | worker, index |
+            ignore = []
+            worker.tube_names.each do | tube |
+              ignore << tube
+            end
+            ignore = ignore - ["#{$args[:program_name]}-reload"]
+            ctx.submit_job(job: { worker: worker.object_id, ignore: ignore }, tube: "#{$args[:program_name]}-reload")
+          end
+        }          
+      rescue Exception => e
+        # Forward unexpected exceptions to the main thread for proper handling
+        logger.fatal e.to_s.red
+        Thread.main.raise(e)
+      end
+    }
+  }
+end

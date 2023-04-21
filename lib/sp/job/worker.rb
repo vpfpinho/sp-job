@@ -23,6 +23,13 @@ module SP
 
     class Worker < Backburner::Workers::Simple
 
+      def initialize(tube_names=nil)
+        super(tube_names)
+        $workers_mutex.synchronize {
+          $workers << self
+        }
+      end
+
       def start
         prepare
         loop do 
