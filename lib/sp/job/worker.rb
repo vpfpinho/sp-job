@@ -23,12 +23,6 @@ module SP
 
     class Worker < Backburner::Workers::Simple
 
-      def initialize(tube_names=nil)
-        super(tube_names)
-        $workers_mutex.synchronize {
-          $workers << self
-        }
-      end
 
       def start
         prepare
@@ -58,7 +52,8 @@ module SP
         begin
           job = reserve_job(conn)
         rescue Beaneater::TimedOutError => e
-          return
+          # by reserve timeout
+          return true
         end
   
         self.log_job_begin(job.name, job.args)
@@ -72,7 +67,8 @@ module SP
   
         unless job
           self.log_error "Error occurred before we were able to assign a job. Giving up without retrying!"
-          return
+          # NOT by reserve timeout
+          return false
         end
   
         # NB: There's a slight chance here that the connection to beanstalkd has
@@ -89,6 +85,9 @@ module SP
         end
   
         handle_error(e, job.name, job.args, job)
+
+        # NOT by reserve timeout
+        return false
       end
 
     end # Worker

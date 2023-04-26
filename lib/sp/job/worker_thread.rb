@@ -21,20 +21,14 @@
 #
 
 require 'java'
+require 'sp/job/sigusr2_handler'
 
 module SP
   module Job
 
-    class WorkerThread < Backburner::Workers::Simple
+    class WorkerThread < ::SP::Job::Worker
 
       @@thread_counter = 0
-
-      def initialize(tube_names=nil)
-        super(tube_names)
-        $workers_mutex.synchronize {
-          $workers << self
-        }
-      end
 
       # Used to prepare job queues before processing jobs.
       # Setup beanstalk tube_names and watch all specified tubes for jobs.
@@ -55,8 +49,30 @@ module SP
             @@thread_counter += 1
             logger.info "Thread for #{tube_names.join(',')} #{Thread.current}"
             loop do
+              by_reserve_timeout = false
               begin
-                work_one_job(connection)
+                by_reserve_timeout = work_one_job(connection)
+                # this is optional, it only works if reserve_timeout was previously set
+                if true == by_reserve_timeout
+                  # check if should shutdown
+                  if true == ::SP::Job::SIGUSR2Handler.signal_received?()
+                    # ... and for that, untrack this thread ...
+                    if true == ::SP::Job::SIGUSR2Handler.untrack_worker_if_enabled(worker: self, thread: Thread.current)
+                      # log
+                      logger.info "- #{Thread.current} ignoring %s".yellow % [ "#{tube_names}".white ]
+                      # ... according to beanstalk protocol, at least one tube must be watched ...
+                      connection.beanstalk.tubes.watch(::SP::Job::SIGUSR2Handler.linger_tube)
+                      # ... now ignore all other tubes ...
+                      connection.beanstalk.tubes.ignore(*tube_names)
+                    else
+                      if true == ::SP::Job::SIGUSR2Handler.shutdown()
+                        break
+                      end
+                    end
+                  end
+                  # try to reserve next job
+                  next
+                end
               rescue Beaneater::NotFoundError => bnfe
                 # Do nothing if try to delete the task and it´s not found
               rescue Beaneater::DeadlineSoonError => dse
@@ -74,7 +90,7 @@ module SP
               rescue => e
                 Rollbar.error(e)
               end
-              logger.info "JOB FINISHED -> Thread for #{tube_names.join(',')} #{Thread.current}"
+              logger.info "JOB FINISHED -> Thread for #{tube_names.join(',')} #{Thread.current}" if false == by_reserve_timeout
               unless connection.connected?
                 log_error "Connection to beanstalk closed, exiting now"
                 Kernel.exit
@@ -84,6 +100,9 @@ module SP
             $threads.delete(Thread.current)
             $thread_data.delete Thread.current
           }
+
+          ::SP::Job::SIGUSR2Handler.track_worker_if_enabled(worker: self, thread: $threads.last)
+  
         end
       end
 

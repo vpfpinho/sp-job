@@ -996,9 +996,9 @@ module SP
         disconnect_db_connections
         release_locks
         # In case the job missed a send_response... clear the job_id to mark this job as completed! (Otherwise, process reloading will NOT work)
-        logger.info "called in after_perform_lock_cleanup: #{thread_data.job_id} | #{Thread.current}"
+        logger.info "called in after_perform_lock_cleanup: #{thread_data.job_id} | #{Thread.current}" if false == SIGUSR2Handler.initialized?
         thread_data.job_id = nil
-        ap thread_data
+        ap thread_data if false == SIGUSR2Handler.initialized?
         # log_job_end(thread_data.job_tube) # TODO: WE WERE HERE (!!!)
         check_gracefull_exit(dolog: true)
       end
@@ -1031,8 +1031,12 @@ module SP
             # else
             #   puts message
             end
-            $beaneater.close
-            exit 0
+            # handle it here?
+            if false == SIGUSR2Handler.initialized?
+              # ... yes, new signal handler is not installed ...
+              $beaneater.close
+              exit 0  
+            end
           else
             message = "SIGUSR2 requested but #{jobs} jobs are still running"
             if dolog

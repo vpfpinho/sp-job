@@ -24,6 +24,7 @@ require 'sp/job/broker'
 require 'sp/job/internal_broker_exception'
 require 'roadie'
 require 'thread'
+require 'sp/job/sigusr2_handler'
 
 #
 # Helper class that encapsulates the objects needed to access each cluster
@@ -729,7 +730,6 @@ $thread_data[Thread.current] = ::SP::Job::ThreadData.new
 # Signal handler
 #
 Signal.trap('SIGUSR2') {
-  ap "DEFAULT SIGNAL HANDLER @ #{Thread.current}"
   $gracefull_exit = true
   check_gracefull_exit(dolog: false)
 }
@@ -785,100 +785,31 @@ $cancel_thread = Thread.new {
   end
 }
 
+#########################
+# [B] SIGNAL HANDLER v2 #
+#                       #
 
-$workers_mutex = Mutex.new
-$workers_mutex.synchronize {
-  $workers = []
-}
+if 'jruby' == RUBY_ENGINE
 
-class ReloadHandler
-  extend SP::Job::Common
+  module Backburner
 
-  def self.tube_options
-    { transient: true }
-  end
-
-  def self.thread_job
-    thread_data.job_data
-  end
-
-  def self.perform (job)
-    ap "ENTRY PERFORM"
-    ap job
-    $workers_mutex.synchronize {
-      $workers.each do | worker |
-        if worker.object_id == job[:worker]
-          job[:ignore].each do | tube |
-            logger.info  " • Worker ##{worker.object_id} will ignore tube #{tube}"
-            # worker.connection.beanstalk.tubes.ignore(tube)
-            ap "$beaneater: #{$beaneater}"
-            $beaneater.tubes.ignore(tube)
-          end
+    class << self
+      def work2(ctx:, tubes:)
+        # ... SIGUSR2 TAKEOVER ...
+        ::SP::Job::SIGUSR2Handler.install(ctx: ctx, process: $args[:program_name])
+        # ... required config for this to work ...
+        ::Backburner.configure do |config|
+          config.reserve_timeout = 1
         end
+        # ... now we can start ...
+        ::Backburner.work(tubes)
       end
-    }
-    ap "EXIT MUTEX"
-    # signal job completed
-    send_response({})
-    # give time to beanstalk process job finalization
-    Thread.new do
-      for value in (5).downto(1)
-        ap "value: #{value}"
-        sleep 1
-      end
-
-      # sleep 5
-      $gracefull_exit = true
-      check_gracefull_exit(dolog: false)
     end
+
   end
 
-end # of class 'ReloadHandler'
-
-eval <<DYNAMIC
-  class #{$args[:program_name].split('-').collect(&:capitalize).join}Reload < ReloadHandler
-    # ...or substitute other stuff in here.
-  end
-DYNAMIC
-
-module Backburner
-
-
-  class << self
-    def work2(ctx:, tubes:)
-      tubes << "#{$args[:program_name]}-reload"
-      install_reload_signal_handler(ctx)
-      ::Backburner.work(tubes)
-    end
-  end
 end
-  
-ap "MAIN : #{Thread.current} ~> #{$args[:program_name]}-reload"
 
-public
-def install_reload_signal_handler(ctx)
-  Signal.trap('SIGUSR2') {
-    ap "NEW SIGNAL HANDLER @ #{Thread.current}"
-    Thread.new {
-      ap "SIGNAL THREAD : #{Thread.current}"
-      begin
-        $workers_mutex.synchronize {
-          $workers.each_with_index do | worker, index |
-            ignore = []
-            worker.tube_names.each do | tube |
-              ignore << tube
-            end
-            ignore = ignore - ["#{$args[:program_name]}-reload"]
-            ctx.submit_job(job: { worker: worker.object_id, ignore: ignore }, tube: "#{$args[:program_name]}-reload")
-          end
-        }
-        ap "BANANAS"
-      rescue Exception => e
-        # Forward unexpected exceptions to the main thread for proper handling
-        ap "EXCEPTION"
-        ctx.logger.fatal e.to_s.red
-        Thread.main.raise(e)
-      end
-    }
-  }
-end
+#                       #
+# [E] SIGNAL HANDLER v2 #
+#########################
