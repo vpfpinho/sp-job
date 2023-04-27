@@ -100,9 +100,8 @@ module SP
             $threads.delete(Thread.current)
             $thread_data.delete Thread.current
           }
-
-          ::SP::Job::SIGUSR2Handler.track_worker_if_enabled(worker: self, thread: $threads.last)
-  
+          # present worker to signal handler
+          ::SP::Job::SIGUSR2Handler.track_worker_if_enabled(worker: self, thread: $threads.last)  
         end
       end
 

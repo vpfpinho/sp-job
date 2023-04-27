@@ -1004,7 +1004,6 @@ module SP
       end
 
       def check_gracefull_exit (dolog: false)
-        # require 'ruby-debug'; debugger
         if $gracefull_exit
           jobs = 0
           $thread_data.each do |thread, thread_data|
@@ -1014,10 +1013,6 @@ module SP
                 if dolog
                   logger.info 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
                   logger.info thread_data.to_json
-                # else
-                #   ap "ELSE"
-                #   logger.info 'THIS JOB WAS NOT CLEARED - THREAD DATA INFO:'
-                #   logger.info thread_data.to_json
                 end
               rescue => e
                 logger.info e
@@ -1028,21 +1023,17 @@ module SP
             message =  'SIGUSR2 requested no jobs are running exiting now'
             if dolog
               logger.info message
-            # else
-            #   puts message
             end
             # handle it here?
             if false == SIGUSR2Handler.initialized?
               # ... yes, new signal handler is not installed ...
               $beaneater.close
-              exit 0  
+              exit 0
             end
           else
             message = "SIGUSR2 requested but #{jobs} jobs are still running"
             if dolog
               logger.info message
-            # else
-            #   puts message
             end
           end
         end

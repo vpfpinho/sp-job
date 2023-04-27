@@ -55,7 +55,7 @@ module SP
             begin
               @mutex.synchronize {
                 @signal_received = true
-              }      
+              }
             rescue Exception => e
               # Forward unexpected exceptions to the main thread for proper handling
               @ctx.logger.fatal e.to_s.red
@@ -120,7 +120,7 @@ module SP
         if true == rv
           # ... nothing to do here ...
           return rv
-        end 
+        end
         # ... no, but can he scheduled now?
         rv = -1
         @mutex.synchronize {
@@ -142,7 +142,7 @@ module SP
           # close connection
           $beaneater.close
           # and exit process
-          exit 0  
+          exit 0
         end
       end
 
@@ -152,7 +152,7 @@ module SP
       # One-shot initializer.
       #
       # @param ctx ::SP::Job::Common + Backburner
-      # @param process Name.      
+      # @param process Name.
       #
       def self.install (ctx: ctx, process: $args[:program_name])
         if nil != $wsh
