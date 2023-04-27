@@ -99,7 +99,7 @@ module SP
       #
       # @return True SIGUSR2 was received
       #
-      def signal_received? ()
+      def signal_received?()
         rv = false
         @mutex.synchronize {
           rv = @signal_received
@@ -108,9 +108,20 @@ module SP
       end
 
       #
+      # @return Number of workers running.
+      #
+      def number_of_tracked_workers()
+        rv = 0
+        @mutex.synchronize {
+          rv = @workers.count
+        }
+        return rv
+      end
+
+      #
       # @return True if it's time to shutdown.
       #
-      def shutdown ()
+      def shutdown()
         # shutdown already scheduled?
         rv = false
         @mutex.synchronize {
@@ -154,7 +165,7 @@ module SP
       # @param ctx ::SP::Job::Common + Backburner
       # @param process Name.
       #
-      def self.install (ctx: ctx, process: $args[:program_name])
+      def self.install(ctx:, process: $args[:program_name])
         if nil != $wsh
           raise "SIGUSR2Handler already initialized!"
         end
@@ -164,14 +175,14 @@ module SP
       #
       # @return True if shared instance was initialized.
       #
-      def self.initialized? ()
+      def self.initialized?()
         return nil != $wsh
       end
 
       #
       # @return True SIGUSR2 was received
       #
-      def self.signal_received? ()
+      def self.signal_received?()
         if true == SIGUSR2Handler.initialized?
           return $wsh.signal_received?
         end
@@ -183,7 +194,7 @@ module SP
       # @param worker Worker class instance - for mapping / read only purposes only
       # @param thread Thread class instance - for mapping / read only purposes only
       #
-      def self.track_worker_if_enabled (worker:, thread:)
+      def self.track_worker_if_enabled(worker:, thread:)
         if true == SIGUSR2Handler.initialized?
           $wsh.track(worker: worker, thread: thread)
         end
@@ -195,7 +206,7 @@ module SP
       # @param worker Worker class instance - for mapping / read only purposes only
       # @param thread Thread class instance - for mapping / read only purposes only
       #
-      def self.untrack_worker_if_enabled (worker:, thread:)
+      def self.untrack_worker_if_enabled(worker:, thread:)
         if true == SIGUSR2Handler.initialized?
           return $wsh.untrack(worker: worker, thread: thread)
         end
@@ -210,6 +221,16 @@ module SP
           return $wsh.shutdown()
         end
         return false
+      end
+
+      #
+      # @return Number of workers running.
+      #
+      def self.number_of_tracked_workers()
+        if true == SIGUSR2Handler.initialized?
+          return $wsh.number_of_tracked_workers()
+        end
+        return -1
       end
 
       #

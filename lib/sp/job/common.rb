@@ -998,9 +998,10 @@ module SP
         # In case the job missed a send_response... clear the job_id to mark this job as completed! (Otherwise, process reloading will NOT work)
         logger.info "called in after_perform_lock_cleanup: #{thread_data.job_id} | #{Thread.current}" if false == SIGUSR2Handler.initialized?
         thread_data.job_id = nil
-        ap thread_data if false == SIGUSR2Handler.initialized?
-        # log_job_end(thread_data.job_tube) # TODO: WE WERE HERE (!!!)
-        check_gracefull_exit(dolog: true)
+        if false == SIGUSR2Handler.initialized?
+          ap thread_data
+          check_gracefull_exit(dolog: true)
+        end
       end
 
       def check_gracefull_exit (dolog: false)

@@ -59,7 +59,7 @@ module SP
                     # ... and for that, untrack this thread ...
                     if true == ::SP::Job::SIGUSR2Handler.untrack_worker_if_enabled(worker: self, thread: Thread.current)
                       # log
-                      logger.info "- #{Thread.current} ignoring %s".yellow % [ "#{tube_names}".white ]
+                      logger.info "- #{Thread.current} %s %s".yellow % [ "ignoring".purple, "#{tube_names}".white ]
                       # ... according to beanstalk protocol, at least one tube must be watched ...
                       connection.beanstalk.tubes.watch(::SP::Job::SIGUSR2Handler.linger_tube)
                       # ... now ignore all other tubes ...
@@ -82,12 +82,18 @@ module SP
                 logger.info "Thread #{Thread.current} job timeout".yellow
                 Rollbar.warning(jte)
               rescue java.lang.Throwable => je
-                logger.error "Thread #{Thread.current} caught exception ".red
+                logger.error "Thread #{Thread.current} caught JAVA exception ".red
+                logger.error "#{je.message}".red
                 je.backtrace.each_with_index do | l, i |
                   logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
                 end
                 Rollbar.error(je)
               rescue => e
+                logger.error "Thread #{Thread.current} caught generic exception ".red
+                logger.error "#{e.message}".red
+                e.backtrace.each_with_index do | l, i |
+                  logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
+                end
                 Rollbar.error(e)
               end
               logger.info "JOB FINISHED -> Thread for #{tube_names.join(',')} #{Thread.current}" if false == by_reserve_timeout
@@ -96,12 +102,12 @@ module SP
                 Kernel.exit
               end
             end
-            logger.info "Thread #{Thread.current} exiting".yellow
+            logger.info "Thread #{Thread.current} %s".yellow % [ "exiting".green ]
             $threads.delete(Thread.current)
             $thread_data.delete Thread.current
           }
           # present worker to signal handler
-          ::SP::Job::SIGUSR2Handler.track_worker_if_enabled(worker: self, thread: $threads.last)  
+          ::SP::Job::SIGUSR2Handler.track_worker_if_enabled(worker: self, thread: $threads.last)
         end
       end
 
