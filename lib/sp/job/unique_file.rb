@@ -68,6 +68,9 @@ module SP
               end
             end
             _name = ptr.read_string.force_encoding('UTF-8')
+            if OS.mac? && _name.start_with?('/private')
+              _name.gsub!('/private', '')
+            end
           end
 
           ::SP::Job::Unique::File.close(fd)
@@ -110,6 +113,9 @@ module SP
               end
             end
             _name = ptr.read_string.force_encoding('UTF-8')
+            if OS.mac? && _name.start_with?('/private')
+              _name.gsub!('/private', '')
+            end
           end
 
           ::SP::Job::Unique::File.close(fd)
