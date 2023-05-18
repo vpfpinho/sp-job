@@ -23,7 +23,9 @@
 #
 
 require 'pathname'
-require 'sp/job/sigusr2_handler'
+if 'jruby' == RUBY_ENGINE
+  require 'sp/job/sigusr2_handler'
+end
 
 module SP
   module Job
