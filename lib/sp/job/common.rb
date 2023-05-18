@@ -23,7 +23,7 @@
 #
 
 require 'pathname'
-require 'sp/job/sigusr2_handle'
+require 'sp/job/sigusr2_handler'
 
 module SP
   module Job
