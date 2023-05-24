@@ -31,12 +31,14 @@ module SP
         ACCOUNTING = 'accounting'
         DOC_COMMUNICATION = 'doc_communication'
         COMMERCIAL = 'commercial'
+        BANK_OPS = 'bank_ops'
 
         def self.get_locks
           [
             ::SP::Job::Lock::DefinedLocks::ACCOUNTING,
             ::SP::Job::Lock::DefinedLocks::DOC_COMMUNICATION,
             ::SP::Job::Lock::DefinedLocks::COMMERCIAL,
+            ::SP::Job::Lock::DefinedLocks::BANK_OPS,
           ]
         end
       end
@@ -77,7 +79,8 @@ module SP
                          entity: true, entity_id: nil,
                          user: false, user_id: nil, username: nil, email: nil,
                          actions: nil, timeout: nil, cleanup: true,
-                         title: nil, sub_title: nil, message: nil, job_id: nil)
+                         title: nil, sub_title: nil, message: nil, job_id: nil,
+                         do_not_unlock: false)
         raise 'No key'              if key.nil?
         raise 'No entity id'        if entity && entity_id.nil?
         raise 'No user id'          if user && user_id.nil?
@@ -91,12 +94,17 @@ module SP
           puts "==> [#{Thread.current}] Exclusive lock requested for #{key}"
           Thread.current[:lock_data] ||= {}
           Thread.current[:lock_data][:lock_keys] ||= []
+          Thread.current[:lock_data][:not_unlockable_keys] ||= []
           Thread.current[:lock_data][:last_generated_key] = nil # neste ponto isto deve ser apagado
 
           # get key for asked lock
           [actions || 'full_lock'].flatten.each do |action|
             # check if the key already exists on redis
-            Thread.current[:lock_data][:lock_keys] << redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout, job_id)
+            temp_lock_key = redis_lock_key(key, entity_id, action, user_id, username, email, message, timeout, job_id)
+            Thread.current[:lock_data][:lock_keys] << temp_lock_key
+            if do_not_unlock
+              Thread.current[:lock_data][:not_unlockable_keys] << temp_lock_key
+            end
           end
 
           return Thread.current[:lock_data][:lock_keys]
@@ -190,6 +198,7 @@ module SP
         return if Thread.current[:lock_data].nil? || Thread.current[:lock_data][:lock_keys].nil?
         Thread.current[:lock_data][:lock_keys].each do |key|
          #next if key == excape
+          next if Thread.current[:lock_data][:not_unlockable_keys].include?(key)
           exclusive_unlock(key)
         end
         puts 'HARD RESET lock_data'
