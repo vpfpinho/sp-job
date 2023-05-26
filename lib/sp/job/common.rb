@@ -167,6 +167,13 @@ module SP
         $cluster_config
       end
 
+      def current_cluster
+        if $cluster_members.nil?
+          ClusterMember.configure_cluster(currentClusterOnly: true)
+        end
+        $cluster_members[config[:runs_on_cluster]]
+      end
+
       #
       # Returns the public application URL for the given brand and cluster
       #

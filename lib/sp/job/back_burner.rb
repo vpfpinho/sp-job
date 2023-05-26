@@ -74,7 +74,7 @@ class ClusterMember
   # @param siteFilter if false configure the clusters of all sites, if true configure only the clusters on this site
   # @param noDatabase if true nils the db object, it will crash if someone tries to use the cluster 'db' object
   #
-  def self.configure_cluster (siteFilter: false, noDatabase: false)
+  def self.configure_cluster (siteFilter: false, noDatabase: false, currentClusterOnly: false)
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
@@ -94,7 +94,9 @@ class ClusterMember
         # reuse current PG connection to it's own cluster
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, db: $pg, noDatabase: noDatabase)
       else
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, noDatabase: noDatabase)
+        unless currentClusterOnly
+          $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, noDatabase: noDatabase)
+        end
       end
       dbinfo = noDatabase ? ' *no-database* ' : " #{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) "
       logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"

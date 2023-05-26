@@ -169,8 +169,8 @@ module SP
         redis do |r|
           r.expire(key, timeleft || @tolerance_ttl)
         end
-      end      
-      
+      end
+
       #
       # Extend the life of a token by timetolive seconds
       #
