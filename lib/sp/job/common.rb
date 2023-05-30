@@ -1210,7 +1210,7 @@ module SP
       end
 
       def scan_on_member (redis_client, redis_key, cursor, pattern)
-        redis_client.sscan(redis_key[:key], cursor, { match: pattern, count: 100 })
+        redis_client.sscan(redis_key[:key], cursor, match: pattern, count: 100)
       end
 
       def publish_notification(publish_object, options = {})
