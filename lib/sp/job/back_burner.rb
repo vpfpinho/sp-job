@@ -437,6 +437,17 @@ module Backburner
     rescue => e
       # ensure currently open ( if any ) transaction rollback
 
+      begin
+        logger.info "GENERIC JOB ERROR:"
+        logger.info e
+        logger.info "*args"
+        logger.info args
+      rescue => exp
+        logger.info "we fucked up"
+        logger.info exp
+      end
+
+
       if $pg
         $pg.rollback
         if e.is_a?(Backburner::Job::JobTimeout)
