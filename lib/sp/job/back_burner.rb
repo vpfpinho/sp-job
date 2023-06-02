@@ -319,25 +319,25 @@ module Backburner
 
   module Logger
 
-    def log_job_begin(name, args)
+    def log_job_begin(job)
       param_log = ''
-      args = args[0]
+      args = job.args[0]
       [ :user_id, :entity_id, :entity_schema, :sharded_schema, :subentity_id, :subentity_prefix, :subentity_schema, :action].each do |key|
         unless args[key].to_s.empty?
           param_log += " #{key}: #{args[key]},"
         end
       end
-      log_info "Job ##{args[:id]} started #{name}: #{param_log}".white
+      log_info "Job ##{args[:id]} started #{job.name} ~~~#{job.tube}~~~: #{param_log}".white
       Thread.current[:job_started_at] = Time.now
     end
 
     # Print out when a job completed
     # If message is nil, job is considered complete
-    def log_job_end(name, message = nil)
+    def log_job_end(job, message = nil)
       ellapsed = Time.now - Thread.current[:job_started_at]
       ms = (ellapsed.to_f * 1000).to_i
       action_word = message ? 'finished' : 'completed'
-      log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
+      log_info "Job ##{job.args[0][:id]} #{action_word} #{job.name} in #{ms}ms #{message}".white
     end
 
   end
@@ -467,7 +467,7 @@ module Backburner
       end
 
       # if we're in broker mode
-      if td.tube_options[:broker] == true
+      if td.tube_options && td.tube_options[:broker] == true
         # prepare next action for this exception
         exception_options = {
           bury: td.tube_options[:bury],

@@ -25,7 +25,7 @@ require 'java'
 module SP
   module Job
 
-    class WorkerThread < Backburner::Workers::Simple
+    class WorkerThread < ::SP::Job::Worker
 
       @@thread_counter = 0
 
