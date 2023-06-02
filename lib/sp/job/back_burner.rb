@@ -436,28 +436,6 @@ module Backburner
       $pg.rollback unless ! $pg
     rescue => e
       # ensure currently open ( if any ) transaction rollback
-
-      begin
-        logger.info "GENERIC JOB ERROR:"
-        logger.error "#{e}".red
-        begin
-          logger.error "#{e.class}".red
-          logger.error "#{e.message}".red
-          e.backtrace.each_with_index do | l, i |
-            logger.error "%3s %1s%s%s %s" % [ ' ', '['.white, i.to_s.rjust(3, ' ').white, ']'.white , l.yellow ]
-          end
-        rescue => exp1
-          logger.info "we fucked up 1"
-          logger.info exp1
-        end
-        logger.info "*args"
-        logger.info args
-      rescue => exp2
-        logger.info "we fucked up 2"
-        logger.info exp2
-      end
-
-
       if $pg
         $pg.rollback
         if e.is_a?(Backburner::Job::JobTimeout)
