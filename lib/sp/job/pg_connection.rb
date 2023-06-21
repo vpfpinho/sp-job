@@ -338,6 +338,17 @@ module SP
         }
       end
 
+      def xss_sanitize (str)
+        connect()
+        sanitized = nil
+        begin
+          sanitized = _xss_validate(str)
+        rescue XssAttack => a
+          sanitized = str.tr('()<>`', ' ')
+        end
+        sanitized
+      end
+
       private
 
       def _connect ()
