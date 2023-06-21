@@ -338,6 +338,12 @@ module SP
         }
       end
 
+      #
+      # Returns a XSS safe version of the string, offending chars replaced by spaces
+      #
+      # @param str text to validate
+      # @return cleaned up string
+      #
       def xss_sanitize (str)
         connect()
         sanitized = nil
