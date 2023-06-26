@@ -512,7 +512,7 @@ module SP
 
         # Sanitize filename and content/type
         final_file = db.xss_sanitize(final_file)
-        ['application/xhtml+xml', 'text/html'].include? content_type
+        if ['application/xhtml+xml', 'text/html'].include? content_type
           content_type = 'text/plain'
         end
 
