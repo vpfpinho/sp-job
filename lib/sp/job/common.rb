@@ -510,7 +510,11 @@ module SP
       #
       def archive_on_file_server(tmp_file:, final_file: '', content_type:, access:, billing_type:, billing_id:, user_id: nil, company_id: nil)
 
+        # Sanitize filename and content/type
         final_file = db.xss_sanitize(final_file)
+        ['application/xhtml+xml', 'text/html'].include? content_type
+          content_type = 'text/plain'
+        end
 
         if !company_id.nil? && user_id.nil?
           entity = ::SP::Job::BrokerArchiveClient::Entity.new(id: company_id.to_i, type: :company)
