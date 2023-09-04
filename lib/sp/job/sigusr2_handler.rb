@@ -23,8 +23,8 @@
 #
 
 if 'jruby' == RUBY_ENGINE
-
-require 'securerandom'
+  require 'securerandom'
+end
 
 module SP
   module Job
@@ -247,5 +247,3 @@ module SP
 
   end # module 'Job'
 end # module 'SP'
-
-end # if 'jruby' == RUBY_ENGINE

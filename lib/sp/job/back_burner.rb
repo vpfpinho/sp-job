@@ -24,7 +24,9 @@ require 'sp/job/broker'
 require 'sp/job/internal_broker_exception'
 require 'roadie'
 require 'thread'
-require 'sp/job/sigusr2_handler'
+if 'jruby' == RUBY_ENGINE
+  require 'sp/job/sigusr2_handler'
+end
 
 #
 # Helper class that encapsulates the objects needed to access each cluster
