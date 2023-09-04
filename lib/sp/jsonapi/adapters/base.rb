@@ -115,27 +115,27 @@ module SP
             (query == '' || query == nil) ? query_url : query_url + (query_url.include?('?') ? '&' : '?') + query
           end
 
-          def params_for_query(params)
-            query = ""
+          def build_query(params)
+            return '' if params.nil? || params == ''
 
-            if (params != '' && params != nil) #!params.blank?
-              case
-                when params.is_a?(Array)
-                  # query = params.join('&')
-                  query = params.map{ |v| URI.encode(URI.encode(v).gsub("'","''"), "&") }.join('&')
-                when params.is_a?(Hash)
-                  query = params.map do |k,v|
-                    if v.is_a?(String)
-                      "#{k}=\"#{URI.encode(URI.encode(v).gsub("'","''"), "&")}\""
-                    else
-                      "#{k}=#{v}"
-                    end
-                  end.join('&')
-                else
-                  query = params.to_s
-              end
+            case params
+            when Array
+              params.map { |v| escape_value(v) }.join('&')
+            when Hash
+              params.map { |k, v| "#{k}=#{escape_value(v)}" }.join('&')
+            else
+              params.to_s
             end
-            query
+          end
+
+          def escape_value(value)
+            return value unless value.is_a?(String)
+
+            ERB::Util.url_encode(value)
+          end
+
+          def params_for_query(params)
+            build_query(params)
           end
 
           def params_for_body(params)

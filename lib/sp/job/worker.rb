@@ -26,7 +26,7 @@ module SP
 
       def start
         prepare
-        loop do 
+        loop do
             begin
               work_one_job(connection)
             rescue Beaneater::NotFoundError => bnfe
@@ -55,22 +55,21 @@ module SP
           # by reserve timeout
           return true
         end
-  
-        self.log_job_begin(job.name, job.args)
+        self.log_job_begin(job)
         job.process
-        self.log_job_end(job.name)
-  
+        self.log_job_end(job)
+
       rescue Backburner::Job::JobFormatInvalid => e
         self.log_error self.exception_message(e)
       rescue => e # Error occurred processing job
         self.log_error self.exception_message(e)
-  
+
         unless job
           self.log_error "Error occurred before we were able to assign a job. Giving up without retrying!"
           # NOT by reserve timeout
           return false
         end
-  
+
         # NB: There's a slight chance here that the connection to beanstalkd has
         # gone down between the time we reserved / processed the job and here.
         num_retries = job.stats.nil? ? 0 : job.stats.releases
@@ -78,12 +77,12 @@ module SP
         if num_retries < queue_config.max_job_retries # retry again
           delay = queue_config.retry_delay_proc.call(queue_config.retry_delay, num_retries) rescue queue_config.retry_delay
           job.retry(num_retries + 1, delay)
-          self.log_job_end(job.name, "#{retry_status}, retrying in #{delay}s") if job_started_at
+          self.log_job_end(job, "#{retry_status}, retrying in #{delay}s") if job_started_at
         else # retries failed, bury
           job.bury
-          self.log_job_end(job.name, "#{retry_status}, burying") if job_started_at
+          self.log_job_end(job, "#{retry_status}, burying") if job_started_at
         end
-  
+
         handle_error(e, job.name, job.args, job)
 
         # NOT by reserve timeout

@@ -75,7 +75,7 @@ class ClusterMember
   # @param siteFilter if false configure the clusters of all sites, if true configure only the clusters on this site
   # @param noDatabase if true nils the db object, it will crash if someone tries to use the cluster 'db' object
   #
-  def self.configure_cluster (siteFilter: false, noDatabase: false)
+  def self.configure_cluster (siteFilter: false, noDatabase: false, currentClusterOnly: false)
     $cluster_members = {}
 
     $config[:cluster][:members].each do |cfg|
@@ -95,7 +95,9 @@ class ClusterMember
         # reuse current PG connection to it's own cluster
         $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, db: $pg, noDatabase: noDatabase)
       else
-        $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, noDatabase: noDatabase)
+        unless currentClusterOnly
+          $cluster_members[cfg[:number]] = ClusterMember.new(configuration: $config, clusterConfiguration: cfg, noDatabase: noDatabase)
+        end
       end
       dbinfo = noDatabase ? ' *no-database* ' : " #{cfg[:db][:host]}:#{cfg[:db][:port]}(#{cfg[:db][:dbname]}) "
       logger.info "Cluster member #{cfg[:number]}: #{cfg[:url]}#{dbinfo}redis=#{cfg[:redis][:casper][:host]}:#{cfg[:redis][:casper][:port]}#{' <=' if cfg[:number] == $config[:runs_on_cluster]}"
@@ -318,25 +320,25 @@ module Backburner
 
   module Logger
 
-    def log_job_begin(name, args)
+    def log_job_begin(job)
       param_log = ''
-      args = args[0]
+      args = job.args[0]
       [ :user_id, :entity_id, :entity_schema, :sharded_schema, :subentity_id, :subentity_prefix, :subentity_schema, :action].each do |key|
         unless args[key].to_s.empty?
           param_log += " #{key}: #{args[key]},"
         end
       end
-      log_info "Job ##{args[:id]} started #{name}: #{param_log}".white
+      log_info "Job ##{args[:id]} started #{job.name} ~~~#{job.tube}~~~: #{param_log}".white
       Thread.current[:job_started_at] = Time.now
     end
 
     # Print out when a job completed
     # If message is nil, job is considered complete
-    def log_job_end(name, message = nil)
+    def log_job_end(job, message = nil)
       ellapsed = Time.now - Thread.current[:job_started_at]
       ms = (ellapsed.to_f * 1000).to_i
       action_word = message ? 'finished' : 'completed'
-      log_info "Job ##{$thread_data[Thread.current][:current_job][:id]} #{action_word} (#{name}) in #{ms}ms #{message}".white
+      log_info "Job ##{job.args[0][:id]} #{action_word} #{job.name} in #{ms}ms #{message}".white
     end
 
   end
@@ -435,7 +437,6 @@ module Backburner
       $pg.rollback unless ! $pg
     rescue => e
       # ensure currently open ( if any ) transaction rollback
-
       if $pg
         $pg.rollback
         if e.is_a?(Backburner::Job::JobTimeout)
@@ -445,7 +446,7 @@ module Backburner
       end
 
       # if we're in broker mode
-      if td.tube_options[:broker] == true
+      if td.tube_options && td.tube_options[:broker] == true
         # prepare next action for this exception
         exception_options = {
           bury: td.tube_options[:bury],

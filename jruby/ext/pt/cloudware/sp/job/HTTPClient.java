@@ -436,6 +436,13 @@ public class HTTPClient
       return data;
     }
 
+    public final void close () throws IOException
+    {
+      if ( null != mStream ) {
+        mStream.close();
+      }
+    }
+
   };
 
   /*         */
@@ -578,6 +585,7 @@ public class HTTPClient
           a_output_stream.write(connection.getInputStream(), responseContentType, chunk);
         }
         responseBody = a_output_stream.content();
+	      a_output_stream.close();
         // if ( true == DEBUG ) {
         //   System.out.println("[JAVA][DEBUG] - RX      - " + responseBody);
         // }
@@ -596,6 +604,7 @@ public class HTTPClient
       if ( null != connection ) {
         connection.disconnect();
       }
+      a_output_stream.close();
     }
 
     if ( null != exception ) {
