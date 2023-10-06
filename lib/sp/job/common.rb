@@ -1013,7 +1013,6 @@ module SP
         logger.info "called in after_perform_lock_cleanup: #{thread_data.job_id} | #{Thread.current}" if false == SIGUSR2Handler.initialized?
         thread_data.job_id = nil
         if false == SIGUSR2Handler.initialized?
-          ap thread_data
           check_gracefull_exit(dolog: true)
         end
       end
