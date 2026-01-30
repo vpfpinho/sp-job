@@ -283,13 +283,13 @@ module SP
           curl.headers['Content-Type'] = "application/json";
         end
         http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
-        http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
+        http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }].transform_keys { |key| key.to_s.downcase }
         if 302 == c.response_code
-          if not http_headers.has_key?('Location')
+          if not (http_headers.has_key?('location'))
             raise InternalError.new("Response is missing 'Location' header!")
           end
         end
-        Curl::Easy.http_get(http_headers['Location'])
+        Curl::Easy.http_get(http_headers['location'])
       end
 
       #
@@ -303,19 +303,19 @@ module SP
           curl.headers['Content-Type'] = "application/json";
         end
         http_response, *http_headers = c.header_str.split(/[\r\n]+/).map(&:strip)
-        http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }]
+        http_headers = Hash[http_headers.flat_map{ |s| s.scan(/^(\S+): (.+)/) }].transform_keys { |key| key.to_s.downcase }
         if 302 == c.response_code
-          if not http_headers.has_key?('Location')
+          if not (http_headers.has_key?('location'))
             raise InternalError.new("Response is missing 'Location' header!")
           end
-          if false == http_headers['Location'].start_with?("#{a_redirect_uri}")
+          if false == http_headers['location'].start_with?("#{a_redirect_uri}")
             raise InternalError.new("Unable to parse 'Location'")
           end
           h = {
             :http => {
               :status_code => c.response_code,
-              :location    => http_headers['Location'],
-              :params      => Hash[ URI::decode_www_form(URI(http_headers['Location']).query).to_h.map { |k, v| [k.to_sym, v] }]
+              :location    => http_headers['location'],
+              :params      => Hash[ URI::decode_www_form(URI(http_headers['location']).query).to_h.map { |k, v| [k.to_sym, v] }]
               },
             }
             if not h[:http][:params][:code]

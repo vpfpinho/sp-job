@@ -182,7 +182,7 @@ module SP
         if 200 == response.code
           begin
             if block_given?
-              yield(response.code, response.headers[:'Content-Type'], response.body)
+              yield(response.code, r_headers[:'content-type'], response.body)
             else
               return response
             end
@@ -195,7 +195,7 @@ module SP
           else
             begin
               if block_given?
-                yield(response.code, response.headers[:'Content-Type'], response.body)
+                yield(response.code, r_headers[:'content-type'], response.body)
               else
                 return response
               end
@@ -339,7 +339,8 @@ module SP
         end
         # call http request
         response = yield
-        if 401 == response.code && response.headers.has_key?(:'WWW-Authenticate')
+        r_headers = Marshal.load(Marshal.dump(response.headers)).transform_keys { |key| key.to_s.downcase.to_sym }
+        if 401 == response.code && r_headers.has_key?(:'www-authenticate')
           # try to refresh access_token
           if true == @auto_renew_refresh_token && nil == @session.refresh_token
             fetch_new_tokens()
